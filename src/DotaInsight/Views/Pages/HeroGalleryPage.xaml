@@ -1,0 +1,161 @@
+<Page x:Class="DotaInsight.Views.Pages.HeroGalleryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:converters="clr-namespace:DotaInsight.Converters"
+      xmlns:models="clr-namespace:DotaInsight.Models"
+      xmlns:pages="clr-namespace:DotaInsight.ViewModels.Pages"
+      Title="英雄图鉴"
+      Background="Transparent"
+      Loaded="OnPageLoaded">
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <converters:AttrBrushConverter x:Key="AttrBrushConverter" />
+        <converters:BoolToAppearanceConverter x:Key="BoolToAppearanceConverter" />
+
+        <DataTemplate x:Key="HeroTileTemplate" DataType="{x:Type models:HeroStat}">
+            <Button Style="{StaticResource HeroTileButtonStyle}"
+                    Width="112" Height="74"
+                    Margin="4"
+                    ToolTip="{Binding DisplayName}"
+                    Command="{Binding DataContext.OpenDetailCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                    CommandParameter="{Binding}">
+                <Grid>
+                    <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=160}"
+                           Stretch="UniformToFill"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
+                    <Border VerticalAlignment="Bottom" Background="{DynamicResource DiNameOverlayBrush}">
+                        <TextBlock Text="{Binding DisplayName}"
+                                   Margin="6,14,6,5"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="White"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Button>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HeroGroupTemplate" DataType="{x:Type pages:HeroAttrGroup}">
+            <StackPanel Margin="0,0,0,18">
+                <DockPanel Margin="4,0,4,8">
+                    <Border DockPanel.Dock="Left"
+                            Width="4" Height="16" CornerRadius="2" Margin="0,0,10,0"
+                            Background="{Binding AttrName, Converter={StaticResource AttrBrushConverter}}"
+                            VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding HeaderText}"
+                               FontSize="14" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Heroes}"
+                              ItemTemplate="{StaticResource HeroTileTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Margin="28,20,28,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 工具栏：标题 + 属性筛选 + 搜索（对标 Dotabuff / STRATZ） -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="英雄"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{DynamicResource DiPrimaryTextBrush}"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding StatusMessage}"
+                           Margin="12,0,0,0" FontSize="13"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource DiMutedTextBrush}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                <ui:Button Content="全部" Margin="0,0,6,0" Padding="12,4"
+                           Command="{Binding SetAttrFilterCommand}" CommandParameter=""
+                           Appearance="{Binding IsFilterAll, Converter={StaticResource BoolToAppearanceConverter}}" />
+                <ui:Button Content="力量" Margin="0,0,6,0" Padding="12,4"
+                           Command="{Binding SetAttrFilterCommand}" CommandParameter="力量"
+                           Appearance="{Binding IsFilterStr, Converter={StaticResource BoolToAppearanceConverter}}" />
+                <ui:Button Content="敏捷" Margin="0,0,6,0" Padding="12,4"
+                           Command="{Binding SetAttrFilterCommand}" CommandParameter="敏捷"
+                           Appearance="{Binding IsFilterAgi, Converter={StaticResource BoolToAppearanceConverter}}" />
+                <ui:Button Content="智力" Margin="0,0,6,0" Padding="12,4"
+                           Command="{Binding SetAttrFilterCommand}" CommandParameter="智力"
+                           Appearance="{Binding IsFilterInt, Converter={StaticResource BoolToAppearanceConverter}}" />
+                <ui:Button Content="全才" Padding="12,4"
+                           Command="{Binding SetAttrFilterCommand}" CommandParameter="全才"
+                           Appearance="{Binding IsFilterUni, Converter={StaticResource BoolToAppearanceConverter}}" />
+            </StackPanel>
+
+            <ui:AutoSuggestBox Grid.Column="3"
+                               VerticalAlignment="Center"
+                               PlaceholderText="快速搜索"
+                               OriginalItemsSource="{Binding AllHeroes}"
+                               Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                               ClearButtonEnabled="True"
+                               SuggestionChosen="OnSuggestionChosen">
+                <ui:AutoSuggestBox.Icon>
+                    <ui:SymbolIcon Symbol="Search24" />
+                </ui:AutoSuggestBox.Icon>
+            </ui:AutoSuggestBox>
+
+            <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                <ui:ProgressRing Width="22" Height="22" IsIndeterminate="True" Margin="0,0,8,0"
+                                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+                <ui:Button Appearance="Transparent"
+                           ToolTip="刷新"
+                           Icon="{ui:SymbolIcon ArrowSync24}"
+                           Command="{Binding RefreshCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- 按属性分组的英雄列表 -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource DiPanelBrush}"
+                BorderBrush="{DynamicResource DiStrokeBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="16,14">
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding HasNoResults, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                    <ItemsControl ItemsSource="{Binding HeroGroups}"
+                                  ItemTemplate="{StaticResource HeroGroupTemplate}" />
+                </ScrollViewer>
+
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Visibility="{Binding HasNoResults, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="没有匹配的英雄"
+                               FontSize="15" FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                    <TextBlock Text="调整搜索词或属性筛选后再试"
+                               Margin="0,8,0,0" FontSize="13"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>
+

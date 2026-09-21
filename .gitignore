@@ -1,0 +1,22 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.nupkg
+
+## Logs / local data
+*.log
+*.db
+*.db-journal
+
+## Legacy install-dir hero cache (no longer used)
+**/cache/hero-icons/
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store

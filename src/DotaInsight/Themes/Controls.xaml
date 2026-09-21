@@ -1,0 +1,164 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:DotaInsight.Converters">
+
+    <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+    <converters:AdvantageToProgressConverter x:Key="AdvantageToProgressConverter" />
+    <converters:AdvantageBrushConverter x:Key="AdvantageBrushConverter" />
+    <converters:CachedImageConverter x:Key="CachedImageConverter" />
+    <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <converters:AttrBrushConverter x:Key="AttrBrushConverter" />
+    <converters:BoolToAppearanceConverter x:Key="BoolToAppearanceConverter" />
+
+    <Style x:Key="MatchupRowBorderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource DiRowBrush}" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Margin" Value="6,3" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource DiRowHoverBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SectionHeaderStyle" TargetType="Border">
+        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Background" Value="{DynamicResource DiSectionHeaderBrush}" />
+    </Style>
+
+    <Style x:Key="AdvantageProgressStyle" TargetType="ProgressBar">
+        <Setter Property="Height" Value="5" />
+        <Setter Property="Minimum" Value="0" />
+        <Setter Property="Maximum" Value="100" />
+        <Setter Property="Background" Value="{DynamicResource DiProgressTrackBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style x:Key="HeroTileButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource DiTileBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="6" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="12"
+                            ClipToBounds="True"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <ScaleTransform ScaleX="1" ScaleY="1" />
+                        </Border.RenderTransform>
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.22" Color="#000000" />
+                        </Border.Effect>
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DiAccentBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Root"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                         To="1.04" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Root"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                         To="1.04" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Root"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                         To="1" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="Root"
+                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                         To="1" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.9" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="QuickLinkCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource DiPanelElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16,14" />
+    </Style>
+
+    <Style x:Key="DiPanelCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource DiPanelBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <!-- 侧栏导航：固定 44×44，选中只改背景色 -->
+    <Style x:Key="DiSidebarNavButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="44" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root"
+                            Width="44"
+                            Height="44"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="10"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.88" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DiSidebarNavLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,6,0,12" />
+        <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+    </Style>
+</ResourceDictionary>
