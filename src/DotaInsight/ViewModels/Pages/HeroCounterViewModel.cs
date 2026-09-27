@@ -38,14 +38,14 @@ public partial class HeroCounterViewModel : ObservableObject, INavigationAware
         CounteredByList = new ObservableCollection<HeroCounterItem>();
         CountersList = new ObservableCollection<HeroCounterItem>();
         Series = Array.Empty<ISeries>();
-        XAxes = [new Axis { Labels = [], LabelsPaint = new SolidColorPaint(SKColors.Gray) }];
+        XAxes = [new Axis { Labels = [], LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")) }];
         YAxes =
         [
             new Axis
             {
                 TextSize = 11,
-                LabelsPaint = new SolidColorPaint(SKColors.Gray),
-                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3441"))
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#232A36"))
             }
         ];
     }
@@ -293,7 +293,7 @@ public partial class HeroCounterViewModel : ObservableObject, INavigationAware
             {
                 Name = "胜率差",
                 Values = items.Select(x => x.WinRateDiff).ToArray(),
-                Fill = new SolidColorPaint(SKColor.Parse("#E04A38")),
+                Fill = new SolidColorPaint(SKColor.Parse("#F03D2E")),
                 MaxBarWidth = 26
             }
         ];
@@ -305,7 +305,7 @@ public partial class HeroCounterViewModel : ObservableObject, INavigationAware
                 Labels = items.Select(x => x.HeroName).ToArray(),
                 LabelsRotation = 16,
                 TextSize = 10,
-                LabelsPaint = new SolidColorPaint(SKColor.Parse("#9AA6B5")),
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
                 SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
             }
         ];
@@ -315,8 +315,8 @@ public partial class HeroCounterViewModel : ObservableObject, INavigationAware
             new Axis
             {
                 TextSize = 10,
-                LabelsPaint = new SolidColorPaint(SKColor.Parse("#9AA6B5")),
-                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3441"))
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#232A36"))
             }
         ];
     }

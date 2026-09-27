@@ -22,6 +22,15 @@ public static class HeroDisplayHelper
         ["Initiator"] = "先手"
     };
 
+    /// <summary>
+    /// 中文定位别名归一：不同数据源对同一角色译名不一致
+    /// （如 Durable 有“耐久 / 生存”两种译法），统一到国服九宫格标准名。
+    /// </summary>
+    private static readonly Dictionary<string, string> ChineseRoleAlias = new(StringComparer.Ordinal)
+    {
+        ["生存"] = "耐久"
+    };
+
     /// <summary>国服详情「定位」九宫格顺序。</summary>
     public static IReadOnlyList<string> StandardRoles { get; } =
     [
@@ -75,6 +84,7 @@ public static class HeroDisplayHelper
 
         return roles
             .Select(r => RoleMap.TryGetValue(r, out var zh) ? zh : r)
+            .Select(r => ChineseRoleAlias.TryGetValue(r, out var std) ? std : r)
             .Where(r => !string.IsNullOrWhiteSpace(r))
             .Distinct()
             .ToList();
@@ -97,5 +107,11 @@ public static class HeroDisplayHelper
     /// 按简体中文排序比较器。
     /// </summary>
     public static StringComparer ChineseNameComparer { get; } = StringComparer.Create(ZhCn, ignoreCase: true);
+
+    /// <summary>
+    /// 返回第一个非空白字符串，全部为空则返回 null。
+    /// </summary>
+    public static string? FirstNonEmpty(params string?[] values)
+        => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 }
 

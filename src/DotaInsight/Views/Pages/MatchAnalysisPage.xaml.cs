@@ -27,4 +27,13 @@ public partial class MatchAnalysisPage : Page
             e.Handled = true;
         }
     }
+
+    private void OnHistorySelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox { SelectedItem: string id } && !string.IsNullOrWhiteSpace(id))
+        {
+            _viewModel.SelectHistoryCommand.Execute(id);
+            HistoryToggle.IsChecked = false;
+        }
+    }
 }

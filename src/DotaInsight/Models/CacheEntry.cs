@@ -1,9 +1,9 @@
 namespace DotaInsight.Models;
 
 /// <summary>
-/// LiteDB 通用缓存条目（含 TTL）。
+/// LiteDB 通用缓存条目（含 TTL）。仅缓存基础设施内部使用。
 /// </summary>
-public sealed class CacheEntry
+internal sealed class CacheEntry
 {
     public string Id { get; set; } = string.Empty;
 

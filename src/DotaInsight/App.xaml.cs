@@ -1,6 +1,7 @@
 using System.IO;
 using System.Net.Http;
 using System.Windows;
+using System.Windows.Threading;
 using DotaInsight.Services;
 using DotaInsight.ViewModels;
 using DotaInsight.ViewModels.Pages;
@@ -24,6 +25,9 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+
         Helpers.AppPaths.EnsureCreated();
         Helpers.HeroImageCache.TryRemoveLegacyInstallCache();
 
@@ -34,21 +38,41 @@ public partial class App : Application
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
 
-        // 先按系统主题上色，再创建主窗口
         var theme = _serviceProvider.GetRequiredService<IThemeService>();
         theme.ApplyFollowSystem();
         Log.Information("启动主题：{Theme}（追随系统）", theme.IsDark ? "暗黑" : "明亮");
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();
+        // 主窗口已创建后再套一次，确保窗口级主题生效
+        theme.ApplyTheme(theme.IsDark);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         Log.Information("DotaInsight 退出");
+        if (_serviceProvider?.GetService<IThemeService>() is IDisposable disposableTheme)
+        {
+            disposableTheme.Dispose();
+        }
+
         Log.CloseAndFlush();
         _serviceProvider?.Dispose();
         base.OnExit(e);
+    }
+
+    private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        Log.Error(e.Exception, "未处理的 UI 异常");
+        e.Handled = true;
+    }
+
+    private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception ex)
+        {
+            Log.Fatal(ex, "未处理的致命异常 IsTerminating={Terminating}", e.IsTerminating);
+        }
     }
 
     private static void ConfigureLogging()
@@ -87,21 +111,14 @@ public partial class App : Application
             return nav;
         });
 
-        services.AddHttpClient<IHeroLocalizationService, HeroLocalizationService>(client =>
-            {
-                client.Timeout = TimeSpan.FromSeconds(15);
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
-            })
-            .AddPolicyHandler(GetRetryPolicy());
-
-        services.AddHttpClient<IHeroProfileService, HeroProfileService>(client =>
+        services.AddHttpClient(HeroProfileService.HttpClientName, client =>
             {
                 client.Timeout = TimeSpan.FromSeconds(20);
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
             })
             .AddPolicyHandler(GetRetryPolicy());
 
-        services.AddHttpClient<IHeroCounterService, HeroCounterService>(client =>
+        services.AddHttpClient(HeroCounterService.HttpClientName, client =>
             {
                 client.BaseAddress = new Uri("https://api.opendota.com/");
                 client.Timeout = TimeSpan.FromSeconds(15);
@@ -109,13 +126,10 @@ public partial class App : Application
             })
             .AddPolicyHandler(GetRetryPolicy());
 
-        services.AddHttpClient<IMatchAnalysisService, MatchAnalysisService>(client =>
-            {
-                client.BaseAddress = new Uri("https://api.opendota.com/");
-                client.Timeout = TimeSpan.FromSeconds(15);
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
-            })
-            .AddPolicyHandler(GetRetryPolicy());
+        services.AddSingleton<IHeroLocalizationService, HeroLocalizationService>();
+        services.AddSingleton<IHeroProfileService, HeroProfileService>();
+        services.AddSingleton<IHeroCounterService, HeroCounterService>();
+        services.AddSingleton<IMatchAnalysisService, MatchAnalysisService>();
 
         services.AddSingleton<HomeViewModel>();
         services.AddSingleton<HomePage>();
@@ -138,7 +152,8 @@ public partial class App : Application
             .OrResult(r => (int)r.StatusCode == 429)
             .WaitAndRetryAsync(
                 retryCount: 2,
-                sleepDurationProvider: attempt => TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt)),
+                // 约 2s、4s，给 OpenDota 限流留恢复窗口
+                sleepDurationProvider: attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
                 onRetry: (outcome, delay, attempt, _) =>
                 {
                     Log.Warning(
@@ -149,4 +164,3 @@ public partial class App : Application
                 });
     }
 }
-

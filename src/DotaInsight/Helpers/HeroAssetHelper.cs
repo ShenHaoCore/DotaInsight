@@ -1,7 +1,10 @@
+using System.Windows;
+using System.Windows.Media;
+
 namespace DotaInsight.Helpers;
 
 /// <summary>
-/// 英雄静态资源地址（Steam CDN 头像 + 本地属性图标）。
+/// 英雄静态资源地址（Steam CDN 头像 + 矢量属性图标）。
 /// </summary>
 public static class HeroAssetHelper
 {
@@ -10,25 +13,34 @@ public static class HeroAssetHelper
 
     private const string PackIconBase = "pack://application:,,,/Assets/Icons/";
 
-    public static string StrIcon { get; } = PackIcon("hero_strength.png");
-    public static string AgiIcon { get; } = PackIcon("hero_agility.png");
-    public static string IntIcon { get; } = PackIcon("hero_intelligence.png");
-    public static string UniIcon { get; } = PackIcon("hero_universal.png");
+    /// <summary>三维主属性：官方矢量图标（HeroIcons.xaml，任意 DPI 清晰）。</summary>
+    public static ImageSource StrIcon => GetVectorIcon("HeroStrengthIcon");
+    public static ImageSource AgiIcon => GetVectorIcon("HeroAgilityIcon");
+    public static ImageSource IntIcon => GetVectorIcon("HeroIntelligenceIcon");
+    public static ImageSource UniIcon => GetVectorIcon("HeroUniversalIcon");
 
     public static string HealthIcon { get; } = PackIcon("icon_health.png");
     public static string ManaIcon { get; } = PackIcon("icon_mana.png");
-    public static string ArmorIcon { get; } = PackIcon("icon_armor.png");
-    public static string MagicResistIcon { get; } = PackIcon("icon_magic_resist.png");
-    public static string DamageIcon { get; } = PackIcon("icon_damage.png");
-    public static string AttackTimeIcon { get; } = PackIcon("icon_attack_time.png");
-    public static string AttackRangeIcon { get; } = PackIcon("icon_attack_range.png");
-    public static string MoveSpeedIcon { get; } = PackIcon("icon_movement_speed.png");
-    public static string VisionIcon { get; } = PackIcon("icon_vision.png");
+
+    /// <summary>战斗属性：按官方 heroes/stats 字形重制的白色矢量图标。</summary>
+    public static ImageSource ArmorIcon => GetVectorIcon("StatArmorIcon");
+    public static ImageSource MagicResistIcon => GetVectorIcon("StatMagicResistIcon");
+    public static ImageSource DamageIcon => GetVectorIcon("StatDamageIcon");
+    public static ImageSource AttackTimeIcon => GetVectorIcon("StatAttackTimeIcon");
+    public static ImageSource AttackRangeIcon => GetVectorIcon("StatAttackRangeIcon");
+    public static ImageSource ProjectileSpeedIcon => GetVectorIcon("StatProjectileSpeedIcon");
+    public static ImageSource MoveSpeedIcon => GetVectorIcon("StatMoveSpeedIcon");
+    public static ImageSource TurnRateIcon => GetVectorIcon("StatTurnRateIcon");
+    public static ImageSource VisionIcon => GetVectorIcon("StatVisionIcon");
 
     private static string PackIcon(string fileName) => PackIconBase + fileName;
 
+    private static ImageSource GetVectorIcon(string resourceKey) =>
+        (ImageSource)(Application.Current?.Resources[resourceKey]
+            ?? throw new InvalidOperationException($"未找到矢量图标资源：{resourceKey}"));
+
     /// <summary>主属性对应官方图标。</summary>
-    public static string GetPrimaryAttrIcon(string? primaryAttr) => primaryAttr switch
+    public static ImageSource GetPrimaryAttrIcon(string? primaryAttr) => primaryAttr switch
     {
         "力量" or "str" => StrIcon,
         "敏捷" or "agi" => AgiIcon,

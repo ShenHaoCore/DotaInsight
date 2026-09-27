@@ -23,19 +23,21 @@ public interface IHeroLocalizationService
 /// </summary>
 public sealed class HeroLocalizationService : IHeroLocalizationService
 {
+    public const string HttpClientName = HeroProfileService.HttpClientName;
+
     private const string CacheKey = "dota2cn:heroNames:zh:v1";
     private const string HeroListUrl = "https://www.dota2.com.cn/datafeed/heroList?task=herolist";
 
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILiteDbCacheService _cache;
     private readonly ILogger _logger;
 
     public HeroLocalizationService(
-        HttpClient httpClient,
+        IHttpClientFactory httpClientFactory,
         ILiteDbCacheService cache,
         ILogger logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _cache = cache;
         _logger = logger.ForContext<HeroLocalizationService>();
     }
@@ -53,7 +55,8 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
         try
         {
             _logger.Information("请求国服英雄列表以获取中文名：{Url}", HeroListUrl);
-            var response = await _httpClient
+            var http = _httpClientFactory.CreateClient(HttpClientName);
+            var response = await http
                 .GetFromJsonAsync<CnHeroListResponse>(HeroListUrl, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -72,7 +75,7 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
 
             _logger.Warning("国服英雄列表为空，回退内置中文名表");
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
         {
             throw;
         }

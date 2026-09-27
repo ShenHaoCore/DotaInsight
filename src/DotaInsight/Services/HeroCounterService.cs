@@ -1,7 +1,5 @@
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using DotaInsight.Helpers;
 using DotaInsight.Models;
 using Serilog;
@@ -17,32 +15,30 @@ namespace DotaInsight.Services;
 /// </summary>
 public sealed class HeroCounterService : IHeroCounterService
 {
-    // 版本号变更可强制刷新旧缓存（v2：补全详情字段）
-    private const string HeroStatsCacheKey = "opendota:heroStats:zh:v3";
+    public const string HttpClientName = "opendota";
+
+    // 版本号变更可强制刷新旧缓存（v5：派生字段可写入缓存；分段原始字段并入本模型）
+    private const string HeroStatsCacheKey = "opendota:heroStats:zh:v5";
     private const string MatchupsCacheKeyPrefix = "opendota:matchups:";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString
-    };
-
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILiteDbCacheService _cache;
     private readonly IHeroLocalizationService _localization;
     private readonly ILogger _logger;
 
     public HeroCounterService(
-        HttpClient httpClient,
+        IHttpClientFactory httpClientFactory,
         ILiteDbCacheService cache,
         IHeroLocalizationService localization,
         ILogger logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _cache = cache;
         _localization = localization;
         _logger = logger.ForContext<HeroCounterService>();
     }
+
+    private HttpClient Http => _httpClientFactory.CreateClient(HttpClientName);
 
     public async Task<IReadOnlyList<HeroStat>> GetHeroesAsync(CancellationToken cancellationToken = default)
     {
@@ -61,14 +57,14 @@ public sealed class HeroCounterService : IHeroCounterService
         try
         {
             _logger.Information("请求 OpenDota /api/heroStats");
-            var raw = await _httpClient
-                .GetFromJsonAsync<List<HeroStatRaw>>(
+            var heroes = await Http
+                .GetFromJsonAsync<List<HeroStat>>(
                     "api/heroStats",
-                    JsonOptions,
+                    HttpCall.JsonOptions,
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            if (raw is null || raw.Count == 0)
+            if (heroes is null || heroes.Count == 0)
             {
                 _logger.Warning("heroStats 返回空数据，尝试使用过期缓存");
                 var staleEmpty = _cache.GetStale<List<HeroStat>>(HeroStatsCacheKey) ?? [];
@@ -76,12 +72,12 @@ public sealed class HeroCounterService : IHeroCounterService
                 return staleEmpty;
             }
 
-            var heroes = NormalizeHeroStats(raw, chineseNames);
-            _cache.Set(HeroStatsCacheKey, heroes);
-            _logger.Information("已刷新英雄列表缓存，共 {Count} 个", heroes.Count);
-            return heroes;
+            var normalized = NormalizeHeroStats(heroes, chineseNames);
+            _cache.Set(HeroStatsCacheKey, normalized);
+            _logger.Information("已刷新英雄列表缓存，共 {Count} 个", normalized.Count);
+            return normalized;
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
         {
             throw;
         }
@@ -117,53 +113,12 @@ public sealed class HeroCounterService : IHeroCounterService
 
         var heroLookup = heroes.ToDictionary(h => h.Id);
         var cacheKey = MatchupsCacheKeyPrefix + heroId;
-        var fromCache = false;
-        var isOffline = false;
-        List<HeroMatchupDto>? matchups = _cache.Get<List<HeroMatchupDto>>(cacheKey);
+        var (matchups, fromCache, isOffline) = await LoadMatchupsAsync(
+            heroId,
+            cacheKey,
+            cancellationToken).ConfigureAwait(false);
 
-        if (matchups is { Count: > 0 })
-        {
-            fromCache = true;
-            _logger.Information("从缓存加载对位数据 HeroId={HeroId}, Count={Count}", heroId, matchups.Count);
-        }
-        else
-        {
-            try
-            {
-                _logger.Information("请求 OpenDota /api/heroes/{HeroId}/matchups", heroId);
-                matchups = await _httpClient
-                    .GetFromJsonAsync<List<HeroMatchupDto>>(
-                        $"api/heroes/{heroId}/matchups",
-                        JsonOptions,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (matchups is { Count: > 0 })
-                {
-                    _cache.Set(cacheKey, matchups);
-                }
-                else
-                {
-                    _logger.Warning("matchups 返回空，HeroId={HeroId}", heroId);
-                    matchups = _cache.GetStale<List<HeroMatchupDto>>(cacheKey) ?? [];
-                    fromCache = matchups.Count > 0;
-                    isOffline = fromCache;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning(ex, "拉取 matchups 失败，HeroId={HeroId}，尝试离线缓存", heroId);
-                matchups = _cache.GetStale<List<HeroMatchupDto>>(cacheKey) ?? [];
-                fromCache = matchups.Count > 0;
-                isOffline = true;
-            }
-        }
-
-        var items = BuildCounterItems(matchups ?? [], heroLookup);
+        var items = BuildCounterItems(matchups, heroLookup);
 
         // 被克制：己方胜率 < 50%，按胜率升序（最劣势在前）
         var counteredBy = items
@@ -196,6 +151,61 @@ public sealed class HeroCounterService : IHeroCounterService
             FromCache = fromCache,
             IsOffline = isOffline
         };
+    }
+
+    /// <summary>
+    /// 加载对位数据：缓存 → 网络 → 过期缓存（离线降级）。
+    /// 返回标志：FromCache 表示来自本地、IsOffline 表示网络失败后的降级。
+    /// </summary>
+    private async Task<(List<HeroMatchupDto> Matchups, bool FromCache, bool IsOffline)> LoadMatchupsAsync(
+        int heroId,
+        string cacheKey,
+        CancellationToken cancellationToken)
+    {
+        var cached = _cache.Get<List<HeroMatchupDto>>(cacheKey);
+        if (cached is { Count: > 0 })
+        {
+            _logger.Information("从缓存加载对位数据 HeroId={HeroId}, Count={Count}", heroId, cached.Count);
+            return (cached, FromCache: true, IsOffline: false);
+        }
+
+        try
+        {
+            _logger.Information("请求 OpenDota /api/heroes/{HeroId}/matchups", heroId);
+            var fresh = await Http
+                .GetFromJsonAsync<List<HeroMatchupDto>>(
+                    $"api/heroes/{heroId}/matchups",
+                    HttpCall.JsonOptions,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (fresh is { Count: > 0 })
+            {
+                _cache.Set(cacheKey, fresh);
+                return (fresh, FromCache: false, IsOffline: false);
+            }
+
+            _logger.Warning("matchups 返回空，HeroId={HeroId}", heroId);
+            return FallbackStaleMatchups(cacheKey);
+        }
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "拉取 matchups 失败，HeroId={HeroId}，尝试离线缓存", heroId);
+            return FallbackStaleMatchups(cacheKey);
+        }
+    }
+
+    /// <summary>网络不可用或返回空时，统一走过期缓存兜底。</summary>
+    private (List<HeroMatchupDto> Matchups, bool FromCache, bool IsOffline) FallbackStaleMatchups(
+        string cacheKey)
+    {
+        var stale = _cache.GetStale<List<HeroMatchupDto>>(cacheKey) ?? [];
+        var hasStale = stale.Count > 0;
+        return (stale, FromCache: hasStale, IsOffline: hasStale);
     }
 
     private static List<HeroCounterItem> BuildCounterItems(
@@ -242,82 +252,55 @@ public sealed class HeroCounterService : IHeroCounterService
     }
 
     /// <summary>
-    /// 将 OpenDota 原始字段归一化为业务模型（胜率/选取率/场次），并应用中文名。
+    /// 就地归一化 heroStats：计算分段/胜率/选取率、应用中文名与中文枚举。
     /// </summary>
     private static List<HeroStat> NormalizeHeroStats(
-        IReadOnlyList<HeroStatRaw> raw,
+        List<HeroStat> heroes,
         IReadOnlyDictionary<int, string> chineseNames)
     {
         var totalPicks = 0L;
-        var mapped = new List<(HeroStat Hero, long Picks)>(raw.Count);
+        var picksByHero = new long[heroes.Count];
 
-        foreach (var item in raw)
+        for (var i = 0; i < heroes.Count; i++)
         {
+            var hero = heroes[i];
+
             // 大众分段聚合优先；无数据时回退 pub / pro
-            var picks = SumPicks(item);
-            var wins = SumWins(item);
+            var picks = SumBracketPicks(hero);
+            var wins = SumBracketWins(hero);
             if (picks <= 0)
             {
-                picks = item.PubPick > 0 ? item.PubPick : item.ProPick;
-                wins = item.PubPick > 0 ? item.PubWin : item.ProWin;
+                picks = hero.PubPick > 0 ? hero.PubPick : hero.ProPick;
+                wins = hero.PubPick > 0 ? hero.PubWin : hero.ProWin;
             }
 
-            var englishName = item.LocalizedName ?? item.Name ?? $"#{item.Id}";
-            var chineseName = ResolveChineseName(item.Id, item.Name, chineseNames) ?? englishName;
-            var brackets = BuildBrackets(item);
+            var fallbackName = !string.IsNullOrWhiteSpace(hero.LocalizedName)
+                ? hero.LocalizedName
+                : !string.IsNullOrWhiteSpace(hero.Name)
+                    ? hero.Name
+                    : $"#{hero.Id}";
 
-            var hero = new HeroStat
-            {
-                Id = item.Id,
-                Name = item.Name ?? string.Empty,
-                LocalizedName = chineseName,
-                PrimaryAttr = HeroDisplayHelper.ToChinesePrimaryAttr(item.PrimaryAttr),
-                AttackType = HeroDisplayHelper.ToChineseAttackType(item.AttackType),
-                Roles = HeroDisplayHelper.ToChineseRoles(item.Roles),
-                ProPick = item.ProPick,
-                ProWin = item.ProWin,
-                ProBan = item.ProBan,
-                PubPick = item.PubPick,
-                PubWin = item.PubWin,
-                TurboPicks = item.TurboPicks,
-                TurboWins = item.TurboWins,
-                BaseStr = item.BaseStr,
-                BaseAgi = item.BaseAgi,
-                BaseInt = item.BaseInt,
-                StrGain = item.StrGain,
-                AgiGain = item.AgiGain,
-                IntGain = item.IntGain,
-                BaseArmor = item.BaseArmor,
-                BaseMagicResist = item.BaseMr,
-                BaseHealth = item.BaseHealth,
-                BaseMana = item.BaseMana,
-                BaseHealthRegen = item.BaseHealthRegen ?? 0,
-                BaseManaRegen = item.BaseManaRegen ?? 0,
-                BaseAttackMin = item.BaseAttackMin,
-                BaseAttackMax = item.BaseAttackMax,
-                AttackRange = item.AttackRange,
-                AttackRate = item.AttackRate,
-                MoveSpeed = item.MoveSpeed,
-                TurnRate = item.TurnRate ?? 0,
-                ProjectileSpeed = item.ProjectileSpeed ?? 0,
-                DayVision = item.DayVision,
-                NightVision = item.NightVision,
-                Brackets = brackets,
-                Matches = (int)Math.Min(int.MaxValue, picks),
-                WinRate = picks > 0 ? wins * 100.0 / picks : 0
-            };
+            hero.LocalizedName = ResolveChineseName(hero.Id, hero.Name, chineseNames) ?? fallbackName;
+            hero.PrimaryAttr = HeroDisplayHelper.ToChinesePrimaryAttr(hero.PrimaryAttr);
+            hero.AttackType = HeroDisplayHelper.ToChineseAttackType(hero.AttackType);
+            hero.Roles = HeroDisplayHelper.ToChineseRoles(hero.Roles);
+            hero.Brackets = BuildBrackets(hero);
+            hero.Matches = (int)Math.Min(int.MaxValue, picks);
+            hero.WinRate = picks > 0 ? wins * 100.0 / picks : 0;
 
+            // 分段原始字段已消费，清零后不进入缓存
+            ResetBracketRaw(hero);
+
+            picksByHero[i] = picks;
             totalPicks += picks;
-            mapped.Add((hero, picks));
         }
 
-        foreach (var (hero, picks) in mapped)
+        for (var i = 0; i < heroes.Count; i++)
         {
-            hero.PickRate = totalPicks > 0 ? picks * 100.0 / totalPicks : 0;
+            heroes[i].PickRate = totalPicks > 0 ? picksByHero[i] * 100.0 / totalPicks : 0;
         }
 
-        return mapped
-            .Select(x => x.Hero)
+        return heroes
             .OrderBy(h => h.DisplayName, HeroDisplayHelper.ChineseNameComparer)
             .ToList();
     }
@@ -343,18 +326,10 @@ public sealed class HeroCounterService : IHeroCounterService
         }
     }
 
-    private static List<HeroBracketStat> BuildBrackets(HeroStatRaw item)
+    private static List<HeroBracketStat> BuildBrackets(HeroStat item)
     {
-        var picks = new[]
-        {
-            item.Pick1, item.Pick2, item.Pick3, item.Pick4,
-            item.Pick5, item.Pick6, item.Pick7, item.Pick8
-        };
-        var wins = new[]
-        {
-            item.Win1, item.Win2, item.Win3, item.Win4,
-            item.Win5, item.Win6, item.Win7, item.Win8
-        };
+        var picks = new[] { item.Pick1, item.Pick2, item.Pick3, item.Pick4, item.Pick5, item.Pick6, item.Pick7, item.Pick8 };
+        var wins = new[] { item.Win1, item.Win2, item.Win3, item.Win4, item.Win5, item.Win6, item.Win7, item.Win8 };
 
         var list = new List<HeroBracketStat>(8);
         for (var i = 0; i < 8; i++)
@@ -396,137 +371,19 @@ public sealed class HeroCounterService : IHeroCounterService
         return null;
     }
 
-    private static long SumPicks(HeroStatRaw item)
+    private static long SumBracketPicks(HeroStat item)
         => item.Pick1 + item.Pick2 + item.Pick3 + item.Pick4
            + item.Pick5 + item.Pick6 + item.Pick7 + item.Pick8;
 
-    private static long SumWins(HeroStatRaw item)
+    private static long SumBracketWins(HeroStat item)
         => item.Win1 + item.Win2 + item.Win3 + item.Win4
            + item.Win5 + item.Win6 + item.Win7 + item.Win8;
 
-    /// <summary>
-    /// OpenDota heroStats 原始 JSON 映射（含分段 pick/win）。
-    /// </summary>
-    private sealed class HeroStatRaw
+    private static void ResetBracketRaw(HeroStat item)
     {
-        [JsonPropertyName("id")]
-        public int Id { get; set; }
-
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-
-        [JsonPropertyName("localized_name")]
-        public string? LocalizedName { get; set; }
-
-        [JsonPropertyName("primary_attr")]
-        public string? PrimaryAttr { get; set; }
-
-        [JsonPropertyName("attack_type")]
-        public string? AttackType { get; set; }
-
-        [JsonPropertyName("roles")]
-        public List<string>? Roles { get; set; }
-
-        [JsonPropertyName("pro_pick")]
-        public int ProPick { get; set; }
-
-        [JsonPropertyName("pro_win")]
-        public int ProWin { get; set; }
-
-        [JsonPropertyName("pro_ban")]
-        public int ProBan { get; set; }
-
-        [JsonPropertyName("pub_pick")]
-        public long PubPick { get; set; }
-
-        [JsonPropertyName("pub_win")]
-        public long PubWin { get; set; }
-
-        [JsonPropertyName("turbo_picks")]
-        public long TurboPicks { get; set; }
-
-        [JsonPropertyName("turbo_wins")]
-        public long TurboWins { get; set; }
-
-        [JsonPropertyName("base_str")]
-        public int BaseStr { get; set; }
-
-        [JsonPropertyName("base_agi")]
-        public int BaseAgi { get; set; }
-
-        [JsonPropertyName("base_int")]
-        public int BaseInt { get; set; }
-
-        [JsonPropertyName("str_gain")]
-        public double StrGain { get; set; }
-
-        [JsonPropertyName("agi_gain")]
-        public double AgiGain { get; set; }
-
-        [JsonPropertyName("int_gain")]
-        public double IntGain { get; set; }
-
-        [JsonPropertyName("base_armor")]
-        public double BaseArmor { get; set; }
-
-        [JsonPropertyName("base_mr")]
-        public double BaseMr { get; set; }
-
-        [JsonPropertyName("base_health")]
-        public int BaseHealth { get; set; }
-
-        [JsonPropertyName("base_mana")]
-        public int BaseMana { get; set; }
-
-        [JsonPropertyName("base_health_regen")]
-        public double? BaseHealthRegen { get; set; }
-
-        [JsonPropertyName("base_mana_regen")]
-        public double? BaseManaRegen { get; set; }
-
-        [JsonPropertyName("base_attack_min")]
-        public int BaseAttackMin { get; set; }
-
-        [JsonPropertyName("base_attack_max")]
-        public int BaseAttackMax { get; set; }
-
-        [JsonPropertyName("attack_range")]
-        public int AttackRange { get; set; }
-
-        [JsonPropertyName("attack_rate")]
-        public double AttackRate { get; set; }
-
-        [JsonPropertyName("move_speed")]
-        public int MoveSpeed { get; set; }
-
-        [JsonPropertyName("turn_rate")]
-        public double? TurnRate { get; set; }
-
-        [JsonPropertyName("projectile_speed")]
-        public int? ProjectileSpeed { get; set; }
-
-        [JsonPropertyName("day_vision")]
-        public int DayVision { get; set; }
-
-        [JsonPropertyName("night_vision")]
-        public int NightVision { get; set; }
-
-        [JsonPropertyName("1_pick")] public long Pick1 { get; set; }
-        [JsonPropertyName("2_pick")] public long Pick2 { get; set; }
-        [JsonPropertyName("3_pick")] public long Pick3 { get; set; }
-        [JsonPropertyName("4_pick")] public long Pick4 { get; set; }
-        [JsonPropertyName("5_pick")] public long Pick5 { get; set; }
-        [JsonPropertyName("6_pick")] public long Pick6 { get; set; }
-        [JsonPropertyName("7_pick")] public long Pick7 { get; set; }
-        [JsonPropertyName("8_pick")] public long Pick8 { get; set; }
-
-        [JsonPropertyName("1_win")] public long Win1 { get; set; }
-        [JsonPropertyName("2_win")] public long Win2 { get; set; }
-        [JsonPropertyName("3_win")] public long Win3 { get; set; }
-        [JsonPropertyName("4_win")] public long Win4 { get; set; }
-        [JsonPropertyName("5_win")] public long Win5 { get; set; }
-        [JsonPropertyName("6_win")] public long Win6 { get; set; }
-        [JsonPropertyName("7_win")] public long Win7 { get; set; }
-        [JsonPropertyName("8_win")] public long Win8 { get; set; }
+        item.Pick1 = 0; item.Pick2 = 0; item.Pick3 = 0; item.Pick4 = 0;
+        item.Pick5 = 0; item.Pick6 = 0; item.Pick7 = 0; item.Pick8 = 0;
+        item.Win1 = 0; item.Win2 = 0; item.Win3 = 0; item.Win4 = 0;
+        item.Win5 = 0; item.Win6 = 0; item.Win7 = 0; item.Win8 = 0;
     }
 }

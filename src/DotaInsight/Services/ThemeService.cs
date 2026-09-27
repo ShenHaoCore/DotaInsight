@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Media;
 using Microsoft.Win32;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -23,10 +24,16 @@ public interface IThemeService
     void Toggle();
 }
 
-public sealed class ThemeService : IThemeService
+public sealed class ThemeService : IThemeService, IDisposable
 {
     private const string DarkThemeUri = "Themes/Dark.xaml";
     private const string LightThemeUri = "Themes/Light.xaml";
+    private bool _disposed;
+
+    public ThemeService()
+    {
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+    }
 
     public bool IsDark { get; private set; }
 
@@ -39,16 +46,57 @@ public sealed class ThemeService : IThemeService
         IsDark = isDark;
         var appTheme = isDark ? ApplicationTheme.Dark : ApplicationTheme.Light;
 
-        ApplicationThemeManager.Apply(appTheme, WindowBackdropType.None, updateAccent: true);
+        ApplicationThemeManager.Apply(appTheme, WindowBackdropType.None, updateAccent: false);
         SwapAppThemeDictionary(isDark);
 
         if (Application.Current?.MainWindow is FrameworkElement root)
         {
             ApplicationThemeManager.Apply(root);
         }
+
+        // 固定品牌赤红为 WPF UI 强调色（深色亮红 / 浅色深红），必须在主题与窗口资源
+        // 应用之后再覆盖，否则深色下 Accent* 画刷会被窗口级主题资源重置回系统蓝
+        ApplicationAccentColorManager.Apply(
+            isDark ? Color.FromRgb(0xF0, 0x3D, 0x2E) : Color.FromRgb(0xD6, 0x3A, 0x2C),
+            appTheme);
     }
 
     public void Toggle() => ApplyTheme(!IsDark);
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+    }
+
+    private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category != UserPreferenceCategory.General)
+        {
+            return;
+        }
+
+        var app = Application.Current;
+        if (app is null)
+        {
+            return;
+        }
+
+        app.Dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            ApplyFollowSystem();
+        });
+    }
 
     /// <summary>
     /// 读取 Windows 设置 → 个性化 → 颜色 → 选择默认应用模式。
@@ -119,4 +167,3 @@ public sealed class ThemeService : IThemeService
         }
     }
 }
-

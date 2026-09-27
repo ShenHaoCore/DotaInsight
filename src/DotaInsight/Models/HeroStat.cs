@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Windows.Media;
 using DotaInsight.Helpers;
 
 namespace DotaInsight.Models;
@@ -112,19 +113,39 @@ public sealed class HeroStat
     [JsonPropertyName("night_vision")]
     public int NightVision { get; set; }
 
+    // heroStats 各分段原始场次：仅用于接收接口数据，归一化生成 Brackets 后清零，
+    // WhenWritingDefault 保证为 0 时不写入 LiteDB 缓存。
+    [JsonPropertyName("1_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick1 { get; set; }
+    [JsonPropertyName("2_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick2 { get; set; }
+    [JsonPropertyName("3_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick3 { get; set; }
+    [JsonPropertyName("4_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick4 { get; set; }
+    [JsonPropertyName("5_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick5 { get; set; }
+    [JsonPropertyName("6_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick6 { get; set; }
+    [JsonPropertyName("7_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick7 { get; set; }
+    [JsonPropertyName("8_pick")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Pick8 { get; set; }
+
+    [JsonPropertyName("1_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win1 { get; set; }
+    [JsonPropertyName("2_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win2 { get; set; }
+    [JsonPropertyName("3_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win3 { get; set; }
+    [JsonPropertyName("4_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win4 { get; set; }
+    [JsonPropertyName("5_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win5 { get; set; }
+    [JsonPropertyName("6_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win6 { get; set; }
+    [JsonPropertyName("7_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win7 { get; set; }
+    [JsonPropertyName("8_win")] [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public long Win8 { get; set; }
+
     [JsonPropertyName("brackets")]
     public List<HeroBracketStat> Brackets { get; set; } = [];
 
     /// <summary>全分段选取场次（由各段位聚合或职业数据）。</summary>
-    [JsonIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int Matches { get; set; }
 
     /// <summary>胜率 0–100。</summary>
-    [JsonIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public double WinRate { get; set; }
 
     /// <summary>选取率 0–100（相对全体英雄选取总和）。</summary>
-    [JsonIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public double PickRate { get; set; }
 
     [JsonIgnore]
@@ -134,16 +155,16 @@ public sealed class HeroStat
     public string SmallIconUrl => HeroAssetHelper.GetSmallIconUrl(Name);
 
     [JsonIgnore]
-    public string PrimaryAttrIcon => HeroAssetHelper.GetPrimaryAttrIcon(PrimaryAttr);
+    public ImageSource PrimaryAttrIcon => HeroAssetHelper.GetPrimaryAttrIcon(PrimaryAttr);
 
     [JsonIgnore]
-    public string StrIcon => HeroAssetHelper.StrIcon;
+    public ImageSource StrIcon => HeroAssetHelper.StrIcon;
 
     [JsonIgnore]
-    public string AgiIcon => HeroAssetHelper.AgiIcon;
+    public ImageSource AgiIcon => HeroAssetHelper.AgiIcon;
 
     [JsonIgnore]
-    public string IntIcon => HeroAssetHelper.IntIcon;
+    public ImageSource IntIcon => HeroAssetHelper.IntIcon;
 
     [JsonIgnore]
     public string HealthIcon => HeroAssetHelper.HealthIcon;
@@ -152,25 +173,25 @@ public sealed class HeroStat
     public string ManaIcon => HeroAssetHelper.ManaIcon;
 
     [JsonIgnore]
-    public string ArmorIcon => HeroAssetHelper.ArmorIcon;
+    public ImageSource ArmorIcon => HeroAssetHelper.ArmorIcon;
 
     [JsonIgnore]
-    public string MagicResistIcon => HeroAssetHelper.MagicResistIcon;
+    public ImageSource MagicResistIcon => HeroAssetHelper.MagicResistIcon;
 
     [JsonIgnore]
-    public string DamageIcon => HeroAssetHelper.DamageIcon;
+    public ImageSource DamageIcon => HeroAssetHelper.DamageIcon;
 
     [JsonIgnore]
-    public string AttackTimeIcon => HeroAssetHelper.AttackTimeIcon;
+    public ImageSource AttackTimeIcon => HeroAssetHelper.AttackTimeIcon;
 
     [JsonIgnore]
-    public string AttackRangeIcon => HeroAssetHelper.AttackRangeIcon;
+    public ImageSource AttackRangeIcon => HeroAssetHelper.AttackRangeIcon;
 
     [JsonIgnore]
-    public string MoveSpeedIcon => HeroAssetHelper.MoveSpeedIcon;
+    public ImageSource MoveSpeedIcon => HeroAssetHelper.MoveSpeedIcon;
 
     [JsonIgnore]
-    public string VisionIcon => HeroAssetHelper.VisionIcon;
+    public ImageSource VisionIcon => HeroAssetHelper.VisionIcon;
 
     [JsonIgnore]
     public string DisplayName => string.IsNullOrWhiteSpace(LocalizedName) ? Name : LocalizedName;
@@ -201,7 +222,19 @@ public sealed class HeroStat
     public string RolesText => Roles.Count == 0 ? "—" : string.Join(" · ", Roles);
 
     [JsonIgnore]
+    public IReadOnlyList<string> ChineseRoles => HeroDisplayHelper.ToChineseRoles(Roles);
+
+    [JsonIgnore]
+    public bool HasRoles => Roles.Count > 0;
+
+    [JsonIgnore]
     public string AttackTypeText => HeroDisplayHelper.ToChineseAttackType(AttackType);
+
+    [JsonIgnore]
+    public bool IsMelee => AttackType is "Melee" or "近战";
+
+    [JsonIgnore]
+    public bool IsRanged => AttackType is "Ranged" or "远程";
 
     [JsonIgnore]
     public double ProWinRate => ProPick > 0 ? ProWin * 100.0 / ProPick : 0;
@@ -267,6 +300,12 @@ public sealed class HeroStat
     public string TurnRateText => TurnRate > 0 ? TurnRate.ToString("0.##") : "—";
 
     [JsonIgnore]
+    public string MagicResistText => $"{BaseMagicResist:0.##}%";
+
+    [JsonIgnore]
+    public string AttackRateText => AttackRate > 0 ? AttackRate.ToString("0.##") : "—";
+
+    [JsonIgnore]
     public string StrText => $"{BaseStr} +{StrGain:F1}";
 
     [JsonIgnore]
@@ -275,18 +314,23 @@ public sealed class HeroStat
     [JsonIgnore]
     public string IntText => $"{BaseInt} +{IntGain:F1}";
 
-    /// <summary>国服定位九宫格（有该定位则进度满）。</summary>
+    /// <summary>
+    /// 国服定位九宫格：按官网 role_levels 0–3 级渲染（33% / 67% / 100%）；
+    /// 新英雄不在等级表中时回退为“有该定位则满格”。
+    /// </summary>
     [JsonIgnore]
     public IReadOnlyList<HeroRoleStat> RoleStats
     {
         get
         {
-            var set = new HashSet<string>(Roles, StringComparer.Ordinal);
+            var set = new HashSet<string>(ChineseRoles, StringComparer.Ordinal);
             return HeroDisplayHelper.StandardRoles
-                .Select(name => new HeroRoleStat
+                .Select((name, i) => new HeroRoleStat
                 {
                     Name = name,
-                    Score = set.Contains(name) ? 100 : 12
+                    Score = HeroRoleLevelTable.TryGetLevel(Id, i, out var level)
+                        ? level * 100d / 3d
+                        : (set.Contains(name) ? 100 : 0)
                 })
                 .ToList();
         }
@@ -328,11 +372,11 @@ public sealed class HeroStat
 /// </summary>
 public sealed class HeroBracketStat
 {
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 
-    public long Picks { get; set; }
+    public long Picks { get; init; }
 
-    public long Wins { get; set; }
+    public long Wins { get; init; }
 
     public double WinRate => Picks > 0 ? Wins * 100.0 / Picks : 0;
 
@@ -346,9 +390,9 @@ public sealed class HeroBracketStat
 /// </summary>
 public sealed class HeroRoleStat
 {
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 
     /// <summary>0–100，用于进度条。</summary>
-    public double Score { get; set; }
+    public double Score { get; init; }
 }
 

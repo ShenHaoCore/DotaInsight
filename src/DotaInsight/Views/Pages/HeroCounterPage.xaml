@@ -1,4 +1,4 @@
-﻿<Page x:Class="DotaInsight.Views.Pages.HeroCounterPage"
+<Page x:Class="DotaInsight.Views.Pages.HeroCounterPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -18,7 +18,7 @@
                         <ColumnDefinition Width="70" />
                         <ColumnDefinition Width="52" />
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="56" Height="32" CornerRadius="4" ClipToBounds="True"
+                    <Border Grid.Column="0" Width="56" Height="32" CornerRadius="3" ClipToBounds="True"
                             Background="{DynamicResource DiChromeBrush}" Margin="0,0,10,0">
                         <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}" Stretch="UniformToFill"
                                RenderOptions.BitmapScalingMode="HighQuality" />
@@ -74,9 +74,13 @@
                 MinWidth="520"
                 Visibility="{Binding HasSelectedHero, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
             <StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                    <Rectangle Width="7" Height="7" Fill="{DynamicResource DiAccentBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="MATCHUP ANALYSIS" Style="{StaticResource DiKickerTextStyle}" />
+                </StackPanel>
                 <TextBlock Text="克制分析"
-                           FontSize="24" FontWeight="Bold"
-                           Foreground="{DynamicResource DiPrimaryTextBrush}"
+                           Style="{StaticResource DiPageTitleStyle}"
                            HorizontalAlignment="Center" />
                 <TextBlock Text="{Binding StatusMessage}"
                            Margin="0,10,0,18"
@@ -118,7 +122,7 @@
                     Background="{DynamicResource DiHeroBannerBrush}"
                     BorderBrush="{DynamicResource DiStrokeBrush}"
                     BorderThickness="1"
-                    CornerRadius="14"
+                    CornerRadius="4"
                     Padding="16"
                     Margin="0,0,0,12">
                 <Grid>
@@ -128,7 +132,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Width="128" Height="72" CornerRadius="8" ClipToBounds="True"
+                    <Border Width="128" Height="72" CornerRadius="3" ClipToBounds="True"
                             BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
                             Background="{DynamicResource DiChromeBrush}" Margin="0,0,16,0">
                         <Image Source="{Binding SelectedHero.IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=220}" Stretch="UniformToFill"
@@ -160,12 +164,12 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource DiPanelCardStyle}" CornerRadius="12" ClipToBounds="True">
+                <Border Grid.Column="0" Style="{StaticResource DiPanelCardStyle}" ClipToBounds="True">
                     <DockPanel>
                         <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                             <DockPanel>
-                                <Border Width="4" Height="18" CornerRadius="2" Background="{DynamicResource DiDisadvantageBrush}"
-                                        Margin="0,0,10,0" VerticalAlignment="Center" />
+                                <Rectangle Width="3" Height="18" Fill="{DynamicResource DiDisadvantageBrush}"
+                                           Margin="0,0,10,0" VerticalAlignment="Center" />
                                 <StackPanel>
                                     <TextBlock Text="不利对位" FontWeight="Bold" FontSize="15"
                                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
@@ -182,12 +186,12 @@
                     </DockPanel>
                 </Border>
 
-                <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" CornerRadius="12" ClipToBounds="True">
+                <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" ClipToBounds="True">
                     <DockPanel>
                         <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                             <DockPanel>
-                                <Border Width="4" Height="18" CornerRadius="2" Background="{DynamicResource DiAdvantageBrush}"
-                                        Margin="0,0,10,0" VerticalAlignment="Center" />
+                                <Rectangle Width="3" Height="18" Fill="{DynamicResource DiAdvantageBrush}"
+                                           Margin="0,0,10,0" VerticalAlignment="Center" />
                                 <StackPanel>
                                     <TextBlock Text="有利对位" FontWeight="Bold" FontSize="15"
                                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
@@ -205,13 +209,13 @@
                 </Border>
             </Grid>
 
-            <Border Grid.Row="3" Style="{StaticResource DiPanelCardStyle}" CornerRadius="12" Padding="14,10">
+            <Border Grid.Row="3" Style="{StaticResource DiPanelCardStyle}" Padding="14,10">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="对位优势分布" FontWeight="SemiBold" FontSize="13"
+                    <TextBlock Text="对位优势分布" FontWeight="Bold" FontSize="13"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" Margin="2,0,2,4" />
                     <lvc:CartesianChart Grid.Row="1"
                                         Series="{Binding Series}" XAxes="{Binding XAxes}" YAxes="{Binding YAxes}"

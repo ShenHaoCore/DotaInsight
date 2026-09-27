@@ -9,7 +9,9 @@
       Loaded="OnPageLoaded">
     <Page.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <converters:IndexPlusOneConverter x:Key="IndexPlusOneConverter" />
 
+        <!-- 功能入口卡：利落角 + 幽灵序号 -->
         <Style x:Key="HomeFeatureButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -24,8 +26,8 @@
                                 Background="{DynamicResource DiPanelBrush}"
                                 BorderBrush="{DynamicResource DiStrokeBrush}"
                                 BorderThickness="1"
-                                CornerRadius="14"
-                                Padding="22,20"
+                                CornerRadius="4"
+                                Padding="20,18"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter />
                         </Border>
@@ -43,64 +45,82 @@
             </Setter>
         </Style>
 
-        <DataTemplate x:Key="MetaWinHeroTile" DataType="{x:Type models:HeroStat}">
-            <Button Style="{StaticResource HeroTileButtonStyle}"
-                    Width="128" Height="82"
-                    Margin="0,0,10,10"
-                    Command="{Binding DataContext.OpenHeroDetailCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                    CommandParameter="{Binding}">
+        <!-- 排行榜单行：排名 / 头像 / 名称 / 数值 -->
+        <DataTemplate x:Key="MetaRankRowWin" DataType="{x:Type models:HeroStat}">
+            <Border Style="{StaticResource MatchupRowBorderStyle}">
                 <Grid>
-                    <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=160}"
-                           Stretch="UniformToFill"
-                           RenderOptions.BitmapScalingMode="HighQuality" />
-                    <Border VerticalAlignment="Bottom" Background="{DynamicResource DiNameOverlayBrush}">
-                        <StackPanel Margin="8,16,8,6">
-                            <TextBlock Text="{Binding DisplayName}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="White" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding WinRateText}" FontSize="11" Foreground="#CCD5DE" />
-                        </StackPanel>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Style="{StaticResource DiRankNumberStyle}"
+                               Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter},
+                                              Path=(ItemsControl.AlternationIndex),
+                                              Converter={StaticResource IndexPlusOneConverter}}" />
+                    <Border Grid.Column="1" Width="56" Height="32" CornerRadius="3" ClipToBounds="True"
+                            Background="{DynamicResource DiChromeBrush}" Margin="0,0,10,0">
+                        <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}"
+                               Stretch="UniformToFill"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
+                    <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                    <TextBlock Grid.Column="3" Text="{Binding WinRateText}" FontSize="14" FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiAdvantageBrush}" />
                 </Grid>
-            </Button>
+            </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="MetaPickHeroTile" DataType="{x:Type models:HeroStat}">
-            <Button Style="{StaticResource HeroTileButtonStyle}"
-                    Width="128" Height="82"
-                    Margin="0,0,10,10"
-                    Command="{Binding DataContext.OpenHeroDetailCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                    CommandParameter="{Binding}">
+        <DataTemplate x:Key="MetaRankRowPick" DataType="{x:Type models:HeroStat}">
+            <Border Style="{StaticResource MatchupRowBorderStyle}">
                 <Grid>
-                    <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=160}"
-                           Stretch="UniformToFill"
-                           RenderOptions.BitmapScalingMode="HighQuality" />
-                    <Border VerticalAlignment="Bottom" Background="{DynamicResource DiNameOverlayBrush}">
-                        <StackPanel Margin="8,16,8,6">
-                            <TextBlock Text="{Binding DisplayName}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="White" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding PickRateText}" FontSize="11" Foreground="#CCD5DE" />
-                        </StackPanel>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Style="{StaticResource DiRankNumberStyle}"
+                               Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter},
+                                              Path=(ItemsControl.AlternationIndex),
+                                              Converter={StaticResource IndexPlusOneConverter}}" />
+                    <Border Grid.Column="1" Width="56" Height="32" CornerRadius="3" ClipToBounds="True"
+                            Background="{DynamicResource DiChromeBrush}" Margin="0,0,10,0">
+                        <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}"
+                               Stretch="UniformToFill"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
+                    <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                    <TextBlock Grid.Column="3" Text="{Binding PickRateText}" FontSize="14" FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiAccentBrush}" />
                 </Grid>
-            </Button>
+            </Border>
         </DataTemplate>
     </Page.Resources>
 
-    <Grid Margin="32,24,32,28">
+    <Grid Margin="32,22,32,28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="18" />
+            <RowDefinition Height="16" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="*" MinHeight="260" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="*" MinHeight="240" />
         </Grid.RowDefinitions>
 
+        <!-- 顶部品牌横幅 -->
         <Border Grid.Row="0"
                 Background="{DynamicResource DiHeroBannerBrush}"
                 BorderBrush="{DynamicResource DiStrokeBrush}"
                 BorderThickness="1"
-                CornerRadius="16"
-                Padding="28,24">
+                CornerRadius="6"
+                Padding="26,22">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -110,30 +130,24 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="24" />
-                        <ColumnDefinition Width="420" MinWidth="300" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="400" MinWidth="300" />
                     </Grid.ColumnDefinitions>
 
                     <!-- 品牌 -->
-                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                        <Border Width="56" Height="56" CornerRadius="14"
-                                BorderBrush="{DynamicResource DiStrokeBrush}"
-                                BorderThickness="1"
-                                Background="{DynamicResource DiPanelElevatedBrush}"
-                                ClipToBounds="True"
-                                Margin="0,0,18,0">
-                            <Image Source="pack://application:,,,/Assets/dota2-48.png"
-                                   Stretch="UniformToFill"
-                                   RenderOptions.BitmapScalingMode="HighQuality" />
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="DotaInsight"
-                                       FontSize="28" FontWeight="Bold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                            <TextBlock Text="英雄克制 · 战绩复盘 · 版本数据"
-                                       Margin="0,6,0,0" FontSize="13"
-                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Rectangle Width="7" Height="7" Fill="{DynamicResource DiAccentBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="DOTA2 数据终端"
+                                       Style="{StaticResource DiKickerTextStyle}" />
                         </StackPanel>
+                        <TextBlock Text="DotaInsight"
+                                   FontSize="30" FontWeight="Bold"
+                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                        <TextBlock Text="英雄克制 · 战绩复盘 · 版本数据"
+                                   Margin="0,7,0,0" FontSize="13"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
                     </StackPanel>
 
                     <!-- 玩家查询 -->
@@ -141,7 +155,7 @@
                             Background="{DynamicResource DiPanelElevatedBrush}"
                             BorderBrush="{DynamicResource DiStrokeBrush}"
                             BorderThickness="1"
-                            CornerRadius="12"
+                            CornerRadius="4"
                             Padding="14,12"
                             VerticalAlignment="Center">
                         <StackPanel>
@@ -165,7 +179,7 @@
                 </Grid>
 
                 <!-- 底栏状态 -->
-                <DockPanel Grid.Row="1" Margin="0,18,0,0">
+                <DockPanel Grid.Row="1" Margin="0,16,0,0">
                     <Border DockPanel.Dock="Left" Height="1"
                             Background="{DynamicResource DiStrokeBrush}"
                             VerticalAlignment="Center"
@@ -198,6 +212,7 @@
             </Grid>
         </Border>
 
+        <!-- 功能入口 -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -208,48 +223,64 @@
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="0" Style="{StaticResource HomeFeatureButtonStyle}"
-                    MinHeight="128" Command="{Binding OpenGalleryCommand}">
-                <StackPanel VerticalAlignment="Center">
-                    <ui:SymbolIcon Symbol="Grid24" FontSize="26"
-                                   Foreground="{DynamicResource DiAccentBrush}"
-                                   HorizontalAlignment="Left" />
-                    <TextBlock Text="英雄图鉴" Margin="0,14,0,6" FontSize="18" FontWeight="SemiBold"
-                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <TextBlock Text="浏览全部英雄与基础数据"
-                               FontSize="13" TextWrapping="Wrap"
-                               Foreground="{DynamicResource DiMutedTextBrush}" />
-                </StackPanel>
+                    MinHeight="118" Command="{Binding OpenGalleryCommand}">
+                <Grid>
+                    <TextBlock Text="01" FontSize="26" FontWeight="Bold"
+                               Foreground="#1AF4F7FA"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" />
+                    <StackPanel VerticalAlignment="Bottom">
+                        <ui:SymbolIcon Symbol="Grid24" FontSize="22"
+                                       Foreground="{DynamicResource DiAccentBrush}"
+                                       HorizontalAlignment="Left" />
+                        <TextBlock Text="英雄图鉴" Margin="0,12,0,5" FontSize="17" FontWeight="Bold"
+                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                        <TextBlock Text="浏览全部英雄与基础数据"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </StackPanel>
+                </Grid>
             </Button>
 
             <Button Grid.Column="2" Style="{StaticResource HomeFeatureButtonStyle}"
-                    MinHeight="128" Command="{Binding OpenCounterCommand}">
-                <StackPanel VerticalAlignment="Center">
-                    <ui:SymbolIcon Symbol="DualScreenVerticalScroll24" FontSize="26"
-                                   Foreground="{DynamicResource DiAccentBrush}"
-                                   HorizontalAlignment="Left" />
-                    <TextBlock Text="克制分析" Margin="0,14,0,6" FontSize="18" FontWeight="SemiBold"
-                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <TextBlock Text="查看英雄对位优劣与胜率差"
-                               FontSize="13" TextWrapping="Wrap"
-                               Foreground="{DynamicResource DiMutedTextBrush}" />
-                </StackPanel>
+                    MinHeight="118" Command="{Binding OpenCounterCommand}">
+                <Grid>
+                    <TextBlock Text="02" FontSize="26" FontWeight="Bold"
+                               Foreground="#1AF4F7FA"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" />
+                    <StackPanel VerticalAlignment="Bottom">
+                        <ui:SymbolIcon Symbol="DualScreenVerticalScroll24" FontSize="22"
+                                       Foreground="{DynamicResource DiAccentBrush}"
+                                       HorizontalAlignment="Left" />
+                        <TextBlock Text="克制分析" Margin="0,12,0,5" FontSize="17" FontWeight="Bold"
+                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                        <TextBlock Text="查看英雄对位优劣与胜率差"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </StackPanel>
+                </Grid>
             </Button>
 
             <Button Grid.Column="4" Style="{StaticResource HomeFeatureButtonStyle}"
-                    MinHeight="128" Command="{Binding OpenMatchAnalysisCommand}">
-                <StackPanel VerticalAlignment="Center">
-                    <ui:SymbolIcon Symbol="DataHistogram24" FontSize="26"
-                                   Foreground="{DynamicResource DiAccentBrush}"
-                                   HorizontalAlignment="Left" />
-                    <TextBlock Text="战绩分析" Margin="0,14,0,6" FontSize="18" FontWeight="SemiBold"
-                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <TextBlock Text="复盘玩家近期比赛表现"
-                               FontSize="13" TextWrapping="Wrap"
-                               Foreground="{DynamicResource DiMutedTextBrush}" />
-                </StackPanel>
+                    MinHeight="118" Command="{Binding OpenMatchAnalysisCommand}">
+                <Grid>
+                    <TextBlock Text="03" FontSize="26" FontWeight="Bold"
+                               Foreground="#1AF4F7FA"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" />
+                    <StackPanel VerticalAlignment="Bottom">
+                        <ui:SymbolIcon Symbol="DataHistogram24" FontSize="22"
+                                       Foreground="{DynamicResource DiAccentBrush}"
+                                       HorizontalAlignment="Left" />
+                        <TextBlock Text="战绩分析" Margin="0,12,0,5" FontSize="17" FontWeight="Bold"
+                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                        <TextBlock Text="复盘玩家近期比赛表现"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </StackPanel>
+                </Grid>
             </Button>
         </Grid>
 
+        <!-- Meta 排行榜 -->
         <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -257,66 +288,55 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
-                    Background="{DynamicResource DiPanelBrush}"
-                    BorderBrush="{DynamicResource DiStrokeBrush}"
-                    BorderThickness="1"
-                    CornerRadius="14"
-                    Padding="20,16">
+            <Border Grid.Column="0" Style="{StaticResource DiPanelCardStyle}" ClipToBounds="True">
                 <DockPanel>
-                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
-                        <TextBlock Text="高胜率英雄" FontSize="16" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        <ui:ProgressRing DockPanel.Dock="Right" Width="20" Height="20"
-                                         IsIndeterminate="True"
-                                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
-                        <ui:Button DockPanel.Dock="Right"
-                                   Appearance="Transparent"
-                                   Content="查看图鉴"
-                                   FontSize="12"
-                                   Margin="0,0,8,0"
-                                   Command="{Binding OpenGalleryCommand}" />
-                    </DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+                        <DockPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Rectangle Width="4" Height="16" Fill="{DynamicResource DiAccentBrush}"
+                                           VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <TextBlock Text="高胜率英雄" Style="{StaticResource DiSectionTitleStyle}" />
+                            </StackPanel>
+                            <ui:ProgressRing DockPanel.Dock="Right" Width="18" Height="18"
+                                             IsIndeterminate="True" Margin="8,0,0,0"
+                                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            <ui:Button DockPanel.Dock="Right"
+                                       Appearance="Transparent"
+                                       Content="查看图鉴"
+                                       FontSize="12"
+                                       Command="{Binding OpenGalleryCommand}" />
+                        </DockPanel>
+                    </Border>
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding TopWinRateHeroes}"
-                                      ItemTemplate="{StaticResource MetaWinHeroTile}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                                      AlternationCount="20"
+                                      ItemTemplate="{StaticResource MetaRankRowWin}" />
                     </ScrollViewer>
                 </DockPanel>
             </Border>
 
-            <Border Grid.Column="2"
-                    Background="{DynamicResource DiPanelBrush}"
-                    BorderBrush="{DynamicResource DiStrokeBrush}"
-                    BorderThickness="1"
-                    CornerRadius="14"
-                    Padding="20,16">
+            <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" ClipToBounds="True">
                 <DockPanel>
-                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
-                        <TextBlock Text="高选取英雄" FontSize="16" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        <ui:Button DockPanel.Dock="Right"
-                                   Appearance="Transparent"
-                                   Content="查看图鉴"
-                                   FontSize="12"
-                                   Command="{Binding OpenGalleryCommand}" />
-                    </DockPanel>
+                    <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
+                        <DockPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Rectangle Width="4" Height="16" Fill="{DynamicResource DiAccentBrush}"
+                                           VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <TextBlock Text="高选取英雄" Style="{StaticResource DiSectionTitleStyle}" />
+                            </StackPanel>
+                            <ui:Button DockPanel.Dock="Right"
+                                       Appearance="Transparent"
+                                       Content="查看图鉴"
+                                       FontSize="12"
+                                       Command="{Binding OpenGalleryCommand}" />
+                        </DockPanel>
+                    </Border>
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding TopPickRateHeroes}"
-                                      ItemTemplate="{StaticResource MetaPickHeroTile}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                                      AlternationCount="20"
+                                      ItemTemplate="{StaticResource MetaRankRowPick}" />
                     </ScrollViewer>
                 </DockPanel>
             </Border>

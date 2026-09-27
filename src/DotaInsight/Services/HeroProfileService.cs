@@ -1,8 +1,6 @@
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using DotaInsight.Helpers;
 using DotaInsight.Models;
 using Serilog;
@@ -22,20 +20,22 @@ public interface IHeroProfileService
 /// </summary>
 public sealed class HeroProfileService : IHeroProfileService
 {
-    private const string CacheKeyPrefix = "dota2cn:herodata:v2:";
+    public const string HttpClientName = "dota2cn";
+
+    private const string CacheKeyPrefix = "dota2cn:herodata:v5:";
     private const string HeroDataUrl =
         "https://www.dota2.com.cn/datafeed/herodata?language=schinese&hero_id={0}";
 
-    private static readonly Regex HtmlTagRegex = new("<.*?>", RegexOptions.Compiled | RegexOptions.Singleline);
-    private static readonly Regex BrRegex = new("<br\\s*/?>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILiteDbCacheService _cache;
     private readonly ILogger _logger;
 
-    public HeroProfileService(HttpClient httpClient, ILiteDbCacheService cache, ILogger logger)
+    public HeroProfileService(
+        IHttpClientFactory httpClientFactory,
+        ILiteDbCacheService cache,
+        ILogger logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _cache = cache;
         _logger = logger.ForContext<HeroProfileService>();
     }
@@ -60,8 +60,9 @@ public sealed class HeroProfileService : IHeroProfileService
         {
             var url = string.Format(HeroDataUrl, heroId);
             _logger.Information("请求国服英雄详情 HeroId={HeroId}", heroId);
-            var response = await _httpClient
-                .GetFromJsonAsync<CnHeroDataResponse>(url, cancellationToken)
+            var http = _httpClientFactory.CreateClient(HttpClientName);
+            var response = await http
+                .GetFromJsonAsync<CnHeroDataResponse>(url, HttpCall.JsonOptions, cancellationToken)
                 .ConfigureAwait(false);
 
             var raw = response?.Result?.Heroes;
@@ -75,7 +76,7 @@ public sealed class HeroProfileService : IHeroProfileService
             _cache.Set(cacheKey, profile);
             return profile;
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
         {
             throw;
         }
@@ -89,13 +90,13 @@ public sealed class HeroProfileService : IHeroProfileService
     private static HeroDetailProfile Map(CnHeroData raw)
     {
         var key = HeroAssetHelper.GetHeroKey(raw.Name);
-        var video = FirstNonEmpty(
+        var video = HeroDisplayHelper.FirstNonEmpty(
             raw.TopVideo,
             string.IsNullOrWhiteSpace(key)
                 ? null
                 : $"https://cdn.cloudflare.steamstatic.com/apps/dota2/videos/dota_react/heroes/renders/{key}.webm");
 
-        var poster = FirstNonEmpty(
+        var poster = HeroDisplayHelper.FirstNonEmpty(
             raw.TopImg,
             raw.CropsImg,
             string.IsNullOrWhiteSpace(key)
@@ -104,33 +105,246 @@ public sealed class HeroProfileService : IHeroProfileService
 
         var abilities = (raw.Abilities ?? [])
             .Where(a => a is not null && !string.IsNullOrWhiteSpace(a.NameLoc))
-            .Select(a => new HeroAbilityInfo
-            {
-                Id = a!.Id,
-                Name = a.Name ?? string.Empty,
-                DisplayName = a.NameLoc!.Trim(),
-                Description = StripHtml(a.DescLoc),
-                Lore = StripHtml(a.LoreLoc),
-                IconUrl = ResolveAbilityIcon(a.Img, a.Name),
-                IsInnate = a.AbilityIsInnate || a.IsInborn != 0,
-                HasScepter = a.AbilityHasScepter,
-                HasShard = a.AbilityHasShard
-            })
+            .Select(a => MapAbility(a!))
             .ToList();
+
+        var talents = MapTalents(raw.Talents, BuildBonusIndex(raw.Abilities));
 
         return new HeroDetailProfile
         {
             HeroId = raw.Id,
             InternalName = raw.Name ?? string.Empty,
-            Hype = StripHtml(raw.HypeLoc),
-            Bio = StripHtml(raw.BioLoc),
-            NpeDesc = StripHtml(raw.NpeDescLoc),
+            Hype = AbilityTextHelper.StripHtml(raw.HypeLoc),
+            Bio = AbilityTextHelper.StripHtml(raw.BioLoc),
+            NpeDesc = AbilityTextHelper.StripHtml(raw.NpeDescLoc),
             VideoUrl = video ?? string.Empty,
             PosterUrl = poster ?? string.Empty,
             Complexity = raw.Complexity,
             RoleLevels = raw.RoleLevels?.ToList() ?? [],
-            Abilities = abilities
+            Abilities = abilities,
+            Talents = talents
         };
+    }
+
+    /// <summary>
+    /// 天赋数据顺序为 [右10,左10,右15,左15,右20,左20,右25,左25]，
+    /// 映射为行并按官网样式反转为 25→10 自上而下。
+    /// </summary>
+    private static List<HeroTalentRow> MapTalents(
+        IReadOnlyList<CnAbilityData?>? talents,
+        IReadOnlyDictionary<string, Dictionary<string, string>> bonusIndex)
+    {
+        var rows = new List<HeroTalentRow>();
+        if (talents is null)
+        {
+            return rows;
+        }
+
+        for (var i = 0; i + 1 < talents.Count; i += 2)
+        {
+            var level = 10 + (i / 2) * 5;
+            var rightText = ResolveTalentName(talents[i], bonusIndex);
+            var leftText = ResolveTalentName(talents[i + 1], bonusIndex);
+            if (string.IsNullOrWhiteSpace(leftText) && string.IsNullOrWhiteSpace(rightText))
+            {
+                continue;
+            }
+
+            rows.Add(new HeroTalentRow
+            {
+                Level = level,
+                Left = leftText,
+                Right = rightText
+            });
+        }
+
+        rows.Reverse();
+        return rows;
+    }
+
+    private static string ResolveTalentName(
+        CnAbilityData? talent,
+        IReadOnlyDictionary<string, Dictionary<string, string>> bonusIndex)
+    {
+        if (talent is null || string.IsNullOrWhiteSpace(talent.NameLoc))
+        {
+            return string.Empty;
+        }
+
+        var ownValues = BuildSpecialValueMap(talent.SpecialValues);
+        var talentName = talent.Name ?? string.Empty;
+        bonusIndex.TryGetValue(talentName, out var bonusMap);
+
+        return AbilityTextHelper.FormatTalentName(talent.NameLoc, key =>
+        {
+            if (key.Equals("value", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ownValues.TryGetValue("value", out var value))
+                {
+                    return value;
+                }
+
+                return ownValues.Values.FirstOrDefault();
+            }
+
+            var specialKey = key.StartsWith("bonus_", StringComparison.OrdinalIgnoreCase)
+                ? key["bonus_".Length..]
+                : key;
+
+            if (bonusMap is not null && bonusMap.TryGetValue(specialKey, out var bonus))
+            {
+                return bonus;
+            }
+
+            return ownValues.TryGetValue(specialKey, out var own) ? own : null;
+        });
+    }
+
+    /// <summary>
+    /// 索引技能 special_values.bonuses：天赋内部名 → (special_value 名 → 数值)。
+    /// 同一键出现多个值时用 / 连接（如最低/最高减速 9/18）。
+    /// </summary>
+    private static Dictionary<string, Dictionary<string, string>> BuildBonusIndex(
+        IReadOnlyList<CnAbilityData?>? abilities)
+    {
+        var index = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        if (abilities is null)
+        {
+            return index;
+        }
+
+        foreach (var ability in abilities)
+        {
+            if (ability?.SpecialValues is null)
+            {
+                continue;
+            }
+
+            foreach (var sv in ability.SpecialValues)
+            {
+                if (sv?.Bonuses is null || string.IsNullOrEmpty(sv.Name))
+                {
+                    continue;
+                }
+
+                foreach (var bonus in sv.Bonuses)
+                {
+                    if (bonus is null || string.IsNullOrWhiteSpace(bonus.Name))
+                    {
+                        continue;
+                    }
+
+                    if (!index.TryGetValue(bonus.Name!, out var map))
+                    {
+                        map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        index[bonus.Name!] = map;
+                    }
+
+                    var formatted = AbilityTextHelper.FormatValue(bonus.Value);
+                    map[sv.Name!] = map.TryGetValue(sv.Name!, out var existing)
+                        ? existing + "/" + formatted
+                        : formatted;
+                }
+            }
+        }
+
+        return index;
+    }
+
+    /// <summary>冷却/耗蓝数组：全 0 留空，连续相同值折叠为单个。</summary>
+    private static string FormatLevelValues(IReadOnlyList<double>? values)
+    {
+        if (values is null || values.Count == 0 || values.All(v => Math.Abs(v) < 0.0001))
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string>(values.Count);
+        foreach (var value in values)
+        {
+            var text = AbilityTextHelper.FormatValue(value);
+            if (parts.Count == 0 || parts[^1] != text)
+            {
+                parts.Add(text);
+            }
+        }
+
+        return string.Join('/', parts);
+    }
+
+    /// <summary>
+    /// 国服 behavior 为位掩码字符串，DOTA_ABILITY_BEHAVIOR_PASSIVE = 1 &lt;&lt; 1（数值 2）。
+    /// 兼容个别非数字（含 PASSIVE 文本）的返回。
+    /// </summary>
+    private static bool IsPassiveBehavior(string? behavior)
+    {
+        if (string.IsNullOrWhiteSpace(behavior))
+        {
+            return false;
+        }
+
+        if (long.TryParse(behavior.Trim(), out var mask))
+        {
+            return (mask & 2) != 0;
+        }
+
+        return behavior.Contains("PASSIVE", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static HeroAbilityInfo MapAbility(CnAbilityData a)
+    {
+        var values = BuildSpecialValueMap(a.SpecialValues);
+        return new HeroAbilityInfo
+        {
+            Id = a.Id,
+            Name = a.Name ?? string.Empty,
+            DisplayName = a.NameLoc!.Trim(),
+            Description = AbilityTextHelper.FormatDescription(a.DescLoc, values),
+            Lore = AbilityTextHelper.StripHtml(a.LoreLoc),
+            IconUrl = ResolveAbilityIcon(a.Img, a.Name),
+            IsInnate = a.AbilityIsInnate || a.IsInborn != 0,
+            IsPassive = IsPassiveBehavior(a.Behavior),
+            HasScepter = a.AbilityHasScepter,
+            HasShard = a.AbilityHasShard,
+            GrantedByScepter = a.AbilityIsGrantedByScepter,
+            GrantedByShard = a.AbilityIsGrantedByShard,
+            CooldownText = FormatLevelValues(a.Cooldowns),
+            ManaCostText = FormatLevelValues(a.ManaCosts),
+            Notes = (a.NotesLoc ?? [])
+                .Select(note => AbilityTextHelper.FormatDescription(note, values))
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList(),
+            ScepterDescription = AbilityTextHelper.FormatDescription(a.ScepterLoc, values),
+            ShardDescription = AbilityTextHelper.FormatDescription(a.ShardLoc, values)
+        };
+    }
+
+    private static Dictionary<string, string> BuildSpecialValueMap(
+        IReadOnlyList<CnSpecialValue?>? specialValues)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (specialValues is null)
+        {
+            return map;
+        }
+
+        foreach (var sv in specialValues)
+        {
+            if (sv is null || string.IsNullOrWhiteSpace(sv.Name))
+            {
+                continue;
+            }
+
+            var floats = sv.ValuesFloat ?? [];
+            if (floats.Count == 0)
+            {
+                continue;
+            }
+
+            map[sv.Name] = AbilityTextHelper.FormatSpecialValue(floats);
+        }
+
+        return map;
     }
 
     private static string ResolveAbilityIcon(string? img, string? abilityName)
@@ -146,24 +360,6 @@ public sealed class HeroProfileService : IHeroProfileService
         }
 
         return $"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/{abilityName}.png";
-    }
-
-    private static string? FirstNonEmpty(params string?[] values)
-        => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-
-    internal static string StripHtml(string? html)
-    {
-        if (string.IsNullOrWhiteSpace(html))
-        {
-            return string.Empty;
-        }
-
-        var text = BrRegex.Replace(html, "\n");
-        text = HtmlTagRegex.Replace(text, string.Empty);
-        text = WebUtility.HtmlDecode(text);
-        return text.Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Replace('\r', '\n')
-            .Trim();
     }
 
     private sealed class CnHeroDataResponse
@@ -215,6 +411,9 @@ public sealed class HeroProfileService : IHeroProfileService
 
         [JsonPropertyName("abilities")]
         public List<CnAbilityData?>? Abilities { get; set; }
+
+        [JsonPropertyName("talents")]
+        public List<CnAbilityData?>? Talents { get; set; }
     }
 
     private sealed class CnAbilityData
@@ -234,6 +433,24 @@ public sealed class HeroProfileService : IHeroProfileService
         [JsonPropertyName("lore_loc")]
         public string? LoreLoc { get; set; }
 
+        [JsonPropertyName("notes_loc")]
+        public List<string>? NotesLoc { get; set; }
+
+        [JsonPropertyName("scepter_loc")]
+        public string? ScepterLoc { get; set; }
+
+        [JsonPropertyName("shard_loc")]
+        public string? ShardLoc { get; set; }
+
+        [JsonPropertyName("behavior")]
+        public string? Behavior { get; set; }
+
+        [JsonPropertyName("cooldowns")]
+        public List<double>? Cooldowns { get; set; }
+
+        [JsonPropertyName("mana_costs")]
+        public List<double>? ManaCosts { get; set; }
+
         [JsonPropertyName("img")]
         public string? Img { get; set; }
 
@@ -249,5 +466,35 @@ public sealed class HeroProfileService : IHeroProfileService
 
         [JsonPropertyName("ability_has_shard")]
         public bool AbilityHasShard { get; set; }
+
+        [JsonPropertyName("ability_is_granted_by_scepter")]
+        public bool AbilityIsGrantedByScepter { get; set; }
+
+        [JsonPropertyName("ability_is_granted_by_shard")]
+        public bool AbilityIsGrantedByShard { get; set; }
+
+        [JsonPropertyName("special_values")]
+        public List<CnSpecialValue?>? SpecialValues { get; set; }
+    }
+
+    private sealed class CnSpecialValue
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("values_float")]
+        public List<double>? ValuesFloat { get; set; }
+
+        [JsonPropertyName("bonuses")]
+        public List<CnBonus?>? Bonuses { get; set; }
+    }
+
+    private sealed class CnBonus
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("value")]
+        public double Value { get; set; }
     }
 }

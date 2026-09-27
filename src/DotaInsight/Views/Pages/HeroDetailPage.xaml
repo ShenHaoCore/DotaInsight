@@ -3,613 +3,780 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-      xmlns:converters="clr-namespace:DotaInsight.Converters"
-      xmlns:models="clr-namespace:DotaInsight.Models"
+      xmlns:helpers="clr-namespace:DotaInsight.Helpers"
+      xmlns:conv="clr-namespace:DotaInsight.Converters"
       Title="英雄详情"
       Background="Transparent">
     <Page.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
-        <converters:AdvantageBrushConverter x:Key="AdvantageBrushConverter" />
-        <converters:AdvantageToProgressConverter x:Key="AdvantageToProgressConverter" />
-        <converters:AttrBrushConverter x:Key="AttrBrushConverter" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <conv:BoolToVisibilityConverter x:Key="BoolVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullVisibility" />
+        <conv:IntEqualityConverter x:Key="IntEquality" />
+        <conv:IntEqualsToVisibilityConverter x:Key="IntEqualsVisibility" />
+        <conv:AbilitySelectedConverter x:Key="AbilitySelected" />
+        <StreamGeometry x:Key="DiMeleeSword">M 26.90,2.00 C 25.70,2.00 22.00,4.70 18.60,8.00 C 14.30,12.10 11.50,14.00 9.80,14.00 C 8.40,14.00 6.70,14.60 6.10,15.40 C 5.40,16.20 5.20,17.90 5.50,19.20 C 5.90,20.80 5.40,22.30 4.10,23.90 C 2.90,25.20 2.00,26.90 2.00,27.60 C 2.00,28.30 3.00,29.60 4.20,30.40 C 6.20,31.80 6.60,31.80 8.90,30.30 C 10.40,29.40 13.10,28.40 15.00,28.10 C 17.90,27.60 18.70,26.90 19.50,24.10 C 20.10,22.20 23.10,17.80 26.30,14.30 C 29.40,10.80 32.00,7.60 32.00,7.20 C 32.00,6.80 31.30,5.40 30.40,4.20 C 29.60,3.00 28.00,2.00 26.90,2.00 Z</StreamGeometry>
 
-        <Style x:Key="DashPanelStyle" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource DiHeroGlassBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="16,14" />
-        </Style>
-
-        <Style x:Key="DashFooterLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="0,12,0,0" />
+        <!-- 分段页签按钮（跟随明暗主题） -->
+        <Style x:Key="DiSegmentedItem" TargetType="RadioButton">
             <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="16,7">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DiRowHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource DiAccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-
-        <Style x:Key="CombatColHeader" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,0,0,10" />
-            <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
-        </Style>
-
-        <Style x:Key="CombatStatRow" TargetType="StackPanel">
-            <Setter Property="Orientation" Value="Horizontal" />
-            <Setter Property="Margin" Value="0,0,0,10" />
-        </Style>
-
-        <DataTemplate x:Key="RoleStatTemplate" DataType="{x:Type models:HeroRoleStat}">
-            <StackPanel Margin="0,0,14,12">
-                <TextBlock Text="{Binding Name}" FontSize="12"
-                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                <ProgressBar Height="4" Margin="0,6,0,0" Minimum="0" Maximum="100"
-                             Value="{Binding Score, Mode=OneWay}"
-                             Style="{StaticResource AdvantageProgressStyle}"
-                             Foreground="{DynamicResource DiAccentBrush}" />
-            </StackPanel>
-        </DataTemplate>
-
-        <DataTemplate x:Key="BracketRowTemplate" DataType="{x:Type models:HeroBracketStat}">
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="56" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="64" />
-                    <ColumnDefinition Width="72" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="12"
-                           Foreground="{DynamicResource DiMutedTextBrush}" />
-                <ProgressBar Grid.Column="1" Height="8" Minimum="0" Maximum="100"
-                             Value="{Binding WinRate, Mode=OneWay}" Margin="8,0"
-                             Style="{StaticResource AdvantageProgressStyle}"
-                             Foreground="{DynamicResource DiAccentBrush}" />
-                <TextBlock Grid.Column="2" Text="{Binding WinRateText}"
-                           HorizontalAlignment="Right" VerticalAlignment="Center"
-                           FontSize="12" FontWeight="SemiBold"
-                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                <TextBlock Grid.Column="3" Text="{Binding PicksText}"
-                           HorizontalAlignment="Right" VerticalAlignment="Center"
-                           FontSize="11" Margin="8,0,0,0"
-                           Foreground="{DynamicResource DiMutedTextBrush}" />
-            </Grid>
-        </DataTemplate>
-
-        <DataTemplate x:Key="MatchupPreviewTemplate" DataType="{x:Type models:HeroCounterItem}">
-            <Border Style="{StaticResource MatchupRowBorderStyle}" Margin="0,0,0,6">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="64" />
-                    </Grid.ColumnDefinitions>
-                    <Border Width="52" Height="30" CornerRadius="4" ClipToBounds="True"
-                            Background="{DynamicResource DiChromeBrush}" Margin="0,0,10,0">
-                        <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=120}"
-                               Stretch="UniformToFill"
-                               RenderOptions.BitmapScalingMode="HighQuality" />
-                    </Border>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding HeroName}" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource DiPrimaryTextBrush}"
-                                   TextTrimming="CharacterEllipsis" />
-                        <ProgressBar Margin="0,4,8,0" Style="{StaticResource AdvantageProgressStyle}"
-                                     Value="{Binding WinRateDiff, Mode=OneWay, Converter={StaticResource AdvantageToProgressConverter}}"
-                                     Foreground="{Binding IsCountering, Converter={StaticResource AdvantageBrushConverter}}" />
-                    </StackPanel>
-                    <TextBlock Grid.Column="2" Text="{Binding WinRateDiffText}"
-                               FontSize="13" FontWeight="Bold"
-                               VerticalAlignment="Center" HorizontalAlignment="Right"
-                               Foreground="{Binding IsCountering, Converter={StaticResource AdvantageBrushConverter}}" />
-                </Grid>
-            </Border>
-        </DataTemplate>
     </Page.Resources>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <!-- 禁用 Frame 模板自带的外层 ScrollViewer：
+         否则小窗口时外层给内容无限高度，内部 * 行会被撑成内容高度，
+         导致整页（含背景视频）被外层拖动而页签内滚动失效。滚动只允许发生在页签内部。 -->
+    <Grid Background="{DynamicResource DiCanvasBrush}"
+          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <!-- WebM 背景：铺满整个页面 -->
+        <wv2:WebView2CompositionControl x:Name="HeroVideoView"
+                      Panel.ZIndex="0"
+                      DefaultBackgroundColor="Transparent"
+                      IsHitTestVisible="False" />
+        <Image x:Name="HeroPosterImage"
+               Stretch="Uniform"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Top"
+               Panel.ZIndex="1"
+               RenderOptions.BitmapScalingMode="HighQuality"
+               RenderOptions.CachingHint="Cache" />
 
-        <DockPanel Margin="24,14,24,0">
-            <ui:Button DockPanel.Dock="Left"
-                       Content="返回图鉴"
-                       Icon="{ui:SymbolIcon ArrowLeft24}"
-                       Appearance="Secondary"
-                       Command="{Binding BackToGalleryCommand}"
-                       Margin="0,0,12,12" />
-            <ui:ProgressRing Width="22" Height="22" IsIndeterminate="True"
-                             HorizontalAlignment="Right" Margin="0,0,0,12"
-                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
-        </DockPanel>
+        <ui:Button Panel.ZIndex="2"
+                   Content="返回图鉴"
+                   Icon="{ui:SymbolIcon ArrowLeft24}"
+                   Appearance="Secondary"
+                   Command="{Binding BackToGalleryCommand}"
+                   HorizontalAlignment="Left" VerticalAlignment="Top"
+                   Margin="24,14,0,0" />
 
-        <Grid Grid.Row="1"
-              Visibility="{Binding Hero, Converter={StaticResource NullToVisibilityConverter}}">
+        <!-- 左侧英雄信息区：头部固定 + 总览/技能/天赋 页签 -->
+        <Grid Panel.ZIndex="2"
+              HorizontalAlignment="Left" VerticalAlignment="Stretch"
+              Margin="24,60,0,14" Width="440">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- WebView2 必须放在 ScrollViewer 外，否则滚动会明显卡顿 -->
-            <Border Background="#FF0A0C10"
-                    ClipToBounds="True"
-                    Height="420">
-                <Grid>
-                    <wv2:WebView2 x:Name="HeroVideoView"
-                                  Panel.ZIndex="0"
-                                  DefaultBackgroundColor="Transparent"
-                                  IsHitTestVisible="False" />
-                    <Image x:Name="HeroPosterImage"
-                           Stretch="UniformToFill"
-                           HorizontalAlignment="Right"
-                           VerticalAlignment="Center"
-                           Panel.ZIndex="1"
-                           RenderOptions.BitmapScalingMode="HighQuality"
-                           RenderOptions.CachingHint="Cache" />
+            <StackPanel Grid.Row="0" MaxWidth="420">
+            <!-- 主属性 -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                <Image Source="{Binding Hero.PrimaryAttrIcon}"
+                       Width="22" Height="22" Margin="0,0,8,0"
+                       Stretch="Uniform" VerticalAlignment="Center"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+                <TextBlock Text="{Binding Hero.PrimaryAttr}" FontSize="13"
+                           VerticalAlignment="Center" Foreground="#CCFFFFFF" />
+            </StackPanel>
 
-                    <Border Panel.ZIndex="2" Background="{DynamicResource DiHeroStageScrimBrush}"
-                            IsHitTestVisible="False" />
-                    <Border Panel.ZIndex="2" Height="160" VerticalAlignment="Bottom"
-                            Background="{DynamicResource DiHeroStageBottomScrimBrush}"
-                            IsHitTestVisible="False" />
+            <!-- 英雄名 -->
+            <TextBlock Text="{Binding Hero.DisplayName}"
+                       FontSize="42" FontWeight="Bold" Foreground="White">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Opacity="0.6" />
+                </TextBlock.Effect>
+            </TextBlock>
 
-                    <Grid Panel.ZIndex="3" Margin="36,28,36,20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+            <!-- 英雄描述 -->
+            <TextBlock Text="{Binding Profile.NpeDesc}"
+                       Margin="0,6,0,0" FontSize="14" TextWrapping="Wrap"
+                       Foreground="#CCFFFFFF"
+                       Effect="{x:Null}" />
 
-                        <StackPanel MaxWidth="480" VerticalAlignment="Center" HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <Image Source="{Binding Hero.PrimaryAttrIcon}"
-                                       Width="22" Height="22" Margin="0,0,8,0"
-                                       Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                <TextBlock Text="{Binding Hero.PrimaryAttr}" FontSize="14"
-                                           VerticalAlignment="Center" Foreground="#CCFFFFFF" />
-                            </StackPanel>
-                            <TextBlock Text="{Binding Hero.DisplayName}"
-                                       FontSize="44" FontWeight="Bold" Foreground="White" />
-                            <TextBlock Text="{Binding Profile.NpeDesc}"
-                                       Margin="0,10,0,0" FontSize="15"
-                                       TextWrapping="Wrap" Foreground="#B3FFFFFF"
-                                       Visibility="{Binding HasNpeDesc, Converter={StaticResource BoolToVisibilityConverter}}" />
-                            <TextBlock Text="{Binding Profile.Hype}"
-                                       Margin="0,12,0,0" FontSize="13" LineHeight="22"
-                                       TextWrapping="Wrap" MaxWidth="420" MaxHeight="66"
-                                       TextTrimming="CharacterEllipsis"
-                                       Foreground="#99FFFFFF"
-                                       Visibility="{Binding HasHype, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <!-- 攻击类型 + 复杂度 -->
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                <Path Data="{StaticResource DiMeleeSword}" Width="16" Height="16"
+                      Stretch="Uniform" Fill="#CCFFFFFF"
+                      Visibility="{Binding Hero.IsMelee, Converter={StaticResource BoolToVisibilityConverter}}" />
+                <ui:SymbolIcon Symbol="TargetArrow24" FontSize="16"
+                               Foreground="#CCFFFFFF" VerticalAlignment="Center"
+                               Visibility="{Binding Hero.IsRanged, Converter={StaticResource BoolToVisibilityConverter}}" />
+                <TextBlock Text="{Binding Hero.AttackTypeText}"
+                           FontSize="13" Margin="6,0,0,0"
+                           Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                <TextBlock Text="复杂度" FontSize="13" Margin="24,0,0,0"
+                           Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                <!-- 复杂度：三枚菱形，按等级点亮 -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock Text="◆" FontSize="16" Margin="0,0,6,0"
+                               Foreground="White"
+                               Visibility="{Binding HasComplexity1, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <TextBlock Text="◆" FontSize="16" Margin="0,0,6,0"
+                               Foreground="White"
+                               Visibility="{Binding HasComplexity2, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <TextBlock Text="◆" FontSize="16"
+                               Foreground="White"
+                               Visibility="{Binding HasComplexity3, Converter={StaticResource BoolToVisibilityConverter}}" />
+                </StackPanel>
+            </StackPanel>
+            </StackPanel>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                                <StackPanel Margin="0,0,28,0">
-                                    <TextBlock Text="攻击类型" FontSize="11" Foreground="#66FFFFFF" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <Image Source="{Binding Hero.DamageIcon}" Width="16" Height="16" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.AttackTypeText}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="White" />
-                                    </StackPanel>
-                                </StackPanel>
-                                <StackPanel>
-                                    <TextBlock Text="复杂度" FontSize="11" Foreground="#66FFFFFF" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <Ellipse Width="12" Height="12" Margin="0,0,6,0"
-                                                 Stroke="#66FFFFFF" StrokeThickness="1">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="Transparent" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding HasComplexity1}" Value="True">
-                                                            <Setter Property="Fill" Value="White" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
-                                        <Ellipse Width="12" Height="12" Margin="0,0,6,0" Stroke="#66FFFFFF" StrokeThickness="1">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="Transparent" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding HasComplexity2}" Value="True">
-                                                            <Setter Property="Fill" Value="White" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
-                                        <Ellipse Width="12" Height="12" Stroke="#66FFFFFF" StrokeThickness="1">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="Transparent" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding HasComplexity3}" Value="True">
-                                                            <Setter Property="Fill" Value="White" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
-                                    </StackPanel>
-                                </StackPanel>
-                            </StackPanel>
-                            <TextBlock Text="{Binding StatusMessage}" Margin="0,10,0,0" FontSize="12"
-                                       Foreground="#80FFFFFF" />
-                        </StackPanel>
-
-                        <DockPanel Grid.Row="1" LastChildFill="False"
-                                   Visibility="{Binding HasAbilities, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                <TextBlock Text="技能" FontSize="12" Margin="0,0,0,8"
-                                           HorizontalAlignment="Right" Foreground="#99FFFFFF" />
-                                <ItemsControl ItemsSource="{Binding Abilities}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type models:HeroAbilityInfo}">
-                                            <Button Margin="8,0,0,0" Padding="0" BorderThickness="0"
-                                                    Background="Transparent" Cursor="Hand"
-                                                    Command="{Binding DataContext.SelectAbilityCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                    CommandParameter="{Binding}">
-                                                <Border Width="52" Height="52" CornerRadius="4" ClipToBounds="True"
-                                                        BorderThickness="1" BorderBrush="#66FFFFFF"
-                                                        Background="#33000000">
-                                                    <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=104}"
-                                                           Stretch="UniformToFill"
-                                                           RenderOptions.BitmapScalingMode="HighQuality" />
-                                                </Border>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <Border Margin="0,8,0,0" Padding="12,8" MaxWidth="400"
-                                        Background="#CC000000" CornerRadius="4"
-                                        Visibility="{Binding HasSelectedAbility, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding SelectedAbility.DisplayName}" FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="White" />
-                                        <TextBlock Text="{Binding SelectedAbility.Description}" Margin="0,4,0,0"
-                                                   FontSize="11" LineHeight="18" TextWrapping="Wrap" MaxHeight="54"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Foreground="#B3FFFFFF" />
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                            <ui:Button DockPanel.Dock="Left"
-                                       Content="分析克制"
-                                       Icon="{ui:SymbolIcon ArrowSwap24}"
-                                       Appearance="Primary"
-                                       Padding="14,8"
-                                       VerticalAlignment="Bottom"
-                                       Command="{Binding OpenCounterCommand}" />
-                        </DockPanel>
-                    </Grid>
-                </Grid>
+            <!-- 分段页签：总览 / 技能 / 天赋 -->
+            <Border Grid.Row="1" Margin="0,14,0,0" Padding="3"
+                    HorizontalAlignment="Left"
+                    Background="{DynamicResource DiHeroGlassBrush}" CornerRadius="8"
+                    BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="总览" Style="{StaticResource DiSegmentedItem}"
+                                 IsChecked="{Binding SelectedTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
+                    <RadioButton Content="技能" Style="{StaticResource DiSegmentedItem}"
+                                 IsChecked="{Binding SelectedTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
+                    <RadioButton Content="天赋" Style="{StaticResource DiSegmentedItem}"
+                                 IsChecked="{Binding SelectedTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=2, Mode=TwoWay}" />
+                </StackPanel>
             </Border>
 
-            <ScrollViewer Grid.Row="1"
-                          x:Name="DetailScrollViewer"
-                          VerticalScrollBarVisibility="Auto"
-                          Background="Transparent"
-                          CanContentScroll="False"
-                          ScrollChanged="OnDetailScrollChanged">
-                <StackPanel>
-                <!-- ========== 国服三栏属性条（紧贴头图） ========== -->
-                <Border Background="{DynamicResource DiHeroDashBrush}"
-                        BorderBrush="{DynamicResource DiStrokeBrush}"
-                        BorderThickness="0,1,0,1"
-                        Padding="0"
-                        Margin="0,0,0,16">
-                    <Grid MinHeight="168">
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+            <!-- ===== 总览 ===== -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=0}">
+                <StackPanel Margin="0,0,14,0">
+
+            <!-- 定位：3×3 网格，名称 + 进度条（有该定位则填满） -->
+            <StackPanel Margin="0,14,0,0"
+                        Visibility="{Binding Hero.HasRoles, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <Rectangle Width="3" Height="15" Fill="{DynamicResource DiAccentBrush}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBlock Text="定位" FontSize="15" FontWeight="SemiBold"
+                               Foreground="White" VerticalAlignment="Center" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Hero.RoleStats}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,10,8">
+                                <TextBlock Text="{Binding Name}" FontSize="12"
+                                           Foreground="#CCFFFFFF" />
+                                <ProgressBar Margin="0,5,0,0" Height="4"
+                                             Minimum="0" Maximum="100"
+                                             Value="{Binding Score}"
+                                             Style="{StaticResource DiThinProgressStyle}"
+                                             Foreground="{DynamicResource DiAccentBrush}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- 属性：官网 DetailsBar（头像 + 生命/魔法条 + 三维属性行） -->
+            <StackPanel Margin="0,10,0,0">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <Rectangle Width="3" Height="15" Fill="{DynamicResource DiAccentBrush}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBlock Text="属性" FontSize="15" FontWeight="SemiBold"
+                               Foreground="White" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- 官网式单一面板：头像+血蓝条 / 三维属性 / 分隔线 / 攻击·防御·机动性 -->
+                <Border CornerRadius="8" Background="#40000000"
+                        BorderBrush="#33FFFFFF" BorderThickness="1" Padding="14,12">
+                    <StackPanel>
+                    <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1.15*" MinWidth="260" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="1*" MinWidth="220" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="1.35*" MinWidth="280" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <DockPanel Margin="20,16">
-                            <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource DashFooterLabel}" Text="属性" />
+                        <!-- 左：头像 + 生命/魔法条（条与头像连成一体） -->
+                        <StackPanel Width="150">
+                            <Border Height="84" CornerRadius="4,4,0,0" ClipToBounds="True"
+                                    Background="#22FFFFFF">
+                                <Image Source="{Binding Hero.IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=320}"
+                                       Stretch="UniformToFill"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Border>
+                            <!-- 生命 -->
+                            <Border Height="22">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#3F8B2B" Offset="0" />
+                                        <GradientStop Color="#6CD837" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Grid>
+                                    <TextBlock Text="{Binding Hero.TotalHealth}"
+                                               FontSize="12" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="White" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Hero.TotalHealthRegen, StringFormat=+{0:F1}}"
+                                               FontSize="10" Margin="0,0,7,0"
+                                               HorizontalAlignment="Right"
+                                               Foreground="#D6F7C8" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                            <!-- 魔法 -->
+                            <Border Height="22" Margin="0,2,0,0" CornerRadius="0,0,4,4">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#1F6FE0" Offset="0" />
+                                        <GradientStop Color="#5FCEF7" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Grid>
+                                    <TextBlock Text="{Binding Hero.TotalMana}"
+                                               FontSize="12" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="White" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Hero.TotalManaRegen, StringFormat=+{0:F1}}"
+                                               FontSize="10" Margin="0,0,7,0"
+                                               HorizontalAlignment="Right"
+                                               Foreground="#D4F0FF" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- 右：三维属性三行 -->
+                        <Grid Grid.Column="1" Margin="16,0,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <!-- 力量 -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.StrIcon}}"
+                                       Width="30" Height="30" Stretch="Uniform"
+                                       VerticalAlignment="Center"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Text="{Binding Hero.BaseStr}" Margin="10,0,0,0"
+                                           FontSize="21" FontWeight="Bold"
+                                           Foreground="White" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Hero.StrGain, StringFormat=+{0:F1}}"
+                                           Margin="6,0,0,2" FontSize="13"
+                                           Foreground="#99FFFFFF" VerticalAlignment="Bottom" />
+                            </StackPanel>
+                            <!-- 敏捷 -->
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.AgiIcon}}"
+                                       Width="30" Height="30" Stretch="Uniform"
+                                       VerticalAlignment="Center"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Text="{Binding Hero.BaseAgi}" Margin="10,0,0,0"
+                                           FontSize="21" FontWeight="Bold"
+                                           Foreground="White" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Hero.AgiGain, StringFormat=+{0:F1}}"
+                                           Margin="6,0,0,2" FontSize="13"
+                                           Foreground="#99FFFFFF" VerticalAlignment="Bottom" />
+                            </StackPanel>
+                            <!-- 智力 -->
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.IntIcon}}"
+                                       Width="30" Height="30" Stretch="Uniform"
+                                       VerticalAlignment="Center"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Text="{Binding Hero.BaseInt}" Margin="10,0,0,0"
+                                           FontSize="21" FontWeight="Bold"
+                                           Foreground="White" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Hero.IntGain, StringFormat=+{0:F1}}"
+                                           Margin="6,0,0,2" FontSize="13"
+                                           Foreground="#99FFFFFF" VerticalAlignment="Bottom" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
+                    <!-- 分隔线 -->
+                    <Border Height="1" Margin="0,12" Background="#26FFFFFF" />
+
+                    <!-- 攻击 / 防御 / 机动性 三栏 -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 攻击 -->
+                        <StackPanel HorizontalAlignment="Left">
+                            <TextBlock Text="攻击" FontSize="12" Margin="0,0,0,8"
+                                       Foreground="#99FFFFFF" />
+                            <Grid Margin="0,0,0,6" ToolTip="攻击力">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.DamageIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.BaseDamageText}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid Margin="0,0,0,6" ToolTip="攻击间隔">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.AttackTimeIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.AttackRateText}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid Margin="0,0,0,6" ToolTip="攻击距离">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.AttackRangeIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.AttackRange}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid ToolTip="弹道速度">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.ProjectileSpeedIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.ProjectileSpeedText}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 防御 -->
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Left">
+                            <TextBlock Text="防御" FontSize="12" Margin="0,0,0,8"
+                                       Foreground="#99FFFFFF" />
+                            <Grid Margin="0,0,0,6" ToolTip="护甲">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.ArmorIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.TotalArmorText}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid ToolTip="魔法抗性">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.MagicResistIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.MagicResistText}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 机动性 -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Left">
+                            <TextBlock Text="机动性" FontSize="12" Margin="0,0,0,8"
+                                       Foreground="#99FFFFFF" />
+                            <Grid Margin="0,0,0,6" ToolTip="移动速度">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.MoveSpeedIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.MoveSpeed}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid Margin="0,0,0,6" ToolTip="转身速率">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.TurnRateIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.TurnRateText}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid ToolTip="视野（昼 / 夜）">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.VisionIcon}}"
+                                       Width="16" Height="16" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Grid.Column="1" Text="{Binding Hero.VisionText}"
+                                           Margin="8,0,0,0" FontSize="13"
+                                           Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 背景故事 -->
+            <StackPanel Margin="0,18,0,0"
+                        Visibility="{Binding HasBio, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <Rectangle Width="3" Height="15" Fill="{DynamicResource DiAccentBrush}"
+                               VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBlock Text="背景故事" FontSize="15" FontWeight="SemiBold"
+                               Foreground="White" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{Binding Profile.Bio}"
+                           FontSize="13" TextWrapping="Wrap"
+                           LineHeight="22" Margin="0,0,6,20"
+                           Foreground="#B3FFFFFF" />
+            </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ===== 技能 ===== -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=1}">
+                <StackPanel Margin="0,2,14,6">
+                    <!-- 常规技能图标行 -->
+                    <ItemsControl ItemsSource="{Binding NormalAbilities}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Margin="0,0,10,10" Cursor="Hand"
+                                        ToolTip="{Binding DisplayName}"
+                                        Command="{Binding DataContext.SelectAbilityCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Bd" Width="58" Height="58"
+                                                    CornerRadius="8" BorderThickness="2"
+                                                    BorderBrush="#33FFFFFF" Background="#33000000">
+                                                <Image x:Name="Im"
+                                                       Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=128}"
+                                                       Margin="6" Stretch="Uniform" Opacity="0.8"
+                                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#99FFFFFF" />
+                                                </Trigger>
+                                                <DataTrigger Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource AbilitySelected}">
+                                                            <Binding />
+                                                            <Binding Path="DataContext.SelectedAbility"
+                                                                     RelativeSource="{RelativeSource AncestorType=Page}" />
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#F03D2E" />
+                                                    <Setter TargetName="Bd" Property="Background" Value="#55000000" />
+                                                    <Setter TargetName="Im" Property="Opacity" Value="1" />
+                                                </DataTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- 技能详情卡 -->
+                    <Border Background="#33000000" BorderBrush="#26FFFFFF" BorderThickness="1"
+                            CornerRadius="8" Padding="14"
+                            Visibility="{Binding SelectedAbility, Converter={StaticResource NullVisibility}}">
+                        <StackPanel>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="16" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Width="96">
-                                    <Border Width="96" Height="54" CornerRadius="2" ClipToBounds="True"
-                                            Background="{DynamicResource DiChromeBrush}">
-                                        <Image Source="{Binding Hero.IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=192}"
-                                               Stretch="UniformToFill"
-                                               RenderOptions.BitmapScalingMode="HighQuality" />
-                                    </Border>
-                                    <Border Margin="0,6,0,0" Height="18" CornerRadius="2" Background="#2A3D2F">
-                                        <TextBlock Text="{Binding Hero.HealthBarText}" FontSize="10" FontWeight="SemiBold"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" />
-                                    </Border>
-                                    <Border Margin="0,3,0,0" Height="18" CornerRadius="2" Background="#24344A">
-                                        <TextBlock Text="{Binding Hero.ManaBarText}" FontSize="10" FontWeight="SemiBold"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" />
-                                    </Border>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                        <Image Source="{Binding Hero.StrIcon}" Width="24" Height="24" Margin="0,0,10,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.StrText}" FontSize="18" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                        <Image Source="{Binding Hero.AgiIcon}" Width="24" Height="24" Margin="0,0,10,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.AgiText}" FontSize="18" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Image Source="{Binding Hero.IntIcon}" Width="24" Height="24" Margin="0,0,10,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.IntText}" FontSize="18" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
+                                <Border Width="54" Height="54" CornerRadius="6"
+                                        Background="#22000000" ClipToBounds="True">
+                                    <Image Source="{Binding SelectedAbility.IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=128}"
+                                           Margin="5" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding SelectedAbility.DisplayName}"
+                                               FontSize="17" FontWeight="Bold"
+                                               Foreground="White" TextWrapping="Wrap" />
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <Border Background="#33FFFFFF" CornerRadius="3" Padding="6,1"
+                                                Margin="0,0,6,6"
+                                                Visibility="{Binding SelectedAbility.IsPassive, Converter={StaticResource BoolVisibility}}">
+                                            <TextBlock Text="被动" FontSize="11" Foreground="#E6FFFFFF" />
+                                        </Border>
+                                        <Border Background="#33E3B341" CornerRadius="3" Padding="6,1"
+                                                Margin="0,0,6,6"
+                                                Visibility="{Binding SelectedAbility.HasScepter, Converter={StaticResource BoolVisibility}}">
+                                            <TextBlock Text="神杖升级" FontSize="11" Foreground="#E3B341" />
+                                        </Border>
+                                        <Border Background="#33E3B341" CornerRadius="3" Padding="6,1"
+                                                Margin="0,0,6,6"
+                                                Visibility="{Binding SelectedAbility.GrantedByScepter, Converter={StaticResource BoolVisibility}}">
+                                            <TextBlock Text="神杖提供" FontSize="11" Foreground="#E3B341" />
+                                        </Border>
+                                        <Border Background="#334FC3F7" CornerRadius="3" Padding="6,1"
+                                                Margin="0,0,6,6"
+                                                Visibility="{Binding SelectedAbility.HasShard, Converter={StaticResource BoolVisibility}}">
+                                            <TextBlock Text="魔晶升级" FontSize="11" Foreground="#4FC3F7" />
+                                        </Border>
+                                        <Border Background="#334FC3F7" CornerRadius="3" Padding="6,1"
+                                                Margin="0,0,6,6"
+                                                Visibility="{Binding SelectedAbility.GrantedByShard, Converter={StaticResource BoolVisibility}}">
+                                            <TextBlock Text="魔晶提供" FontSize="11" Foreground="#4FC3F7" />
+                                        </Border>
+                                    </WrapPanel>
                                 </StackPanel>
                             </Grid>
-                        </DockPanel>
 
-                        <Rectangle Grid.Column="1" Width="1" Fill="{DynamicResource DiStrokeBrush}" Margin="0,14" />
+                            <!-- 冷却 / 耗蓝 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Grid Margin="0,0,20,0"
+                                      Visibility="{Binding SelectedAbility.HasCooldown, Converter={StaticResource BoolVisibility}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.AttackTimeIcon}}"
+                                           Width="15" Height="15" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality" />
+                                    <TextBlock Grid.Column="1" Margin="7,0,0,0" VerticalAlignment="Center"
+                                               FontSize="13" Foreground="White"
+                                               Text="{Binding SelectedAbility.CooldownText, StringFormat={}{0} 秒}" />
+                                </Grid>
+                                <Grid Visibility="{Binding SelectedAbility.HasManaCost, Converter={StaticResource BoolVisibility}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Source="{Binding Source={x:Static helpers:HeroAssetHelper.ManaIcon}}"
+                                           Width="15" Height="15" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality" />
+                                    <TextBlock Grid.Column="1" Margin="7,0,0,0" VerticalAlignment="Center"
+                                               FontSize="13" Foreground="White"
+                                               Text="{Binding SelectedAbility.ManaCostText}" />
+                                </Grid>
+                            </StackPanel>
 
-                        <DockPanel Grid.Column="2" Margin="16,16">
-                            <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource DashFooterLabel}" Text="定位" />
-                            <ItemsControl ItemsSource="{Binding RoleStats}" ItemTemplate="{StaticResource RoleStatTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <UniformGrid Columns="3" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
+                            <TextBlock Text="{Binding SelectedAbility.Description}"
+                                       Margin="0,10,0,0" FontSize="13" TextWrapping="Wrap"
+                                       LineHeight="21" Foreground="#E6FFFFFF" />
+
+                            <ItemsControl ItemsSource="{Binding SelectedAbility.Notes}" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock FontSize="12" TextWrapping="Wrap"
+                                                   LineHeight="19" Foreground="#B3FFFFFF" Margin="0,2,0,0">
+                                            <Run Text="•  " /><Run Text="{Binding Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                        </DockPanel>
 
-                        <Rectangle Grid.Column="3" Width="1" Fill="{DynamicResource DiStrokeBrush}" Margin="0,14" />
+                            <TextBlock Text="{Binding SelectedAbility.Lore}"
+                                       Margin="0,8,0,0" FontSize="12" FontStyle="Italic"
+                                       TextWrapping="Wrap" LineHeight="19" Foreground="#80FFFFFF">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedAbility.Lore}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
 
-                        <DockPanel Grid.Column="4" Margin="16,16">
-                            <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource DashFooterLabel}" Text="属性" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                            <!-- 阿哈利姆神杖升级 -->
+                            <Border Margin="0,12,0,0" Padding="12,9" CornerRadius="6"
+                                    Background="#1AE3B341" BorderBrush="#40E3B341" BorderThickness="1"
+                                    Visibility="{Binding SelectedAbility.HasScepterDescription, Converter={StaticResource BoolVisibility}}">
                                 <StackPanel>
-                                    <TextBlock Text="攻击" Style="{StaticResource CombatColHeader}" />
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.DamageIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.BaseDamageText}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.AttackTimeIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.AttackRate, StringFormat={}{0:F1}}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.AttackRangeIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.AttackRange}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.AttackRangeIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Opacity="0.7" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.ProjectileSpeedText}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
+                                    <TextBlock Text="阿哈利姆神杖" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="#E3B341" />
+                                    <TextBlock Text="{Binding SelectedAbility.ScepterDescription}"
+                                               Margin="0,5,0,0" FontSize="12.5" TextWrapping="Wrap"
+                                               LineHeight="20" Foreground="#F2E6C2" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="防御" Style="{StaticResource CombatColHeader}" />
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.ArmorIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.TotalArmorText}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.MagicResistIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.BaseMagicResist, StringFormat={}{0:F0}%}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
+                            </Border>
+
+                            <!-- 阿哈利姆魔晶升级 -->
+                            <Border Margin="0,8,0,0" Padding="12,9" CornerRadius="6"
+                                    Background="#1A4FC3F7" BorderBrush="#404FC3F7" BorderThickness="1"
+                                    Visibility="{Binding SelectedAbility.HasShardDescription, Converter={StaticResource BoolVisibility}}">
+                                <StackPanel>
+                                    <TextBlock Text="阿哈利姆魔晶" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="#4FC3F7" />
+                                    <TextBlock Text="{Binding SelectedAbility.ShardDescription}"
+                                               Margin="0,5,0,0" FontSize="12.5" TextWrapping="Wrap"
+                                               LineHeight="20" Foreground="#CFEFFF" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="机动性" Style="{StaticResource CombatColHeader}" />
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.MoveSpeedIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.MoveSpeed}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.AttackTimeIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Opacity="0.7" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.TurnRateText}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Style="{StaticResource CombatStatRow}">
-                                        <Image Source="{Binding Hero.VisionIcon}" Width="18" Height="18" Margin="0,0,8,0"
-                                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-                                        <TextBlock Text="{Binding Hero.VisionText}" FontSize="14" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Grid>
-                        </DockPanel>
-                    </Grid>
-                </Border>
-
-                <StackPanel Margin="24,0,24,18">
-                <!-- 背景故事 -->
-                <Border Style="{StaticResource DashPanelStyle}" Margin="0,0,0,14"
-                        Visibility="{Binding HasBio, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <DockPanel>
-                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                            <TextBlock Text="背景故事" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                            <ui:Button DockPanel.Dock="Right"
-                                       Content="{Binding BioToggleText}"
-                                       Appearance="Transparent" FontSize="12"
-                                       Command="{Binding ToggleBioCommand}" />
-                        </DockPanel>
-                        <TextBlock Text="{Binding Profile.Bio}" FontSize="13" LineHeight="22"
-                                   TextWrapping="Wrap"
-                                   Foreground="{DynamicResource DiMutedTextBrush}">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="MaxHeight" Value="72" />
-                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsBioExpanded}" Value="True">
-                                            <Setter Property="MaxHeight" Value="2000" />
-                                            <Setter Property="TextTrimming" Value="None" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </DockPanel>
-                </Border>
-
-                <!-- 版本数据 -->
-                <TextBlock Text="版本数据" FontSize="15" FontWeight="SemiBold" Margin="0,2,0,10"
-                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                <UniformGrid Columns="6" Margin="0,0,0,16">
-                    <Border Style="{StaticResource DiPanelCardStyle}" Padding="12,10" Margin="0,0,8,8">
-                        <StackPanel>
-                            <TextBlock Text="胜率" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
-                            <TextBlock Text="{Binding Hero.WinRateText}" Margin="0,6,0,0"
-                                       FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                            </Border>
                         </StackPanel>
                     </Border>
-                    <Border Style="{StaticResource DiPanelCardStyle}" Padding="12,10" Margin="0,0,8,8">
-                        <StackPanel>
-                            <TextBlock Text="选取率" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
-                            <TextBlock Text="{Binding Hero.PickRateText}" Margin="0,6,0,0"
-                                       FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource DiPanelCardStyle}" Padding="12,10" Margin="0,0,8,8">
-                        <StackPanel>
-                            <TextBlock Text="样本场次" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
-                            <TextBlock Text="{Binding Hero.Matches}" Margin="0,6,0,0"
-                                       FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource DiPanelCardStyle}" Padding="12,10" Margin="0,0,8,8">
-                        <StackPanel>
-                            <TextBlock Text="职业胜率" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
-                            <TextBlock Text="{Binding Hero.ProWinRateText}" Margin="0,6,0,0"
-                                       FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource DiPanelCardStyle}" Padding="12,10" Margin="0,0,8,8">
-                        <StackPanel>
-                            <TextBlock Text="职业禁用" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
-                            <TextBlock Text="{Binding Hero.ProBan}" Margin="0,6,0,0"
-                                       FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource DiPanelCardStyle}" Padding="12,10" Margin="0,0,0,8">
-                        <StackPanel>
-                            <TextBlock Text="Turbo 胜率" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
-                            <TextBlock Text="{Binding Hero.TurboWinRateText}" Margin="0,6,0,0"
-                                       FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </StackPanel>
-                    </Border>
-                </UniformGrid>
+                    <TextBlock Text="暂无技能数据" FontSize="13" Foreground="#80FFFFFF"
+                               HorizontalAlignment="Center" Margin="0,24,0,0"
+                               Visibility="{Binding SelectedAbility, Converter={StaticResource NullVisibility}, ConverterParameter=Invert}" />
 
-                <!-- 段位 -->
-                <Border Style="{StaticResource DiPanelCardStyle}" Padding="16,14" Margin="0,0,0,14">
-                    <DockPanel>
-                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                            <TextBlock Text="段位胜率" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                            <TextBlock DockPanel.Dock="Right" Text="胜率 / 场次" FontSize="11"
-                                       VerticalAlignment="Center"
-                                       Foreground="{DynamicResource DiMutedTextBrush}" />
-                        </DockPanel>
-                        <ItemsControl ItemsSource="{Binding Hero.Brackets}"
-                                      ItemTemplate="{StaticResource BracketRowTemplate}" />
-                    </DockPanel>
-                </Border>
-
-                <!-- 克制预览 -->
-                <DockPanel Margin="0,0,0,10">
-                    <TextBlock Text="{Binding MatchupStatus}" FontSize="15" FontWeight="SemiBold"
-                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <ui:ProgressRing DockPanel.Dock="Right" Width="18" Height="18"
-                                     IsIndeterminate="True"
-                                     Visibility="{Binding IsLoadingMatchups, Converter={StaticResource BoolToVisibilityConverter}}" />
-                    <ui:Button DockPanel.Dock="Right"
-                               Content="查看完整克制"
-                               Appearance="Transparent"
-                               FontSize="12"
-                               Margin="0,0,10,0"
-                               Command="{Binding OpenCounterCommand}" />
-                </DockPanel>
-
-                <Grid Margin="0,0,0,8"
-                      Visibility="{Binding HasMatchupPreview, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Style="{StaticResource DiPanelCardStyle}" Padding="14,12">
-                        <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Text="不利对位 Top5" FontSize="13" FontWeight="SemiBold"
-                                       Margin="0,0,0,10"
-                                       Foreground="{DynamicResource DiDisadvantageBrush}" />
-                            <ItemsControl ItemsSource="{Binding CounteredByPreview}"
-                                          ItemTemplate="{StaticResource MatchupPreviewTemplate}" />
-                        </DockPanel>
-                    </Border>
-
-                    <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" Padding="14,12">
-                        <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Text="有利对位 Top5" FontSize="13" FontWeight="SemiBold"
-                                       Margin="0,0,0,10"
-                                       Foreground="{DynamicResource DiAdvantageBrush}" />
-                            <ItemsControl ItemsSource="{Binding CountersPreview}"
-                                          ItemTemplate="{StaticResource MatchupPreviewTemplate}" />
-                        </DockPanel>
-                    </Border>
-                </Grid>
+                    <!-- 先天技能 -->
+                    <StackPanel Margin="0,16,0,0"
+                                Visibility="{Binding HasInnateAbilities, Converter={StaticResource BoolVisibility}}">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Rectangle Width="3" Height="15" Fill="{DynamicResource DiAccentBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock Text="先天技能" FontSize="15" FontWeight="SemiBold"
+                                       Foreground="White" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding InnateAbilities}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,10" Padding="12" CornerRadius="8"
+                                            Background="#26000000" BorderBrush="#22FFFFFF" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="42" Height="42" CornerRadius="6"
+                                                    Background="#22000000" ClipToBounds="True">
+                                                <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=128}"
+                                                       Margin="4" Stretch="Uniform"
+                                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontSize="14" FontWeight="SemiBold"
+                                                               Foreground="White" VerticalAlignment="Center" />
+                                                    <Border Background="#33FFFFFF" CornerRadius="3" Padding="6,1"
+                                                            Margin="8,0,0,0"
+                                                            Visibility="{Binding IsPassive, Converter={StaticResource BoolVisibility}}">
+                                                        <TextBlock Text="被动" FontSize="11" Foreground="#E6FFFFFF" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Description}"
+                                                           Margin="0,5,0,0" FontSize="12.5"
+                                                           TextWrapping="Wrap" LineHeight="20"
+                                                           Foreground="#CCFFFFFF" />
+                                                <ItemsControl ItemsSource="{Binding Notes}" Margin="0,3,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock FontSize="12" TextWrapping="Wrap"
+                                                                       LineHeight="19" Foreground="#99FFFFFF" Margin="0,2,0,0">
+                                                                <Run Text="•  " /><Run Text="{Binding Mode=OneWay}" />
+                                                            </TextBlock>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
             </ScrollViewer>
+
+            <!-- ===== 天赋 ===== -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=2}">
+                <StackPanel Margin="0,2,14,6">
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <Rectangle Width="3" Height="15" Fill="{DynamicResource DiAccentBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <TextBlock Text="天赋树" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="White" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <Border Margin="0,12,0,0" Padding="20,8" CornerRadius="8"
+                            Background="#33000000" BorderBrush="#26FFFFFF" BorderThickness="1"
+                            Visibility="{Binding HasTalents, Converter={StaticResource BoolVisibility}}">
+                        <Grid>
+                            <Rectangle Width="2" HorizontalAlignment="Center"
+                                       Fill="#1FFFFFFF" Margin="0,18" />
+                            <ItemsControl ItemsSource="{Binding TalentRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Height="70">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Left}"
+                                                       TextAlignment="Right" TextWrapping="Wrap"
+                                                       VerticalAlignment="Center" Margin="0,0,16,0"
+                                                       FontSize="13" LineHeight="19" Foreground="#E6FFFFFF" />
+                                            <Border Grid.Column="1" Width="36" Height="36"
+                                                    CornerRadius="18" BorderThickness="1.5"
+                                                    BorderBrush="#F03D2E" Background="#F0101218"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Level}"
+                                                           FontSize="13" FontWeight="Bold"
+                                                           Foreground="White"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Right}"
+                                                       TextAlignment="Left" TextWrapping="Wrap"
+                                                       VerticalAlignment="Center" Margin="16,0,0,0"
+                                                       FontSize="13" LineHeight="19" Foreground="#E6FFFFFF" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="暂无天赋数据" FontSize="13" Foreground="#80FFFFFF"
+                               HorizontalAlignment="Center" Margin="0,24,0,0"
+                               Visibility="{Binding HasTalents, Converter={StaticResource BoolVisibility}, ConverterParameter=Invert}" />
+                    <TextBlock Text="每个等级可在两个天赋中选择一个，25 级为最高级天赋。"
+                               Margin="4,12,0,0" FontSize="11"
+                               Foreground="#80FFFFFF" TextWrapping="Wrap" />
+                </StackPanel>
+            </ScrollViewer>
+            </Grid>
         </Grid>
 
-        <TextBlock Grid.Row="1"
-                   Text="未选择英雄"
-                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                   FontSize="16"
-                   Foreground="{DynamicResource DiMutedTextBrush}"
-                   Visibility="{Binding Hero, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=Invert}" />
+        <!-- 加载指示：不遮挡画面，仅右下角小转环（官网式渐进加载） -->
+        <ui:ProgressRing Panel.ZIndex="3" Width="22" Height="22" IsIndeterminate="True"
+                         HorizontalAlignment="Right" VerticalAlignment="Top"
+                         Margin="0,14,24,0"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
     </Grid>
 </Page>

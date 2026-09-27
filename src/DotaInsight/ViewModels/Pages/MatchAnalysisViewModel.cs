@@ -18,14 +18,17 @@ namespace DotaInsight.ViewModels.Pages;
 public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 {
     private readonly IMatchAnalysisService _matchService;
+    private readonly ILiteDbCacheService _cache;
     private readonly ILogger _logger;
     private CancellationTokenSource? _cts;
 
-    public MatchAnalysisViewModel(IMatchAnalysisService matchService, ILogger logger)
+    public MatchAnalysisViewModel(IMatchAnalysisService matchService, ILiteDbCacheService cache, ILogger logger)
     {
         _matchService = matchService;
+        _cache = cache;
         _logger = logger.ForContext<MatchAnalysisViewModel>();
         Matches = new ObservableCollection<RecentMatchItem>();
+        HistoryIds = new ObservableCollection<string>();
         Series = Array.Empty<ISeries>();
         XAxes = [new Axis { Labels = [] }];
         YAxes = [new Axis { MinLimit = 0, MaxLimit = 1.2 }];
@@ -33,6 +36,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
     public void OnNavigatedTo(object? parameter)
     {
+        LoadHistoryIds();
         if (parameter is string account && !string.IsNullOrWhiteSpace(account))
         {
             AccountInput = account.Trim();
@@ -45,6 +49,8 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     }
 
     public ObservableCollection<RecentMatchItem> Matches { get; }
+
+    public ObservableCollection<string> HistoryIds { get; }
 
     [ObservableProperty]
     private string accountInput = string.Empty;
@@ -82,6 +88,8 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             return;
         }
 
+        SaveHistoryId(AccountInput.Trim());
+
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
@@ -102,6 +110,11 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 Profile = result.Profile;
                 Matches.Clear();
                 foreach (var match in result.Matches)
@@ -129,7 +142,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 }
             });
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is OperationCanceledException && token.IsCancellationRequested)
         {
             _logger.Debug("战绩请求已取消");
         }
@@ -147,6 +160,56 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             }
         }
     }
+
+    [RelayCommand]
+    private void SelectHistory(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return;
+        }
+
+        AccountInput = id;
+        if (SearchCommand.CanExecute(null))
+        {
+            _ = SearchCommand.ExecuteAsync(null);
+        }
+    }
+
+    private void LoadHistoryIds()
+    {
+        var history = _cache.Get<List<string>>(HistoryCacheKey);
+        HistoryIds.Clear();
+        if (history is not null)
+        {
+            foreach (var id in history)
+            {
+                HistoryIds.Add(id);
+            }
+        }
+    }
+
+    private void SaveHistoryId(string accountId)
+    {
+        var list = HistoryIds.ToList();
+        list.Remove(accountId);
+        list.Insert(0, accountId);
+        if (list.Count > 8)
+        {
+            list.RemoveAt(list.Count - 1);
+        }
+
+        _cache.Set(HistoryCacheKey, list, TimeSpan.FromDays(30));
+        HistoryIds.Clear();
+        foreach (var id in list)
+        {
+            HistoryIds.Add(id);
+        }
+
+        OnPropertyChanged(nameof(HistoryIds));
+    }
+
+    private const string HistoryCacheKey = "match_history_ids";
 
     private void UpdateChart(IReadOnlyList<RecentMatchItem> matches)
     {
@@ -169,7 +232,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 Name = "胜负",
                 Values = values,
                 MaxBarWidth = 18,
-                Fill = new SolidColorPaint(SKColor.Parse("#2FCB7A"))
+                Fill = new SolidColorPaint(SKColor.Parse("#2FD57F"))
             }
         ];
 
@@ -180,7 +243,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 Labels = labels,
                 LabelsRotation = 20,
                 TextSize = 10,
-                LabelsPaint = new SolidColorPaint(SKColor.Parse("#9AA6B5")),
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
                 SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
             }
         ];
@@ -192,8 +255,8 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 MinLimit = -0.1,
                 MaxLimit = 1.2,
                 TextSize = 10,
-                LabelsPaint = new SolidColorPaint(SKColor.Parse("#9AA6B5")),
-                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3441"))
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#232A36"))
             }
         ];
     }

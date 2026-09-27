@@ -21,6 +21,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     private readonly ILogger _logger;
     private CancellationTokenSource? _cts;
     private int? _loadedHeroId;
+    private int _loadGeneration;
 
     public HeroDetailViewModel(
         IHeroCounterService heroService,
@@ -37,7 +38,9 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         CounteredByPreview = new ObservableCollection<HeroCounterItem>();
         CountersPreview = new ObservableCollection<HeroCounterItem>();
         RoleStats = new ObservableCollection<HeroRoleStat>();
-        Abilities = new ObservableCollection<HeroAbilityInfo>();
+        NormalAbilities = new ObservableCollection<HeroAbilityInfo>();
+        InnateAbilities = new ObservableCollection<HeroAbilityInfo>();
+        TalentRows = new ObservableCollection<HeroTalentRow>();
     }
 
     public ObservableCollection<HeroCounterItem> CounteredByPreview { get; }
@@ -46,7 +49,13 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
     public ObservableCollection<HeroRoleStat> RoleStats { get; }
 
-    public ObservableCollection<HeroAbilityInfo> Abilities { get; }
+    /// <summary>常规技能（含神杖/魔晶升级技能），按官网顺序排列。</summary>
+    public ObservableCollection<HeroAbilityInfo> NormalAbilities { get; }
+
+    /// <summary>先天技能（自带被动/特性），单独分区展示。</summary>
+    public ObservableCollection<HeroAbilityInfo> InnateAbilities { get; }
+
+    public ObservableCollection<HeroTalentRow> TalentRows { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasHero))]
@@ -60,6 +69,8 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     [NotifyPropertyChangedFor(nameof(HasNpeDesc))]
     [NotifyPropertyChangedFor(nameof(HasBio))]
     [NotifyPropertyChangedFor(nameof(HasAbilities))]
+    [NotifyPropertyChangedFor(nameof(HasInnateAbilities))]
+    [NotifyPropertyChangedFor(nameof(HasTalents))]
     [NotifyPropertyChangedFor(nameof(ComplexityLevel))]
     [NotifyPropertyChangedFor(nameof(HasComplexity1))]
     [NotifyPropertyChangedFor(nameof(HasComplexity2))]
@@ -73,6 +84,9 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BioToggleText))]
     private bool isBioExpanded;
+
+    [ObservableProperty]
+    private int selectedTabIndex;
 
     public string BioToggleText => IsBioExpanded ? "收起" : "展开全文";
 
@@ -88,7 +102,11 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
     public bool HasBio => !string.IsNullOrWhiteSpace(Profile?.Bio);
 
-    public bool HasAbilities => Abilities.Count > 0;
+    public bool HasAbilities => NormalAbilities.Count > 0;
+
+    public bool HasInnateAbilities => InnateAbilities.Count > 0;
+
+    public bool HasTalents => TalentRows.Count > 0;
 
     public bool HasSelectedAbility => SelectedAbility is not null;
 
@@ -120,7 +138,10 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     {
         if (parameter is int heroId)
         {
-            if (_loadedHeroId == heroId && Hero is not null)
+            if (_loadedHeroId == heroId
+                && Hero is not null
+                && string.IsNullOrEmpty(StatusMessage)
+                && !IsLoading)
             {
                 return;
             }
@@ -135,6 +156,20 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         }
     }
 
+    /// <summary>离开详情页时取消进行中的加载。</summary>
+    public void CancelPendingLoads()
+    {
+        _loadGeneration++;
+        try
+        {
+            _cts?.Cancel();
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
     private async Task LoadFromStatAsync(HeroStat stat)
         => await LoadAsync(stat.Id).ConfigureAwait(true);
 
@@ -145,6 +180,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
+        var generation = ++_loadGeneration;
 
         try
         {
@@ -154,17 +190,29 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             CountersPreview.Clear();
             MatchupStatus = string.Empty;
             IsBioExpanded = false;
+            SelectedTabIndex = 0;
             OnPropertyChanged(nameof(HasMatchupPreview));
 
             var heroesTask = _heroService.GetHeroesAsync(token);
             var profileTask = _profileService.GetProfileAsync(heroId, token);
             await Task.WhenAll(heroesTask, profileTask).ConfigureAwait(true);
 
+            token.ThrowIfCancellationRequested();
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
+
             var found = (await heroesTask).FirstOrDefault(h => h.Id == heroId);
             var profile = await profileTask;
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                if (token.IsCancellationRequested || generation != _loadGeneration)
+                {
+                    return;
+                }
+
                 Hero = found;
                 ApplyProfile(profile);
                 _loadedHeroId = found?.Id;
@@ -172,25 +220,35 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                 OnPropertyChanged(nameof(HasBrackets));
             });
 
-            if (found is null || token.IsCancellationRequested)
+            if (found is null || token.IsCancellationRequested || generation != _loadGeneration)
             {
                 return;
             }
 
-            await LoadMatchupPreviewAsync(found.Id, token).ConfigureAwait(true);
+            await LoadMatchupPreviewAsync(found.Id, token, generation).ConfigureAwait(true);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (token.IsCancellationRequested || generation != _loadGeneration)
+        {
+            _logger.Debug("详情加载已取消 HeroId={HeroId}", heroId);
+        }
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, token) || generation != _loadGeneration)
         {
             _logger.Debug("详情加载已取消 HeroId={HeroId}", heroId);
         }
         catch (Exception ex)
         {
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
+
             _logger.Error(ex, "加载英雄详情失败 HeroId={HeroId}", heroId);
-            StatusMessage = "详情加载失败";
+            StatusMessage = "详情加载失败，请稍后重试";
+            _loadedHeroId = null;
         }
         finally
         {
-            if (!token.IsCancellationRequested)
+            if (!token.IsCancellationRequested && generation == _loadGeneration)
             {
                 IsLoading = false;
             }
@@ -200,7 +258,9 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     private void ApplyProfile(HeroDetailProfile? profile)
     {
         Profile = profile;
-        Abilities.Clear();
+        NormalAbilities.Clear();
+        InnateAbilities.Clear();
+        TalentRows.Clear();
         RoleStats.Clear();
 
         if (profile is null)
@@ -219,10 +279,23 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
         foreach (var ability in profile.Abilities)
         {
-            Abilities.Add(ability);
+            if (ability.IsInnate)
+            {
+                InnateAbilities.Add(ability);
+            }
+            else
+            {
+                NormalAbilities.Add(ability);
+            }
         }
 
-        SelectedAbility = Abilities.FirstOrDefault();
+        foreach (var row in profile.Talents)
+        {
+            TalentRows.Add(row);
+        }
+
+        SelectedAbility = NormalAbilities.FirstOrDefault()
+            ?? InnateAbilities.FirstOrDefault();
 
         var levels = profile.RoleLevels;
         for (var i = 0; i < HeroDisplayHelper.StandardRoles.Count; i++)
@@ -236,23 +309,30 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         }
 
         OnPropertyChanged(nameof(HasAbilities));
+        OnPropertyChanged(nameof(HasInnateAbilities));
+        OnPropertyChanged(nameof(HasTalents));
         OnPropertyChanged(nameof(HasSelectedAbility));
     }
 
-    private async Task LoadMatchupPreviewAsync(int heroId, CancellationToken token)
+    private async Task LoadMatchupPreviewAsync(int heroId, CancellationToken token, int generation)
     {
         try
         {
             IsLoadingMatchups = true;
             MatchupStatus = "加载对位预览...";
             var result = await _heroService.GetCounterRelationsAsync(heroId, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested)
+            if (token.IsCancellationRequested || generation != _loadGeneration)
             {
                 return;
             }
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                if (token.IsCancellationRequested || generation != _loadGeneration)
+                {
+                    return;
+                }
+
                 CounteredByPreview.Clear();
                 foreach (var item in result.CounteredBy.Take(5))
                 {
@@ -265,26 +345,43 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                     CountersPreview.Add(item);
                 }
 
-                MatchupStatus = result.IsOffline
-                    ? "对位预览（离线缓存）"
-                    : result.FromCache
-                        ? "对位预览（缓存）"
-                        : "对位预览";
+                if (result.IsEmpty)
+                {
+                    MatchupStatus = "对位预览暂无数据";
+                }
+                else if (result.IsOffline)
+                {
+                    MatchupStatus = "对位预览（离线缓存）";
+                }
+                else if (result.FromCache)
+                {
+                    MatchupStatus = "对位预览（缓存）";
+                }
+                else
+                {
+                    MatchupStatus = "对位预览";
+                }
+
                 OnPropertyChanged(nameof(HasMatchupPreview));
             });
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, token) || generation != _loadGeneration)
         {
             // ignore
         }
         catch (Exception ex)
         {
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
+
             _logger.Warning(ex, "加载对位预览失败 HeroId={HeroId}", heroId);
             MatchupStatus = "对位预览加载失败";
         }
         finally
         {
-            if (!token.IsCancellationRequested)
+            if (!token.IsCancellationRequested && generation == _loadGeneration)
             {
                 IsLoadingMatchups = false;
             }

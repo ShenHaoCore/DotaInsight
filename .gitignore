@@ -20,3 +20,6 @@ obj/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+## Trae tooling local files
+.trae/

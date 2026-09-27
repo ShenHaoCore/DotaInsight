@@ -30,7 +30,8 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
 
         AppPaths.EnsureCreated();
         var dbPath = AppPaths.Database;
-        _database = new LiteDatabase(dbPath);
+        // Shared：允许多进程只读/错开写入，避免第二个实例启动即崩溃
+        _database = new LiteDatabase($"Filename={dbPath};Connection=shared");
         _logger.Information("LiteDB 缓存已打开：{DbPath}", dbPath);
     }
 
@@ -53,7 +54,7 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
                 return default;
             }
 
-            return Deserialize<T>(entry.PayloadJson);
+            return Deserialize<T>(entry.PayloadJson, key);
         }
     }
 
@@ -70,7 +71,7 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
             }
 
             _logger.Debug("读取可能过期的缓存：{Key}, Expired={Expired}", key, entry.IsExpired());
-            return Deserialize<T>(entry.PayloadJson);
+            return Deserialize<T>(entry.PayloadJson, key);
         }
     }
 
@@ -109,7 +110,7 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
     private ILiteCollection<CacheEntry> Collection()
         => _database.GetCollection<CacheEntry>("cache");
 
-    private T? Deserialize<T>(string json)
+    private T? Deserialize<T>(string json, string key)
     {
         try
         {
@@ -117,7 +118,16 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.Warning(ex, "缓存反序列化失败");
+            _logger.Warning(ex, "缓存反序列化失败，删除损坏条目 Key={Key}", key);
+            try
+            {
+                Collection().Delete(key);
+            }
+            catch (Exception deleteEx)
+            {
+                _logger.Warning(deleteEx, "删除损坏缓存失败 Key={Key}", key);
+            }
+
             return default;
         }
     }

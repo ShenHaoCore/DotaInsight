@@ -1,6 +1,5 @@
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotaInsight.Helpers;
 using DotaInsight.Models;
@@ -29,50 +28,31 @@ public interface IMatchAnalysisService
 /// </summary>
 public sealed class MatchAnalysisService : IMatchAnalysisService
 {
-    private const long SteamId64Base = 76561197960265728L;
+    public const string HttpClientName = HeroCounterService.HttpClientName;
+
     private const string CachePrefix = "opendota:matchAnalysis:v1:";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString
-    };
-
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILiteDbCacheService _cache;
     private readonly IHeroCounterService _heroService;
     private readonly ILogger _logger;
 
     public MatchAnalysisService(
-        HttpClient httpClient,
+        IHttpClientFactory httpClientFactory,
         ILiteDbCacheService cache,
         IHeroCounterService heroService,
         ILogger logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _cache = cache;
         _heroService = heroService;
         _logger = logger.ForContext<MatchAnalysisService>();
     }
 
+    private HttpClient Http => _httpClientFactory.CreateClient(HttpClientName);
+
     public bool TryParseAccountId(string? input, out long accountId)
-    {
-        accountId = 0;
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return false;
-        }
-
-        var text = input.Trim();
-        if (!long.TryParse(text, out var value) || value <= 0)
-        {
-            return false;
-        }
-
-        // SteamID64 → account_id
-        accountId = value > SteamId64Base ? value - SteamId64Base : value;
-        return accountId > 0;
-    }
+        => SteamAccountId.TryParse(input, out accountId);
 
     public async Task<MatchAnalysisResult> AnalyzeAsync(
         long accountId,
@@ -80,7 +60,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     {
         var cacheKey = CachePrefix + accountId;
         var cached = _cache.Get<MatchAnalysisResult>(cacheKey);
-        if (cached is { Matches.Count: > 0 })
+        if (cached?.Profile is not null)
         {
             _logger.Information("战绩缓存命中 AccountId={AccountId}", accountId);
             return new MatchAnalysisResult
@@ -96,13 +76,14 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             _logger.Information("拉取战绩 AccountId={AccountId}", accountId);
             var heroes = await _heroService.GetHeroesAsync(cancellationToken).ConfigureAwait(false);
             var heroMap = heroes.ToDictionary(h => h.Id);
+            var http = Http;
 
-            var profileTask = _httpClient.GetFromJsonAsync<PlayerApiDto>(
-                $"api/players/{accountId}", JsonOptions, cancellationToken);
-            var wlTask = _httpClient.GetFromJsonAsync<PlayerWlDto>(
-                $"api/players/{accountId}/wl", JsonOptions, cancellationToken);
-            var matchesTask = _httpClient.GetFromJsonAsync<List<RecentMatchDto>>(
-                $"api/players/{accountId}/recentMatches", JsonOptions, cancellationToken);
+            var profileTask = http.GetFromJsonAsync<PlayerApiDto>(
+                $"api/players/{accountId}", HttpCall.JsonOptions, cancellationToken);
+            var wlTask = http.GetFromJsonAsync<PlayerWlDto>(
+                $"api/players/{accountId}/wl", HttpCall.JsonOptions, cancellationToken);
+            var matchesTask = http.GetFromJsonAsync<List<RecentMatchDto>>(
+                $"api/players/{accountId}/recentMatches", HttpCall.JsonOptions, cancellationToken);
 
             await Task.WhenAll(profileTask, wlTask, matchesTask).ConfigureAwait(false);
 
@@ -154,7 +135,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                 matches.Count);
             return result;
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
         {
             throw;
         }

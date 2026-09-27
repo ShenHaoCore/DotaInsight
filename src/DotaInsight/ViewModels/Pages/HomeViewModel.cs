@@ -16,6 +16,7 @@ public partial class HomeViewModel : ObservableObject
     private readonly IHeroCounterService _heroService;
     private readonly INavigationService _navigation;
     private readonly IAppCacheService _cacheService;
+    private readonly ILiteDbCacheService _liteCache;
     private readonly MainWindowViewModel _shell;
     private readonly ILogger _logger;
 
@@ -23,12 +24,14 @@ public partial class HomeViewModel : ObservableObject
         IHeroCounterService heroService,
         INavigationService navigation,
         IAppCacheService cacheService,
+        ILiteDbCacheService liteCache,
         MainWindowViewModel shell,
         ILogger logger)
     {
         _heroService = heroService;
         _navigation = navigation;
         _cacheService = cacheService;
+        _liteCache = liteCache;
         _shell = shell;
         _logger = logger.ForContext<HomeViewModel>();
         TopWinRateHeroes = new ObservableCollection<HeroStat>();
@@ -149,9 +152,23 @@ public partial class HomeViewModel : ObservableObject
             return;
         }
 
+        SaveHistoryId(input);
         _shell.CurrentPageTitle = "战绩分析";
         _shell.ActiveNav = MainWindowViewModel.MatchAnalysisPageKey;
         _navigation.NavigateTo(MainWindowViewModel.MatchAnalysisPageKey, input);
+    }
+
+    private void SaveHistoryId(string accountId)
+    {
+        var list = _liteCache.Get<List<string>>("match_history_ids") ?? new List<string>();
+        list.Remove(accountId);
+        list.Insert(0, accountId);
+        if (list.Count > 8)
+        {
+            list.RemoveAt(list.Count - 1);
+        }
+
+        _liteCache.Set("match_history_ids", list, TimeSpan.FromDays(30));
     }
 
     [RelayCommand]

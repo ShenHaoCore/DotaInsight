@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
-using System.Security.Cryptography;
-using System.Text;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -69,10 +67,9 @@ public static class HeroImageCache
             return fromDisk;
         }
 
-        var remote = LoadFromUri(url, decodeWidth);
-        MemoryCache[memoryKey] = remote;
+        // 远程图先不进内存：失败重试时还能重新拉取；落盘成功后由下次 Get 缓存
         QueueDownload(url, localPath);
-        return remote;
+        return LoadFromUri(url, decodeWidth);
     }
 
     /// <summary>
@@ -100,10 +97,7 @@ public static class HeroImageCache
                 try
                 {
                     var path = GetLocalPath(url);
-                    if (!File.Exists(path))
-                    {
-                        await DownloadToFileAsync(url, path).ConfigureAwait(false);
-                    }
+                    await DownloadToFileAsync(url, path).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -239,11 +233,6 @@ public static class HeroImageCache
 
     private static void QueueDownload(string url, string localPath)
     {
-        if (!DownloadGates.TryAdd(url, 0))
-        {
-            return;
-        }
-
         _ = Task.Run(async () =>
         {
             try
@@ -253,10 +242,6 @@ public static class HeroImageCache
             catch
             {
                 // ignore
-            }
-            finally
-            {
-                DownloadGates.TryRemove(url, out _);
             }
         });
     }
@@ -268,24 +253,47 @@ public static class HeroImageCache
             return;
         }
 
-        Directory.CreateDirectory(CacheDirectory);
-
-        var bytes = await Http.GetByteArrayAsync(url).ConfigureAwait(false);
-        if (bytes.Length == 0)
+        if (!DownloadGates.TryAdd(localPath, 0))
         {
+            // 同一文件已在下载，短暂等待落盘
+            for (var i = 0; i < 50 && !File.Exists(localPath) && DownloadGates.ContainsKey(localPath); i++)
+            {
+                await Task.Delay(100).ConfigureAwait(false);
+            }
+
             return;
         }
 
-        var tempPath = localPath + ".tmp";
-        await File.WriteAllBytesAsync(tempPath, bytes).ConfigureAwait(false);
-
-        if (File.Exists(localPath))
+        try
         {
-            File.Delete(tempPath);
-            return;
-        }
+            if (File.Exists(localPath))
+            {
+                return;
+            }
 
-        File.Move(tempPath, localPath);
+            Directory.CreateDirectory(CacheDirectory);
+
+            var bytes = await Http.GetByteArrayAsync(url).ConfigureAwait(false);
+            if (bytes.Length == 0)
+            {
+                return;
+            }
+
+            var tempPath = localPath + ".tmp";
+            await File.WriteAllBytesAsync(tempPath, bytes).ConfigureAwait(false);
+
+            if (File.Exists(localPath))
+            {
+                try { File.Delete(tempPath); } catch { /* ignore */ }
+                return;
+            }
+
+            File.Move(tempPath, localPath);
+        }
+        finally
+        {
+            DownloadGates.TryRemove(localPath, out _);
+        }
     }
 
     private static ImageSource LoadFromFile(string path, int decodeWidth)
@@ -318,31 +326,8 @@ public static class HeroImageCache
     }
 
     private static string GetLocalPath(string url)
-    {
-        var fileName = TryGetFileName(url);
-        return Path.Combine(CacheDirectory, fileName);
-    }
-
-    private static string TryGetFileName(string url)
-    {
-        try
-        {
-            var name = Path.GetFileName(new Uri(url).AbsolutePath);
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                return name;
-            }
-        }
-        catch
-        {
-            // fall through
-        }
-
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)));
-        return hash[..16].ToLowerInvariant() + ".png";
-    }
+        => Path.Combine(CacheDirectory, CacheFileNaming.FromUrl(url));
 
     private static string BuildMemoryKey(string url, int decodeWidth)
         => $"{decodeWidth}|{url}";
 }
-

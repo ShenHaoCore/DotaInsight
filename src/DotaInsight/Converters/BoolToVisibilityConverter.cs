@@ -147,9 +147,33 @@ public sealed class AdvantageBrushConverter : IValueConverter
         }
 
         return advantage
-            ? new SolidColorBrush(Color.FromRgb(0x2F, 0xCB, 0x7A))
-            : new SolidColorBrush(Color.FromRgb(0xF0, 0x55, 0x4A));
+            ? new SolidColorBrush(Color.FromRgb(0x2F, 0xD5, 0x7F))
+            : new SolidColorBrush(Color.FromRgb(0xF0, 0x56, 0x4A));
     }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
+/// <summary>
+/// ItemsControl 从 0 开始的 AlternationIndex → 从 1 开始的排名文本。
+/// </summary>
+public sealed class IndexPlusOneConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is int i ? (i + 1).ToString("00", culture) : "00";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
+/// <summary>
+/// int Count → Visibility；大于 0 显示，否则隐藏。
+/// </summary>
+public sealed class CountToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is int count && count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => Binding.DoNothing;

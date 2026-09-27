@@ -2,19 +2,57 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:converters="clr-namespace:DotaInsight.Converters">
 
+    <!-- ================= 转换器 ================= -->
     <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
     <converters:AdvantageToProgressConverter x:Key="AdvantageToProgressConverter" />
     <converters:AdvantageBrushConverter x:Key="AdvantageBrushConverter" />
+    <converters:ProgressRatioConverter x:Key="ProgressRatioConverter" />
     <converters:CachedImageConverter x:Key="CachedImageConverter" />
     <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     <converters:AttrBrushConverter x:Key="AttrBrushConverter" />
     <converters:BoolToAppearanceConverter x:Key="BoolToAppearanceConverter" />
 
+    <!-- ================= 文字层级 ================= -->
+    <!-- kicker：红块/红条旁的小标签 -->
+    <Style x:Key="DiKickerTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 页面大标题 -->
+    <Style x:Key="DiPageTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 区块标题 -->
+    <Style x:Key="DiSectionTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 排行榜幽灵大序号 -->
+    <Style x:Key="DiRankNumberStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="#2EF4F7FA" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Width" Value="26" />
+    </Style>
+
+    <!-- ================= 行 / 区块 / 进度条 ================= -->
     <Style x:Key="MatchupRowBorderStyle" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource DiRowBrush}" />
-        <Setter Property="Padding" Value="10,8" />
-        <Setter Property="Margin" Value="6,3" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="Margin" Value="5,2" />
+        <Setter Property="CornerRadius" Value="4" />
         <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Style.Triggers>
@@ -25,26 +63,71 @@
     </Style>
 
     <Style x:Key="SectionHeaderStyle" TargetType="Border">
-        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="Padding" Value="16,11" />
         <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
         <Setter Property="Background" Value="{DynamicResource DiSectionHeaderBrush}" />
     </Style>
 
     <Style x:Key="AdvantageProgressStyle" TargetType="ProgressBar">
-        <Setter Property="Height" Value="5" />
+        <Setter Property="Height" Value="4" />
         <Setter Property="Minimum" Value="0" />
         <Setter Property="Maximum" Value="100" />
         <Setter Property="Background" Value="{DynamicResource DiProgressTrackBrush}" />
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
+    <!-- 极简进度条：自定义模板，ScaleX 精确控制填充，100% 必满、0% 无填充 -->
+    <Style x:Key="DiThinProgressStyle" TargetType="ProgressBar">
+        <Setter Property="Height" Value="4" />
+        <Setter Property="Minimum" Value="0" />
+        <Setter Property="Maximum" Value="100" />
+        <Setter Property="Background" Value="{DynamicResource DiProgressTrackBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource DiAccentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border Height="{TemplateBinding Height}"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="2" ClipToBounds="True">
+                        <Border x:Name="PART_Indicator"
+                                Background="{TemplateBinding Foreground}"
+                                HorizontalAlignment="Stretch">
+                            <Border.RenderTransform>
+                                <ScaleTransform>
+                                    <ScaleTransform.ScaleX>
+                                        <MultiBinding Converter="{StaticResource ProgressRatioConverter}">
+                                            <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
+                                            <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Maximum" />
+                                        </MultiBinding>
+                                    </ScaleTransform.ScaleX>
+                                </ScaleTransform>
+                            </Border.RenderTransform>
+                        </Border>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= 卡片 ================= -->
+    <!-- 主卡片：利落 4px 角 + 细描边 -->
+    <Style x:Key="DiPanelCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource DiPanelBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <!-- ================= 英雄磁贴 ================= -->
     <Style x:Key="HeroTileButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource DiTileBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="6" />
+        <Setter Property="Margin" Value="4" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -53,15 +136,12 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="12"
+                            CornerRadius="4"
                             ClipToBounds="True"
                             RenderTransformOrigin="0.5,0.5">
                         <Border.RenderTransform>
                             <ScaleTransform ScaleX="1" ScaleY="1" />
                         </Border.RenderTransform>
-                        <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.22" Color="#000000" />
-                        </Border.Effect>
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
@@ -73,10 +153,10 @@
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="Root"
                                                          Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                                                         To="1.04" Duration="0:0:0.12" />
+                                                         To="1.03" Duration="0:0:0.12" />
                                         <DoubleAnimation Storyboard.TargetName="Root"
                                                          Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                                                         To="1.04" Duration="0:0:0.12" />
+                                                         To="1.03" Duration="0:0:0.12" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -102,42 +182,24 @@
         </Setter>
     </Style>
 
-    <Style x:Key="QuickLinkCardStyle" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource DiPanelElevatedBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="Padding" Value="16,14" />
-    </Style>
-
-    <Style x:Key="DiPanelCardStyle" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource DiPanelBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="14" />
-        <Setter Property="SnapsToDevicePixels" Value="True" />
-    </Style>
-
-    <!-- 侧栏导航：固定 44×44，选中只改背景色 -->
-    <Style x:Key="DiSidebarNavButtonStyle" TargetType="Button">
-        <Setter Property="Width" Value="44" />
-        <Setter Property="Height" Value="44" />
+    <!-- ================= 侧栏导航 ================= -->
+    <!-- 新版导航项：图标 + 中文小标签（外层 Grid 提供左侧指示条） -->
+    <Style x:Key="DiSidebarItemStyle" TargetType="Button">
+        <Setter Property="Width" Value="64" />
+        <Setter Property="Height" Value="58" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0" />
+        <Setter Property="Margin" Value="0,3" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="HorizontalAlignment" Value="Center" />
-        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Root"
-                            Width="44"
-                            Height="44"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="10"
+                            CornerRadius="6"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center" />
@@ -147,7 +209,7 @@
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.88" />
+                            <Setter TargetName="Root" Property="Opacity" Value="0.9" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -155,10 +217,71 @@
         </Setter>
     </Style>
 
-    <Style x:Key="DiSidebarNavLabelStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="11" />
-        <Setter Property="HorizontalAlignment" Value="Center" />
-        <Setter Property="Margin" Value="0,6,0,12" />
-        <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+    <!-- SteamID 历史记录下拉按钮：ToggleButton + Popup 列表 -->
+    <Style x:Key="DiHistoryComboBoxStyle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Background" Value="{DynamicResource DiPanelElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="0,4,4,0"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 历史记录下拉 Popup 内的 ListBox -->
+    <Style x:Key="DiHistoryListBoxStyle" TargetType="ListBox">
+        <Setter Property="Background" Value="{DynamicResource DiPanelElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Padding" Value="10,8" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="Root"
+                                        Background="Transparent"
+                                        CornerRadius="3"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

@@ -1,4 +1,4 @@
-﻿<ui:FluentWindow x:Class="DotaInsight.MainWindow"
+<ui:FluentWindow x:Class="DotaInsight.MainWindow"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -13,150 +13,249 @@
                  WindowBackdropType="None"
                  Background="{DynamicResource DiCanvasBrush}">
 
-    <Grid Background="{DynamicResource DiCanvasBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <Grid>
+        <!-- 背景层：纯黑底 + 战术网格 + 顶部赤红光晕 -->
+        <Rectangle Fill="{DynamicResource DiCanvasBrush}" />
+        <Rectangle Fill="{DynamicResource DiGridBrush}" />
+        <Rectangle Fill="{DynamicResource DiAccentGlowBrush}" />
 
-        <ui:TitleBar Grid.Row="0"
-                     Title="DotaInsight"
-                     Background="{DynamicResource DiChromeBrush}">
-            <ui:TitleBar.Icon>
-                <ui:ImageIcon Source="pack://application:,,,/Assets/dota2-48.png" />
-            </ui:TitleBar.Icon>
-            <ui:TitleBar.Header>
-                <TextBlock Text="{Binding CurrentPageTitle}"
-                           Margin="10,0,0,0"
-                           FontSize="12"
-                           VerticalAlignment="Center"
-                           Foreground="{DynamicResource DiMutedTextBrush}" />
-            </ui:TitleBar.Header>
-            <ui:TitleBar.TrailingContent>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
-                    <ui:Button Appearance="Transparent"
-                               ToolTip="{Binding ClearCacheTooltip}"
-                               Icon="{ui:SymbolIcon Delete24}"
-                               Command="{Binding ClearCacheCommand}"
-                               Margin="0,0,4,0" />
-                    <ui:Button Appearance="Transparent"
-                               ToolTip="{Binding ThemeToggleTooltip}"
-                               Icon="{Binding ThemeToggleIcon}"
-                               Command="{Binding ToggleThemeCommand}" />
-                </StackPanel>
-            </ui:TitleBar.TrailingContent>
-        </ui:TitleBar>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="76" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0"
-                    Background="{DynamicResource DiChromeBrush}"
-                    BorderBrush="{DynamicResource DiStrokeBrush}"
-                    BorderThickness="0,0,1,0">
-                <DockPanel>
-                    <Border DockPanel.Dock="Top"
-                            Width="44" Height="44" CornerRadius="10"
-                            Background="{DynamicResource DiPanelElevatedBrush}"
-                            BorderBrush="{DynamicResource DiStrokeBrush}"
-                            BorderThickness="1"
-                            ClipToBounds="True"
-                            HorizontalAlignment="Center"
-                            Margin="0,18,0,22">
-                        <Image Source="pack://application:,,,/Assets/dota2-48.png"
-                               Stretch="UniformToFill"
-                               RenderOptions.BitmapScalingMode="HighQuality" />
-                    </Border>
-
-                    <Button DockPanel.Dock="Bottom"
-                            Style="{StaticResource DiSidebarNavButtonStyle}"
-                            ToolTip="{Binding ThemeToggleTooltip}"
-                            Command="{Binding ToggleThemeCommand}"
-                            Margin="0,0,0,16">
-                        <ui:SymbolIcon FontSize="18"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
-                                       Symbol="{Binding ThemeToggleSymbol}" />
-                    </Button>
-
-                    <StackPanel HorizontalAlignment="Center">
-                        <Button ToolTip="首页"
-                                Margin="0,0,0,10"
-                                Command="{Binding NavigateHomeCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource DiSidebarNavButtonStyle}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ActiveNav}" Value="Home">
-                                            <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <ui:SymbolIcon Symbol="Home24" FontSize="18"
-                                           Width="18" Height="18"
-                                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </Button>
-
-                        <Button ToolTip="英雄图鉴"
-                                Margin="0,0,0,10"
-                                Command="{Binding NavigateGalleryCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource DiSidebarNavButtonStyle}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ActiveNav}" Value="HeroGallery">
-                                            <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <ui:SymbolIcon Symbol="Grid24" FontSize="18"
-                                           Width="18" Height="18"
-                                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </Button>
-
-                        <Button ToolTip="克制分析"
-                                Margin="0,0,0,10"
-                                Command="{Binding NavigateCounterCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource DiSidebarNavButtonStyle}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ActiveNav}" Value="HeroCounter">
-                                            <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <ui:SymbolIcon Symbol="ArrowSwap24" FontSize="18"
-                                           Width="18" Height="18"
-                                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </Button>
-
-                        <Button ToolTip="战绩分析"
-                                Command="{Binding NavigateMatchAnalysisCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource DiSidebarNavButtonStyle}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ActiveNav}" Value="MatchAnalysis">
-                                            <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <ui:SymbolIcon Symbol="DataHistogram24" FontSize="18"
-                                           Width="18" Height="18"
-                                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        </Button>
+            <ui:TitleBar Grid.Row="0"
+                         Title="DotaInsight"
+                         Background="Transparent">
+                <ui:TitleBar.Icon>
+                    <ui:ImageIcon Source="pack://application:,,,/Assets/dota2-48.png" />
+                </ui:TitleBar.Icon>
+                <ui:TitleBar.Header>
+                    <TextBlock Text="{Binding CurrentPageTitle}"
+                               Margin="10,0,0,0"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </ui:TitleBar.Header>
+                <ui:TitleBar.TrailingContent>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <ui:Button Appearance="Transparent"
+                                   ToolTip="{Binding ClearCacheTooltip}"
+                                   Icon="{ui:SymbolIcon Delete24}"
+                                   Command="{Binding ClearCacheCommand}"
+                                   Margin="0,0,4,0" />
+                        <ui:Button Appearance="Transparent"
+                                   ToolTip="{Binding ThemeToggleTooltip}"
+                                   Icon="{Binding ThemeToggleIcon}"
+                                   Command="{Binding ToggleThemeCommand}" />
                     </StackPanel>
-                </DockPanel>
-            </Border>
+                </ui:TitleBar.TrailingContent>
+            </ui:TitleBar>
 
-            <Frame x:Name="PageHost"
-                   Grid.Column="1"
-                   NavigationUIVisibility="Hidden"
-                   JournalOwnership="OwnsJournal"
-                   Background="{DynamicResource DiCanvasBrush}" />
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="84" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Background="{DynamicResource DiChromeBrush}"
+                        BorderBrush="{DynamicResource DiStrokeBrush}"
+                        BorderThickness="0,0,1,0">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top"
+                                Width="40" Height="40" CornerRadius="8"
+                                Background="{DynamicResource DiPanelElevatedBrush}"
+                                BorderBrush="{DynamicResource DiStrokeBrush}"
+                                BorderThickness="1"
+                                ClipToBounds="True"
+                                HorizontalAlignment="Center"
+                                Margin="0,16,0,18">
+                            <Image Source="pack://application:,,,/Assets/dota2-48.png"
+                                   Stretch="UniformToFill"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                        </Border>
+
+                        <!-- 底部主题切换：图标 + 标签 -->
+                        <Grid DockPanel.Dock="Bottom" Margin="0,0,0,10">
+                            <Button Style="{StaticResource DiSidebarItemStyle}"
+                                    ToolTip="{Binding ThemeToggleTooltip}"
+                                    Command="{Binding ToggleThemeCommand}">
+                                <StackPanel>
+                                    <ui:SymbolIcon FontSize="18" Width="18" Height="18"
+                                                   Foreground="{DynamicResource DiPrimaryTextBrush}"
+                                                   Symbol="{Binding ThemeToggleSymbol}"
+                                                   HorizontalAlignment="Center" />
+                                    <TextBlock Text="主题" FontSize="10" Margin="0,5,0,0"
+                                               Foreground="{DynamicResource DiMutedTextBrush}"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <StackPanel HorizontalAlignment="Center">
+                            <!-- 首页 -->
+                            <Grid>
+                                <Button ToolTip="首页"
+                                        Command="{Binding NavigateHomeCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource DiSidebarItemStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="Home">
+                                                    <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel>
+                                        <ui:SymbolIcon Symbol="Home24" FontSize="18" Width="18" Height="18"
+                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="首页" FontSize="10" Margin="0,5,0,0"
+                                                   Foreground="{DynamicResource DiMutedTextBrush}"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Border Width="3" Height="24" CornerRadius="2"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Background="{DynamicResource DiAccentBrush}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="Home">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </Grid>
+
+                            <!-- 英雄图鉴 -->
+                            <Grid>
+                                <Button ToolTip="英雄图鉴"
+                                        Command="{Binding NavigateGalleryCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource DiSidebarItemStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="HeroGallery">
+                                                    <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel>
+                                        <ui:SymbolIcon Symbol="Grid24" FontSize="18" Width="18" Height="18"
+                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="图鉴" FontSize="10" Margin="0,5,0,0"
+                                                   Foreground="{DynamicResource DiMutedTextBrush}"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Border Width="3" Height="24" CornerRadius="2"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Background="{DynamicResource DiAccentBrush}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="HeroGallery">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </Grid>
+
+                            <!-- 克制分析 -->
+                            <Grid>
+                                <Button ToolTip="克制分析"
+                                        Command="{Binding NavigateCounterCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource DiSidebarItemStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="HeroCounter">
+                                                    <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel>
+                                        <ui:SymbolIcon Symbol="ArrowSwap24" FontSize="18" Width="18" Height="18"
+                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="克制" FontSize="10" Margin="0,5,0,0"
+                                                   Foreground="{DynamicResource DiMutedTextBrush}"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Border Width="3" Height="24" CornerRadius="2"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Background="{DynamicResource DiAccentBrush}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="HeroCounter">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </Grid>
+
+                            <!-- 战绩分析 -->
+                            <Grid>
+                                <Button ToolTip="战绩分析"
+                                        Command="{Binding NavigateMatchAnalysisCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource DiSidebarItemStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="MatchAnalysis">
+                                                    <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel>
+                                        <ui:SymbolIcon Symbol="DataHistogram24" FontSize="18" Width="18" Height="18"
+                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="战绩" FontSize="10" Margin="0,5,0,0"
+                                                   Foreground="{DynamicResource DiMutedTextBrush}"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Border Width="3" Height="24" CornerRadius="2"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Background="{DynamicResource DiAccentBrush}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="MatchAnalysis">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Frame x:Name="PageHost"
+                       Grid.Column="1"
+                       NavigationUIVisibility="Hidden"
+                       JournalOwnership="OwnsJournal"
+                       Background="Transparent" />
+            </Grid>
         </Grid>
     </Grid>
 </ui:FluentWindow>

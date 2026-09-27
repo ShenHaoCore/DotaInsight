@@ -7,19 +7,19 @@ namespace DotaInsight.Models;
 /// </summary>
 public sealed class PlayerProfile
 {
-    public long AccountId { get; set; }
+    public long AccountId { get; init; }
 
-    public string PersonaName { get; set; } = string.Empty;
+    public string PersonaName { get; init; } = string.Empty;
 
-    public string AvatarUrl { get; set; } = string.Empty;
+    public string AvatarUrl { get; init; } = string.Empty;
 
-    public string ProfileUrl { get; set; } = string.Empty;
+    public string ProfileUrl { get; init; } = string.Empty;
 
-    public int? RankTier { get; set; }
+    public int? RankTier { get; init; }
 
-    public int Wins { get; set; }
+    public int Wins { get; init; }
 
-    public int Losses { get; set; }
+    public int Losses { get; init; }
 
     public int TotalMatches => Wins + Losses;
 
