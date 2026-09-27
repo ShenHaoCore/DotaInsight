@@ -150,11 +150,11 @@
             </Border>
 
             <Grid Grid.Row="2" Margin="0,12,0,0">
-            <!-- ===== 总览 ===== -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
+            <!-- ===== 总览：定位/属性固定显示，背景故事固定高度区域内滚动；均隐藏滚动条（滚轮可滚动） ===== -->
+            <ScrollViewer VerticalScrollBarVisibility="Hidden"
                           HorizontalScrollBarVisibility="Disabled"
                           Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=0}">
-                <StackPanel Margin="0,0,14,0">
+              <StackPanel Margin="0,0,14,6">
 
             <!-- 定位：3×3 网格，名称 + 进度条（有该定位则填满） -->
             <StackPanel Margin="0,14,0,0"
@@ -444,21 +444,29 @@
                 </Border>
             </StackPanel>
 
-            <!-- 背景故事 -->
-            <StackPanel Margin="0,18,0,0"
-                        Visibility="{Binding HasBio, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <!-- 背景故事：固定高度区域，正文在区域内滚动，滚动条隐藏但滚轮可用 -->
+            <Grid Height="172" Margin="0,18,0,0"
+                  Visibility="{Binding HasBio, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                     <Rectangle Width="3" Height="15" Fill="{DynamicResource DiAccentBrush}"
                                VerticalAlignment="Center" Margin="0,0,10,0" />
                     <TextBlock Text="背景故事" FontSize="15" FontWeight="SemiBold"
                                Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Text="{Binding Profile.Bio}"
-                           FontSize="13" TextWrapping="Wrap"
-                           LineHeight="22" Margin="0,0,6,20"
-                           Foreground="#B3FFFFFF" />
-            </StackPanel>
-                </StackPanel>
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock Text="{Binding Profile.Bio}"
+                               FontSize="13" TextWrapping="Wrap"
+                               LineHeight="22" Margin="0,0,6,0"
+                               Foreground="#B3FFFFFF" />
+                </ScrollViewer>
+            </Grid>
+              </StackPanel>
             </ScrollViewer>
 
             <!-- ===== 技能 ===== -->
