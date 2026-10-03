@@ -1,8 +1,8 @@
-using System.Windows;
 using DotaInsight.Services;
 using DotaInsight.ViewModels;
 using DotaInsight.Views.Pages;
 using Microsoft.Extensions.DependencyInjection;
+using System.Windows;
 using System.Windows.Threading;
 using Wpf.Ui.Controls;
 

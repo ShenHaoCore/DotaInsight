@@ -9,11 +9,17 @@ namespace DotaInsight.Helpers;
 /// </summary>
 public static class CacheFileNaming
 {
-    public static string FromUrl(string url)
+    /// <summary>
+    /// 生成缓存文件名。
+    /// <paramref name="storeWidth"/> &gt; 0 时表示该文件按此宽度降采样落盘，
+    /// 需与原始尺寸版本区分，避免互相覆盖。
+    /// </summary>
+    public static string FromUrl(string url, int storeWidth = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
 
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))
+        var key = storeWidth > 0 ? $"{url}#w{storeWidth}" : url;
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))
             .ToLowerInvariant();
 
         var ext = ".bin";

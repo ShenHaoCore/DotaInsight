@@ -18,17 +18,26 @@ namespace DotaInsight.ViewModels.Pages;
 public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 {
     private readonly IMatchAnalysisService _matchService;
+    private readonly IAccountService _accountService;
     private readonly ILiteDbCacheService _cache;
+    private readonly INavigationService _navigation;
     private readonly ILogger _logger;
     private CancellationTokenSource? _cts;
 
-    public MatchAnalysisViewModel(IMatchAnalysisService matchService, ILiteDbCacheService cache, ILogger logger)
+    public MatchAnalysisViewModel(
+        IMatchAnalysisService matchService,
+        IAccountService accountService,
+        ILiteDbCacheService cache,
+        INavigationService navigation,
+        ILogger logger)
     {
         _matchService = matchService;
+        _accountService = accountService;
         _cache = cache;
+        _navigation = navigation;
         _logger = logger.ForContext<MatchAnalysisViewModel>();
         Matches = new ObservableCollection<RecentMatchItem>();
-        HistoryIds = new ObservableCollection<string>();
+        Accounts = new ObservableCollection<SavedAccount>();
         Series = Array.Empty<ISeries>();
         XAxes = [new Axis { Labels = [] }];
         YAxes = [new Axis { MinLimit = 0, MaxLimit = 1.2 }];
@@ -36,7 +45,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
     public void OnNavigatedTo(object? parameter)
     {
-        LoadHistoryIds();
+        LoadAccounts();
         if (parameter is string account && !string.IsNullOrWhiteSpace(account))
         {
             AccountInput = account.Trim();
@@ -50,7 +59,10 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
     public ObservableCollection<RecentMatchItem> Matches { get; }
 
-    public ObservableCollection<string> HistoryIds { get; }
+    /// <summary>已保存的账号（最近使用在前），做成卡片用于一键切换。</summary>
+    public ObservableCollection<SavedAccount> Accounts { get; }
+
+    public bool HasAccounts => Accounts.Count > 0;
 
     [ObservableProperty]
     private string accountInput = string.Empty;
@@ -88,8 +100,6 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             return;
         }
 
-        SaveHistoryId(AccountInput.Trim());
-
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
@@ -116,6 +126,14 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 }
 
                 Profile = result.Profile;
+
+                // 查询成功即把账号信息留在本地，下次可点头像直接切回来
+                if (result.Profile is not null)
+                {
+                    _accountService.SaveOrUpdate(result.Profile);
+                    RefreshAccounts();
+                }
+
                 Matches.Clear();
                 foreach (var match in result.Matches)
                 {
@@ -161,55 +179,84 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         }
     }
 
+    /// <summary>打开展示某场比赛的详情。</summary>
     [RelayCommand]
-    private void SelectHistory(string id)
+    private void OpenMatch(RecentMatchItem? match)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (match is null || match.MatchId <= 0)
         {
             return;
         }
 
-        AccountInput = id;
-        if (SearchCommand.CanExecute(null))
-        {
-            _ = SearchCommand.ExecuteAsync(null);
-        }
+        _navigation.NavigateTo(MainWindowViewModel.MatchDetailPageKey, match.MatchId);
     }
 
-    private void LoadHistoryIds()
+    /// <summary>点击账号卡片：填入该账号并立即查询。</summary>
+    [RelayCommand]
+    private async Task SwitchAccountAsync(SavedAccount? account)
     {
-        var history = _cache.Get<List<string>>(HistoryCacheKey);
-        HistoryIds.Clear();
-        if (history is not null)
+        if (account is null)
         {
-            foreach (var id in history)
-            {
-                HistoryIds.Add(id);
-            }
+            return;
         }
+
+        AccountInput = account.AccountIdText;
+        await SearchAsync().ConfigureAwait(true);
     }
 
-    private void SaveHistoryId(string accountId)
+    /// <summary>把账号卡片从列表里移除。</summary>
+    [RelayCommand]
+    private void RemoveAccount(SavedAccount? account)
     {
-        var list = HistoryIds.ToList();
-        list.Remove(accountId);
-        list.Insert(0, accountId);
-        if (list.Count > 8)
+        if (account is null || !_accountService.Remove(account.AccountId))
         {
-            list.RemoveAt(list.Count - 1);
+            return;
         }
 
-        _cache.Set(HistoryCacheKey, list, TimeSpan.FromDays(30));
-        HistoryIds.Clear();
-        foreach (var id in list)
+        // 移除的正好是当前正在看的账号：清掉结果，避免页面继续显示已删掉的账号
+        if (Profile?.AccountId == account.AccountId)
         {
-            HistoryIds.Add(id);
+            Profile = null;
+            Matches.Clear();
+            HasData = false;
+            RecentSummary = string.Empty;
+            StatusMessage = "已移除该账号，可输入 ID 重新查询";
         }
 
-        OnPropertyChanged(nameof(HistoryIds));
+        RefreshAccounts();
     }
 
-    private const string HistoryCacheKey = "match_history_ids";
+    private void LoadAccounts()
+    {
+        // 旧版只存了一串纯 ID。这里幂等并入账户列表：卡片先以「账号 xxxxx」占位，
+        // 点一次查询就会补上昵称与头像，历史记录不会因为改版而丢失。
+        var legacy = _cache.Get<List<string>>(LegacyHistoryCacheKey);
+        if (legacy is { Count: > 0 })
+        {
+            _accountService.MigrateLegacyIds(legacy);
+        }
+
+        RefreshAccounts();
+    }
+
+    /// <summary>
+    /// 重建卡片集合。SavedAccount 不实现属性通知，
+    /// 因此「当前选中」高亮靠整体重建来刷新。
+    /// </summary>
+    private void RefreshAccounts()
+    {
+        var accounts = _accountService.GetAll();
+        Accounts.Clear();
+        foreach (var account in accounts)
+        {
+            Accounts.Add(account);
+        }
+
+        OnPropertyChanged(nameof(HasAccounts));
+    }
+
+    /// <summary>旧版历史记录的缓存键，仅用于一次性迁移。</summary>
+    private const string LegacyHistoryCacheKey = "match_history_ids";
 
     private void UpdateChart(IReadOnlyList<RecentMatchItem> matches)
     {

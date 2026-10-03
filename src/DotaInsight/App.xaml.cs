@@ -97,6 +97,7 @@ public partial class App : Application
         services.AddSingleton(Log.Logger);
 
         services.AddSingleton<ILiteDbCacheService, LiteDbCacheService>();
+        services.AddSingleton<IAccountService, AccountService>();
         services.AddSingleton<IAppCacheService, AppCacheService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<NavigationService>();
@@ -108,6 +109,7 @@ public partial class App : Application
             nav.Register(MainWindowViewModel.HeroDetailPageKey, typeof(HeroDetailPage));
             nav.Register(MainWindowViewModel.HeroCounterPageKey, typeof(HeroCounterPage));
             nav.Register(MainWindowViewModel.MatchAnalysisPageKey, typeof(MatchAnalysisPage));
+            nav.Register(MainWindowViewModel.MatchDetailPageKey, typeof(MatchDetailPage));
             return nav;
         });
 
@@ -129,6 +131,7 @@ public partial class App : Application
         services.AddSingleton<IHeroLocalizationService, HeroLocalizationService>();
         services.AddSingleton<IHeroProfileService, HeroProfileService>();
         services.AddSingleton<IHeroCounterService, HeroCounterService>();
+        services.AddSingleton<IItemCatalogService, ItemCatalogService>();
         services.AddSingleton<IMatchAnalysisService, MatchAnalysisService>();
 
         services.AddSingleton<HomeViewModel>();
@@ -141,6 +144,8 @@ public partial class App : Application
         services.AddSingleton<HeroCounterPage>();
         services.AddSingleton<MatchAnalysisViewModel>();
         services.AddSingleton<MatchAnalysisPage>();
+        services.AddSingleton<MatchDetailViewModel>();
+        services.AddSingleton<MatchDetailPage>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddTransient<MainWindow>();
     }

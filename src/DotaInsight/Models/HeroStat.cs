@@ -297,9 +297,6 @@ public sealed class HeroStat
     public string ProjectileSpeedText => ProjectileSpeed > 0 ? ProjectileSpeed.ToString() : "—";
 
     [JsonIgnore]
-    public string TurnRateText => TurnRate > 0 ? TurnRate.ToString("0.##") : "—";
-
-    [JsonIgnore]
     public string MagicResistText => $"{BaseMagicResist:0.##}%";
 
     [JsonIgnore]

@@ -19,6 +19,7 @@
     <Resource Include="Assets\dota2.png" />
     <Resource Include="Assets\dota2-48.png" />
     <Resource Include="Assets\Icons\*.png" />
+    <Resource Include="Assets\Icons\stats\*.png" />
   </ItemGroup>
 
   <ItemGroup>

@@ -18,7 +18,8 @@ public sealed class HeroCounterService : IHeroCounterService
     public const string HttpClientName = "opendota";
 
     // 版本号变更可强制刷新旧缓存（v5：派生字段可写入缓存；分段原始字段并入本模型）
-    private const string HeroStatsCacheKey = "opendota:heroStats:zh:v5";
+    // v6：分段名改用国服官方译名（先锋/卫士/…），旧的 v5 缓存里存的是旧名，必须重建
+    private const string HeroStatsCacheKey = "opendota:heroStats:zh:v6";
     private const string MatchupsCacheKeyPrefix = "opendota:matchups:";
 
     private readonly IHttpClientFactory _httpClientFactory;

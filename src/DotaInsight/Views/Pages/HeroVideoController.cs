@@ -88,7 +88,7 @@ internal sealed class HeroVideoController
 
         try
         {
-            _videoView.NavigateToString(BuildVideoHtml(videoUrl, posterUrl));
+            _videoView.NavigateToString(BuildVideoHtml(videoUrl));
         }
         catch
         {
@@ -353,7 +353,9 @@ internal sealed class HeroVideoController
     {
         if (!string.IsNullOrWhiteSpace(posterUrl))
         {
-            _posterImage.Source = HeroImageCache.Get(posterUrl, decodeWidth: 960);
+            // 头图区实际只有 180×180，源图 1440×1440：内存解码 400px、
+            // 磁盘只留 640px 版本（1.5 MB → 约 0.37 MB），避免无谓的磁盘与内存占用。
+            _posterImage.Source = HeroImageCache.Get(posterUrl, decodeWidth: 400, storeWidth: 640);
             _posterImage.Visibility = Visibility.Visible;
         }
         else
@@ -384,12 +386,14 @@ internal sealed class HeroVideoController
         _posterImage.BeginAnimation(UIElement.OpacityProperty, fade);
     }
 
-    private static string BuildVideoHtml(string videoUrl, string? posterUrl)
+    /// <summary>
+    /// 视频页 HTML。刻意不设 &lt;video poster&gt;：
+    /// 封面由上层 WPF 的 HeroPosterImage 显示（已走本地缓存），
+    /// 若这里再写一次远程 URL，WebView2 会把同一张 1.5 MB 的图重新下载一遍。
+    /// </summary>
+    private static string BuildVideoHtml(string videoUrl)
     {
         var safeVideo = System.Net.WebUtility.HtmlEncode(videoUrl);
-        var posterAttr = string.IsNullOrWhiteSpace(posterUrl)
-            ? string.Empty
-            : $" poster=\"{System.Net.WebUtility.HtmlEncode(posterUrl)}\"";
 
         return $$"""
             <!DOCTYPE html>
@@ -399,26 +403,25 @@ internal sealed class HeroVideoController
               <style>
                 html, body {
                   margin:0; padding:0; width:100%; height:100%;
-                  overflow:hidden; background:#0a0c10; position:relative;
+                  overflow:hidden; background:transparent; position:relative;
                 }
                 #wrap {
                   position:absolute; inset:0; overflow:hidden;
                 }
+                /* webm 为 1:1 环绕展示动图、容器也是 1:1；
+                   cover 保证任何比例下都铺满且居中，不出现黑边或偏移。 */
                 video {
-                  position:absolute;
-                  top:50%;
-                  left:50%;
-                  transform: translate(-50%, -50%);
+                  display:block;
                   width:100%;
                   height:100%;
-                  object-fit:contain;
-                  object-position:right top;
+                  object-fit:cover;
+                  object-position:center;
                 }
               </style>
             </head>
             <body>
               <div id="wrap">
-                <video id="v" muted loop playsinline autoplay preload="metadata"{{posterAttr}} src="{{safeVideo}}"></video>
+                <video id="v" muted loop playsinline autoplay preload="metadata" src="{{safeVideo}}"></video>
               </div>
               <script>
                 (function () {
@@ -451,5 +454,5 @@ internal sealed class HeroVideoController
     }
 
     private static string EmptyHtml()
-        => "<html><body style='margin:0;background:#10151c'></body></html>";
+        => "<html><body style='margin:0;background:transparent'></body></html>";
 }

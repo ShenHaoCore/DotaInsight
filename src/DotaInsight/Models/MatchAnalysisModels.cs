@@ -29,27 +29,7 @@ public sealed class PlayerProfile
 
     public string RecordText => $"{Wins}胜 / {Losses}负";
 
-    public string RankText => RankTier is null or 0 ? "未定级" : FormatRank(RankTier.Value);
-
-    private static string FormatRank(int rankTier)
-    {
-        // rank_tier: 十位=段位(1-8)，个位=星级(1-5)
-        var medal = rankTier / 10;
-        var stars = rankTier % 10;
-        var name = medal switch
-        {
-            1 => "纹章",
-            2 => "卫士",
-            3 => "中军",
-            4 => "统将",
-            5 => "传奇",
-            6 => "万古",
-            7 => "超凡",
-            8 => "冠绝",
-            _ => "未知"
-        };
-        return stars > 0 ? $"{name} {stars}" : name;
-    }
+    public string RankText => Helpers.RankTierFormatter.Format(RankTier);
 }
 
 /// <summary>

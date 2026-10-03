@@ -1,5 +1,6 @@
 using System.Windows.Controls;
 using System.Windows.Input;
+using DotaInsight.Models;
 using DotaInsight.ViewModels.Pages;
 
 namespace DotaInsight.Views.Pages;
@@ -28,12 +29,15 @@ public partial class MatchAnalysisPage : Page
         }
     }
 
-    private void OnHistorySelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>点击比赛行 → 打开该场比赛详情。选中态立即清空，便于重复点击同一场。</summary>
+    private void OnMatchSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is ListBox { SelectedItem: string id } && !string.IsNullOrWhiteSpace(id))
+        if (sender is not ListBox { SelectedItem: RecentMatchItem match } list)
         {
-            _viewModel.SelectHistoryCommand.Execute(id);
-            HistoryToggle.IsChecked = false;
+            return;
         }
+
+        list.SelectedItem = null;
+        _viewModel.OpenMatchCommand.Execute(match);
     }
 }

@@ -24,6 +24,12 @@ public sealed class HeroDetailProfile
 
     public int Complexity { get; init; }
 
+    /// <summary>
+    /// 转身速率（国服 herodata 的 turn_rate）。
+    /// OpenDota heroStats 该字段对多数英雄返回 null，详情页以本值补全显示。
+    /// </summary>
+    public double TurnRate { get; init; }
+
     /// <summary>九宫格定位等级 0–3，顺序同 <see cref="Helpers.HeroDisplayHelper.StandardRoles"/>。</summary>
     public List<int> RoleLevels { get; init; } = [];
 

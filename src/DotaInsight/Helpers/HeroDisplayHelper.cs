@@ -39,11 +39,6 @@ public static class HeroDisplayHelper
         "逃生", "推进", "先手"
     ];
 
-    private static readonly string[] BracketNames =
-    [
-        "纹章", "护卫", "十字军", "中军", "传奇", "万古", "神谕", "不朽"
-    ];
-
     /// <summary>
     /// 将 OpenDota primary_attr 转为中文。
     /// </summary>
@@ -93,15 +88,14 @@ public static class HeroDisplayHelper
     /// <summary>
     /// 段位显示名（1–8）。
     /// </summary>
+    /// <summary>
+    /// 将 OpenDota 分段序号（1-8）转为中文段位名。
+    /// 直接复用 <see cref="RankTierFormatter"/>，保证与玩家段位显示同名。
+    /// </summary>
     public static string GetBracketName(int bracketIndex1To8)
-    {
-        if (bracketIndex1To8 is >= 1 and <= 8)
-        {
-            return BracketNames[bracketIndex1To8 - 1];
-        }
-
-        return $"段位{bracketIndex1To8}";
-    }
+        => bracketIndex1To8 is >= 1 and <= 8
+            ? RankTierFormatter.NameOfMedal(bracketIndex1To8)
+            : $"段位{bracketIndex1To8}";
 
     /// <summary>
     /// 按简体中文排序比较器。

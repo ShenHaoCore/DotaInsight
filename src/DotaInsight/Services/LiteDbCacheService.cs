@@ -101,8 +101,22 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
     {
         lock (_sync)
         {
-            var deleted = Collection().DeleteAll();
-            _logger.Information("已清空 LiteDB 缓存条目：{Count}", deleted);
+            // 已保存账户属于用户资产，不是可再生的缓存：
+            // 若一并清掉，用户攒下的账号卡片会被「清理缓存」抹掉。
+            var collection = Collection();
+            var deleted = 0;
+            foreach (var entry in collection.FindAll().ToList())
+            {
+                if (CacheKeys.IsUserAsset(entry.Id))
+                {
+                    continue;
+                }
+
+                collection.Delete(entry.Id);
+                deleted++;
+            }
+
+            _logger.Information("已清空 LiteDB 缓存条目：{Count}（用户资产已保留）", deleted);
             return deleted;
         }
     }

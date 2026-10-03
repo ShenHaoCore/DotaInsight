@@ -15,6 +15,8 @@
     <Grid Margin="24,16,24,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <!-- 我的账号：查询过的账号做成卡片，点头像即切换 -->
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" MinHeight="260" />
             <RowDefinition Height="12" />
@@ -46,46 +48,11 @@
                     <TextBlock Text="战绩分析" Style="{StaticResource DiPageTitleStyle}" />
                 </StackPanel>
 
-                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <ui:TextBox Grid.Column="0"
-                                PlaceholderText="Account ID 或 SteamID64"
-                                Text="{Binding AccountInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <ToggleButton x:Name="HistoryToggle"
-                                  Grid.Column="1"
-                                  Style="{StaticResource DiHistoryComboBoxStyle}"
-                                  ToolTip="历史记录"
-                                  Visibility="{Binding HistoryIds.Count, Converter={StaticResource CountToVisibilityConverter}}">
-                        <ui:SymbolIcon Symbol="ChevronDown24" FontSize="14" />
-                    </ToggleButton>
-                    <Popup PlacementTarget="{Binding ElementName=HistoryToggle}"
-                           Placement="Bottom"
-                           AllowsTransparency="True"
-                           StaysOpen="False"
-                           IsOpen="{Binding IsChecked, ElementName=HistoryToggle, Mode=TwoWay}">
-                        <Border Background="{DynamicResource DiPanelElevatedBrush}"
-                                BorderBrush="{DynamicResource DiStrokeBrush}"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="4"
-                                MinWidth="200"
-                                MaxHeight="300">
-                            <ListBox Style="{StaticResource DiHistoryListBoxStyle}"
-                                     ItemsSource="{Binding HistoryIds}"
-                                     SelectionChanged="OnHistorySelectionChanged">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}" FontSize="13"
-                                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </Border>
-                    </Popup>
-                </Grid>
+                <ui:TextBox Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Margin="12,0,0,0"
+                            PlaceholderText="Account ID 或 SteamID64"
+                            Text="{Binding AccountInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <ui:Button Grid.Column="2"
                            Content="查询"
@@ -105,8 +72,124 @@
             </Grid>
         </Border>
 
-        <!-- 玩家摘要 -->
+        <!-- 我的账号：查询过的账号自动缓存成卡片，点头像即切换并查询 -->
         <Border Grid.Row="1"
+                Background="{DynamicResource DiPanelBrush}"
+                BorderBrush="{DynamicResource DiStrokeBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="16,12"
+                Margin="0,0,0,12"
+                Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,10">
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="点击卡片切换账号，右上角 × 移除"
+                               FontSize="11"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                    <StackPanel Orientation="Horizontal">
+                        <Rectangle Width="7" Height="7" Fill="{DynamicResource DiAccentBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="我的账号" Style="{StaticResource DiKickerTextStyle}" />
+                        <TextBlock Text="{Binding Accounts.Count, StringFormat={}· {0}}"
+                                   Style="{StaticResource DiKickerTextStyle}" Margin="4,0,0,0" />
+                    </StackPanel>
+                </DockPanel>
+
+                <ItemsControl ItemsSource="{Binding Accounts}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,10,6">
+                                <Button Style="{StaticResource DiAccountCardStyle}"
+                                        Command="{Binding DataContext.SwitchAccountCommand,
+                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip="{Binding ToolTipText}">
+                                    <Grid Width="184">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- 头像：圆形；没拿到资料时显示人形占位 -->
+                                        <Border Grid.Column="0"
+                                                Width="40" Height="40"
+                                                CornerRadius="20"
+                                                ClipToBounds="True"
+                                                Background="{DynamicResource DiChromeBrush}"
+                                                BorderBrush="{DynamicResource DiStrokeBrush}"
+                                                BorderThickness="1"
+                                                Margin="0,0,10,0">
+                                            <Grid>
+                                                <ui:SymbolIcon Symbol="PersonCircle24"
+                                                               FontSize="22"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                                                <Image Source="{Binding AvatarUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
+                                                       Stretch="UniformToFill"
+                                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                            </Grid>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                <TextBlock Text="{Binding StatusText}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource DiGoldBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasProfile}" Value="False">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="·" FontSize="11" Margin="5,0"
+                                                           Foreground="{DynamicResource DiMutedTextBrush}" />
+                                                <TextBlock Text="{Binding LastUsedText}"
+                                                           FontSize="11"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource DiMutedTextBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+
+                                <Button Width="18" Height="18"
+                                        Style="{StaticResource DiAccountRemoveButtonStyle}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Margin="0,-6,-6,0"
+                                        ToolTip="移除该账号"
+                                        Command="{Binding DataContext.RemoveAccountCommand,
+                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <ui:SymbolIcon Symbol="Dismiss16" FontSize="10" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- 玩家摘要 -->
+        <Border Grid.Row="2"
                 Background="{DynamicResource DiHeroBannerBrush}"
                 BorderBrush="{DynamicResource DiStrokeBrush}"
                 BorderThickness="1"
@@ -129,7 +212,7 @@
                         BorderThickness="1"
                         Background="{DynamicResource DiChromeBrush}"
                         Margin="0,0,16,0">
-                    <Image Source="{Binding Profile.AvatarUrl}"
+                    <Image Source="{Binding Profile.AvatarUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}"
                            Stretch="UniformToFill"
                            RenderOptions.BitmapScalingMode="HighQuality" />
                 </Border>
@@ -174,7 +257,7 @@
         </Border>
 
         <!-- 比赛列表 -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Style="{StaticResource DiPanelCardStyle}"
                 ClipToBounds="True">
             <DockPanel>
@@ -198,11 +281,14 @@
                          Background="Transparent"
                          BorderThickness="0"
                          Padding="8,4"
+                         Cursor="Hand"
+                         SelectionChanged="OnMatchSelectionChanged"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Padding" Value="0" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="ToolTip" Value="点击查看该场比赛详情" />
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
@@ -302,7 +388,7 @@
         </Border>
 
         <!-- 胜负走势图 -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="5"
                 Style="{StaticResource DiPanelCardStyle}"
                 Padding="14,10">
             <Grid>

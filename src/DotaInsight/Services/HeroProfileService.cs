@@ -22,7 +22,7 @@ public sealed class HeroProfileService : IHeroProfileService
 {
     public const string HttpClientName = "dota2cn";
 
-    private const string CacheKeyPrefix = "dota2cn:herodata:v5:";
+    private const string CacheKeyPrefix = "dota2cn:herodata:v6:";
     private const string HeroDataUrl =
         "https://www.dota2.com.cn/datafeed/herodata?language=schinese&hero_id={0}";
 
@@ -120,6 +120,7 @@ public sealed class HeroProfileService : IHeroProfileService
             VideoUrl = video ?? string.Empty,
             PosterUrl = poster ?? string.Empty,
             Complexity = raw.Complexity,
+            TurnRate = raw.TurnRate,
             RoleLevels = raw.RoleLevels?.ToList() ?? [],
             Abilities = abilities,
             Talents = talents
@@ -405,6 +406,10 @@ public sealed class HeroProfileService : IHeroProfileService
 
         [JsonPropertyName("complexity")]
         public int Complexity { get; set; }
+
+        /// <summary>转身速率（OpenDota heroStats 同名字段常为 null，详情页以此补全）。</summary>
+        [JsonPropertyName("turn_rate")]
+        public double TurnRate { get; set; }
 
         [JsonPropertyName("role_levels")]
         public List<int>? RoleLevels { get; set; }

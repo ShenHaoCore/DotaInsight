@@ -11,6 +11,11 @@
     <Color x:Key="DiAccentSoftColor">#26D63A2C</Color>
     <Color x:Key="DiGoldColor">#FFB08520</Color>
     <Color x:Key="DiGoldSoftColor">#26B08520</Color>
+    <Color x:Key="DiShardColor">#FF1D7FB8</Color>
+    <Color x:Key="DiShardSoftColor">#261D7FB8</Color>
+    <!-- 英雄头图媒体窗：透明渲染图(webm/png)专为深底设计，浅底上边缘会发灰显糊 -->
+    <Color x:Key="DiHeroMediaTopColor">#FF1C2B3C</Color>
+    <Color x:Key="DiHeroMediaBottomColor">#FF0A0F16</Color>
     <Color x:Key="DiAdvantageColor">#FF1F9D5B</Color>
     <Color x:Key="DiDisadvantageColor">#FFD63B32</Color>
     <Color x:Key="DiPrimaryTextColor">#FF1A2330</Color>
@@ -31,6 +36,12 @@
     <SolidColorBrush x:Key="DiAccentSoftBrush" Color="{StaticResource DiAccentSoftColor}" />
     <SolidColorBrush x:Key="DiGoldBrush" Color="{StaticResource DiGoldColor}" />
     <SolidColorBrush x:Key="DiGoldSoftBrush" Color="{StaticResource DiGoldSoftColor}" />
+    <SolidColorBrush x:Key="DiShardBrush" Color="{StaticResource DiShardColor}" />
+    <SolidColorBrush x:Key="DiShardSoftBrush" Color="{StaticResource DiShardSoftColor}" />
+    <LinearGradientBrush x:Key="DiHeroMediaBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="{StaticResource DiHeroMediaTopColor}" />
+        <GradientStop Offset="1" Color="{StaticResource DiHeroMediaBottomColor}" />
+    </LinearGradientBrush>
     <SolidColorBrush x:Key="DiAdvantageBrush" Color="{StaticResource DiAdvantageColor}" />
     <SolidColorBrush x:Key="DiDisadvantageBrush" Color="{StaticResource DiDisadvantageColor}" />
     <SolidColorBrush x:Key="DiPrimaryTextBrush" Color="{StaticResource DiPrimaryTextColor}" />

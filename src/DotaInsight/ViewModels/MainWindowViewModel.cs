@@ -18,6 +18,9 @@ public partial class MainWindowViewModel : ObservableObject
     public const string HeroCounterPageKey = "HeroCounter";
     public const string MatchAnalysisPageKey = "MatchAnalysis";
 
+    /// <summary>比赛详情是战绩分析的下级页面，不在侧边栏导航里。</summary>
+    public const string MatchDetailPageKey = "MatchDetail";
+
     private readonly INavigationService _navigationService;
     private readonly IThemeService _themeService;
     private readonly IAppCacheService _cacheService;

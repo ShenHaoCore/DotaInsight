@@ -60,6 +60,9 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasHero))]
     [NotifyPropertyChangedFor(nameof(HasBrackets))]
+    [NotifyPropertyChangedFor(nameof(ShowHeroPlaceholder))]
+    [NotifyPropertyChangedFor(nameof(ShowProfileMissing))]
+    [NotifyPropertyChangedFor(nameof(TurnRateText))]
     private HeroStat? hero;
 
     [ObservableProperty]
@@ -75,6 +78,8 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     [NotifyPropertyChangedFor(nameof(HasComplexity1))]
     [NotifyPropertyChangedFor(nameof(HasComplexity2))]
     [NotifyPropertyChangedFor(nameof(HasComplexity3))]
+    [NotifyPropertyChangedFor(nameof(ShowProfileMissing))]
+    [NotifyPropertyChangedFor(nameof(TurnRateText))]
     private HeroDetailProfile? profile;
 
     [ObservableProperty]
@@ -122,7 +127,43 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
     public bool HasMatchupPreview => CounteredByPreview.Count > 0 || CountersPreview.Count > 0;
 
+    /// <summary>已开始加载但英雄基础信息尚未就绪：显示占位，避免整块 banner 消失导致版式跳动。</summary>
+    public bool ShowHeroPlaceholder => IsLoading && Hero is null;
+
+    /// <summary>
+    /// 资料确实缺失时才提示。必须在加载中排除，否则每次换英雄都会闪一下「暂无该英雄的详细资料」。
+    /// </summary>
+    public bool ShowProfileMissing => !IsLoading && Hero is not null && Profile is null;
+
+    /// <summary>
+    /// 转身速率：OpenDota heroStats 的 turn_rate 对多数英雄返回 null（实测 127 个中 82 个为 0），
+    /// 由国服 herodata 的值补全。
+    /// 放在 VM 上而不是 HeroStat 上：HeroStat 是无属性通知的普通对象，
+    /// 若把补全值写回 HeroStat，就必须保证「先设值再赋 Hero」，
+    /// 那样两段式加载（先渲染基础信息、后到详情资料）永远拿不到正确值。
+    /// 判定占位时只看「详情资料到了没有」，不能看 IsLoading：
+    /// IsLoading 一直持续到对位预览结束，而转身速率在详情资料到达时就已知，
+    /// 用它当条件会让这个数字比旁边的技能/背景白晚好几秒。
+    /// </summary>
+    public string TurnRateText
+    {
+        get
+        {
+            var rate = Profile?.TurnRate > 0 ? Profile.TurnRate : Hero?.TurnRate ?? 0;
+            if (rate > 0)
+            {
+                return rate.ToString("0.##");
+            }
+
+            // 还没取到值：资料在途就显示占位，别急着判成「缺数据」闪一个「—」。
+            return Profile is null && IsLoading ? "…" : "—";
+        }
+    }
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowHeroPlaceholder))]
+    [NotifyPropertyChangedFor(nameof(ShowProfileMissing))]
+    [NotifyPropertyChangedFor(nameof(TurnRateText))]
     private bool isLoading;
 
     [ObservableProperty]
@@ -184,46 +225,62 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
         try
         {
-            IsLoading = true;
-            StatusMessage = "加载详情...";
-            CounteredByPreview.Clear();
-            CountersPreview.Clear();
-            MatchupStatus = string.Empty;
-            IsBioExpanded = false;
-            SelectedTabIndex = 0;
-            OnPropertyChanged(nameof(HasMatchupPreview));
+            // 关键：先整体清空上一个英雄的内容再开始请求。否则在网络往返期间
+            // （首次访问某英雄要拉国服 herodata）页面会继续渲染上个英雄的名字、
+            // 头像、属性、技能，以及旧封面与旧视频。
+            await OnUiThreadAsync(() =>
+            {
+                ResetLoadedContent();
+                IsLoading = true;
+                StatusMessage = "正在加载英雄资料…";
+            }).ConfigureAwait(true);
 
+            // 两段式加载：英雄列表通常命中本地缓存，先把基础信息渲染出来；
+            // 详情资料（技能/背景/头图）首次需要联网，不能让它挡住整页。
+            // 两个请求并行发出：串行的话详情资料要等英雄列表返回后才开始，
+            // 首次访问某英雄会白等一个往返——转身速率就在资料里，会跟着一起迟到。
             var heroesTask = _heroService.GetHeroesAsync(token);
             var profileTask = _profileService.GetProfileAsync(heroId, token);
-            await Task.WhenAll(heroesTask, profileTask).ConfigureAwait(true);
+            ObserveSilently(profileTask);
 
+            var heroes = await heroesTask.ConfigureAwait(true);
             token.ThrowIfCancellationRequested();
             if (generation != _loadGeneration)
             {
                 return;
             }
 
-            var found = (await heroesTask).FirstOrDefault(h => h.Id == heroId);
-            var profile = await profileTask;
+            var found = heroes.FirstOrDefault(h => h.Id == heroId);
+            if (found is null)
+            {
+                await OnUiThreadAsync(() =>
+                {
+                    StatusMessage = "未找到该英雄";
+                    _loadedHeroId = null;
+                }).ConfigureAwait(true);
+                return;
+            }
 
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            await OnUiThreadAsync(() => Hero = found).ConfigureAwait(true);
+
+            var profile = await profileTask.ConfigureAwait(true);
+            token.ThrowIfCancellationRequested();
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
+
+            await OnUiThreadAsync(() =>
             {
                 if (token.IsCancellationRequested || generation != _loadGeneration)
                 {
                     return;
                 }
 
-                Hero = found;
                 ApplyProfile(profile);
-                _loadedHeroId = found?.Id;
-                StatusMessage = found is null ? "未找到该英雄" : string.Empty;
-                OnPropertyChanged(nameof(HasBrackets));
-            });
-
-            if (found is null || token.IsCancellationRequested || generation != _loadGeneration)
-            {
-                return;
-            }
+                _loadedHeroId = found.Id;
+                StatusMessage = string.Empty;
+            }).ConfigureAwait(true);
 
             await LoadMatchupPreviewAsync(found.Id, token, generation).ConfigureAwait(true);
         }
@@ -243,16 +300,78 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             }
 
             _logger.Error(ex, "加载英雄详情失败 HeroId={HeroId}", heroId);
-            StatusMessage = "详情加载失败，请稍后重试";
-            _loadedHeroId = null;
+            await OnUiThreadAsync(() =>
+            {
+                StatusMessage = "详情加载失败，请稍后重试";
+                _loadedHeroId = null;
+            }).ConfigureAwait(true);
         }
         finally
         {
             if (!token.IsCancellationRequested && generation == _loadGeneration)
             {
-                IsLoading = false;
+                await OnUiThreadAsync(() => IsLoading = false).ConfigureAwait(true);
             }
         }
+    }
+
+    /// <summary>
+    /// 把 UI 状态更新切回 UI 线程执行。
+    /// 服务层内部使用 ConfigureAwait(false)，await 之后的续体线程并不保证是 UI 线程；
+    /// 若直接在续体里改绑定属性，PropertyChanged 会在后台线程抛出，
+    /// 页面的封面 / 视频控件随即因跨线程访问而崩溃。
+    /// </summary>
+    /// <summary>
+    /// 为并行发出的任务预注册静默观察者。
+    /// 若因提前返回（未找到英雄 / 新的一次加载顶掉旧的）而无人 await 它，
+    /// 其异常会以「未观察」的形式残留；取消时 GetProfileAsync 是会把异常抛出来的。
+    /// 后续仍可正常 await——await 的异常抛出不受此 continuation 影响。
+    /// </summary>
+    private static void ObserveSilently(Task task)
+        => _ = task.ContinueWith(
+            static t => _ = t.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+
+    private static Task OnUiThreadAsync(Action action)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.CheckAccess())
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        return dispatcher.InvokeAsync(action).Task;
+    }
+
+    /// <summary>
+    /// 清空上一个英雄的全部展示内容。切换英雄时必须在发起请求之前调用，
+    /// 并且要连派生状态一起通知，否则集合虽已清空但页面仍按旧值渲染。
+    /// </summary>
+    private void ResetLoadedContent()
+    {
+        Hero = null;
+        Profile = null;
+        SelectedAbility = null;
+
+        NormalAbilities.Clear();
+        InnateAbilities.Clear();
+        TalentRows.Clear();
+        RoleStats.Clear();
+        CounteredByPreview.Clear();
+        CountersPreview.Clear();
+
+        MatchupStatus = string.Empty;
+        IsBioExpanded = false;
+        SelectedTabIndex = 0;
+
+        OnPropertyChanged(nameof(HasAbilities));
+        OnPropertyChanged(nameof(HasInnateAbilities));
+        OnPropertyChanged(nameof(HasTalents));
+        OnPropertyChanged(nameof(HasSelectedAbility));
+        OnPropertyChanged(nameof(HasMatchupPreview));
     }
 
     private void ApplyProfile(HeroDetailProfile? profile)
@@ -318,15 +437,19 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     {
         try
         {
-            IsLoadingMatchups = true;
-            MatchupStatus = "加载对位预览...";
+            await OnUiThreadAsync(() =>
+            {
+                IsLoadingMatchups = true;
+                MatchupStatus = "加载对位预览...";
+            }).ConfigureAwait(true);
+
             var result = await _heroService.GetCounterRelationsAsync(heroId, token).ConfigureAwait(true);
             if (token.IsCancellationRequested || generation != _loadGeneration)
             {
                 return;
             }
 
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            await OnUiThreadAsync(() =>
             {
                 if (token.IsCancellationRequested || generation != _loadGeneration)
                 {
@@ -363,7 +486,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                 }
 
                 OnPropertyChanged(nameof(HasMatchupPreview));
-            });
+            }).ConfigureAwait(true);
         }
         catch (Exception ex) when (HttpCall.IsUserCancellation(ex, token) || generation != _loadGeneration)
         {
@@ -377,13 +500,13 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             }
 
             _logger.Warning(ex, "加载对位预览失败 HeroId={HeroId}", heroId);
-            MatchupStatus = "对位预览加载失败";
+            await OnUiThreadAsync(() => MatchupStatus = "对位预览加载失败").ConfigureAwait(true);
         }
         finally
         {
             if (!token.IsCancellationRequested && generation == _loadGeneration)
             {
-                IsLoadingMatchups = false;
+                await OnUiThreadAsync(() => IsLoadingMatchups = false).ConfigureAwait(true);
             }
         }
     }
@@ -410,9 +533,26 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             return;
         }
 
+        NavigateToCounter(Hero.Id);
+    }
+
+    /// <summary>点击对位列表条目：跳到该英雄自己的克制分析页。</summary>
+    [RelayCommand]
+    private void OpenCounterForHero(HeroCounterItem? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        NavigateToCounter(item.HeroId);
+    }
+
+    private void NavigateToCounter(int heroId)
+    {
         _shell.CurrentPageTitle = "克制分析";
         _shell.ActiveNav = MainWindowViewModel.HeroCounterPageKey;
-        _navigation.NavigateTo(MainWindowViewModel.HeroCounterPageKey, Hero.Id);
+        _navigation.NavigateTo(MainWindowViewModel.HeroCounterPageKey, heroId);
     }
 
     [RelayCommand]

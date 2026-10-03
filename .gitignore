@@ -23,3 +23,6 @@ Desktop.ini
 
 ## Trae tooling local files
 .trae/
+
+## WorkBuddy local data
+.workbuddy/

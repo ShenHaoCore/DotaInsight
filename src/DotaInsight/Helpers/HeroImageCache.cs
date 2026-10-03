@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
+using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -9,7 +10,8 @@ using System.Windows.Threading;
 namespace DotaInsight.Helpers;
 
 /// <summary>
-/// 英雄头像缓存：%LocalAppData%\DotaInsight\hero-icons\ + 内存。
+/// 远程图片磁盘缓存：%LocalAppData%\DotaInsight\image-cache\ + 内存。
+/// 超大素材（如 1440×1440 头图）按 storeWidth 降采样后落盘，避免几十 MB 的无效占用。
 /// </summary>
 public static class HeroImageCache
 {
@@ -26,7 +28,7 @@ public static class HeroImageCache
         get
         {
             AppPaths.EnsureCreated();
-            return AppPaths.HeroIcons;
+            return AppPaths.ImageCache;
         }
     }
 
@@ -44,22 +46,28 @@ public static class HeroImageCache
     public static string GetCacheDirectory() => CacheDirectory;
 
     /// <summary>
-    /// 获取头像：优先内存 → 本地文件 → 外网（并后台落盘）。
+    /// 获取图片：优先内存 → 本地文件 → 外网（并后台落盘）。
     /// </summary>
-    public static ImageSource? Get(string? url, int decodeWidth = 160)
+    /// <param name="url">远程地址。</param>
+    /// <param name="decodeWidth">内存解码宽度（按实际显示尺寸给，避免无谓的大位图）。</param>
+    /// <param name="storeWidth">
+    /// 落盘宽度：源图宽于此值时降采样后再存（保留 alpha 的 PNG）。
+    /// 0 表示原样存（适合本身就小的头像/图标）。
+    /// </param>
+    public static ImageSource? Get(string? url, int decodeWidth = 160, int storeWidth = 0)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
             return null;
         }
 
-        var memoryKey = BuildMemoryKey(url, decodeWidth);
+        var memoryKey = BuildMemoryKey(url, decodeWidth, storeWidth);
         if (MemoryCache.TryGetValue(memoryKey, out var cached))
         {
             return cached;
         }
 
-        var localPath = GetLocalPath(url);
+        var localPath = GetLocalPath(url, storeWidth);
         if (File.Exists(localPath))
         {
             var fromDisk = LoadFromFile(localPath, decodeWidth);
@@ -68,14 +76,14 @@ public static class HeroImageCache
         }
 
         // 远程图先不进内存：失败重试时还能重新拉取；落盘成功后由下次 Get 缓存
-        QueueDownload(url, localPath);
+        QueueDownload(url, localPath, storeWidth);
         return LoadFromUri(url, decodeWidth);
     }
 
     /// <summary>
-    /// 后台预下载缺失头像到本地，完成后预热内存缓存。
+    /// 后台预下载缺失图片到本地，完成后预热内存缓存。
     /// </summary>
-    public static void WarmUp(IEnumerable<string> urls, int decodeWidth = 160)
+    public static void WarmUp(IEnumerable<string> urls, int decodeWidth = 160, int storeWidth = 0)
     {
         var list = urls
             .Where(u => !string.IsNullOrWhiteSpace(u))
@@ -96,8 +104,8 @@ public static class HeroImageCache
             {
                 try
                 {
-                    var path = GetLocalPath(url);
-                    await DownloadToFileAsync(url, path).ConfigureAwait(false);
+                    var path = GetLocalPath(url, storeWidth);
+                    await DownloadToFileAsync(url, path, storeWidth).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -117,7 +125,7 @@ public static class HeroImageCache
                 {
                     try
                     {
-                        Get(url, decodeWidth);
+                        Get(url, decodeWidth, storeWidth);
                     }
                     catch
                     {
@@ -207,18 +215,17 @@ public static class HeroImageCache
         return (deleted, freed);
     }
 
-    /// <summary>清理早期写在程序目录下的旧缓存。</summary>
+    /// <summary>
+    /// 清理早期版本的图片缓存：程序目录下的 cache/hero-icons 与
+    /// %LocalAppData% 下不降采样的 hero-icons（单张可达 1.5 MB），升级后一次性回收磁盘。
+    /// </summary>
     public static void TryRemoveLegacyInstallCache()
     {
+        TryDeleteDirectory(Path.Combine(AppContext.BaseDirectory, "cache", "hero-icons"));
+        TryDeleteDirectory(AppPaths.LegacyImageCache);
+
         try
         {
-            var legacy = Path.Combine(AppContext.BaseDirectory, "cache", "hero-icons");
-            if (!Directory.Exists(legacy))
-            {
-                return;
-            }
-
-            Directory.Delete(legacy, recursive: true);
             var parent = Path.Combine(AppContext.BaseDirectory, "cache");
             if (Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
             {
@@ -231,13 +238,28 @@ public static class HeroImageCache
         }
     }
 
-    private static void QueueDownload(string url, string localPath)
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch
+        {
+            // ignore：文件被占用时留到下次启动再清
+        }
+    }
+
+    private static void QueueDownload(string url, string localPath, int storeWidth = 0)
     {
         _ = Task.Run(async () =>
         {
             try
             {
-                await DownloadToFileAsync(url, localPath).ConfigureAwait(false);
+                await DownloadToFileAsync(url, localPath, storeWidth).ConfigureAwait(false);
             }
             catch
             {
@@ -246,7 +268,7 @@ public static class HeroImageCache
         });
     }
 
-    private static async Task DownloadToFileAsync(string url, string localPath)
+    private static async Task DownloadToFileAsync(string url, string localPath, int storeWidth = 0)
     {
         if (File.Exists(localPath))
         {
@@ -279,6 +301,16 @@ public static class HeroImageCache
                 return;
             }
 
+            if (storeWidth > 0)
+            {
+                // 后台线程解码 + 缩放；失败或反而更大时保留原图
+                var scaled = DownscaleToPng(bytes, storeWidth);
+                if (scaled is { Length: > 0 } && scaled.Length < bytes.Length)
+                {
+                    bytes = scaled;
+                }
+            }
+
             var tempPath = localPath + ".tmp";
             await File.WriteAllBytesAsync(tempPath, bytes).ConfigureAwait(false);
 
@@ -294,6 +326,72 @@ public static class HeroImageCache
         {
             DownloadGates.TryRemove(localPath, out _);
         }
+    }
+
+    /// <summary>
+    /// 按目标宽度降采样并重新编码为 PNG（保留 alpha）。
+    /// 源图不超过目标宽度、或处理失败时返回 null，表示维持原文件。
+    /// RenderTargetBitmap 要求 STA 线程，故在专用线程上执行。
+    /// </summary>
+    private static byte[]? DownscaleToPng(byte[] source, int targetWidth)
+    {
+        if (targetWidth <= 0 || source.Length == 0)
+        {
+            return null;
+        }
+
+        byte[]? result = null;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                using var input = new MemoryStream(source);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.StreamSource = input;
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                if (bitmap.PixelWidth <= targetWidth)
+                {
+                    return;
+                }
+
+                var scale = targetWidth / (double)bitmap.PixelWidth;
+                var width = Math.Max(1, (int)Math.Round(bitmap.PixelWidth * scale));
+                var height = Math.Max(1, (int)Math.Round(bitmap.PixelHeight * scale));
+
+                var visual = new DrawingVisual();
+                RenderOptions.SetBitmapScalingMode(visual, BitmapScalingMode.HighQuality);
+                using (var context = visual.RenderOpen())
+                {
+                    context.DrawImage(bitmap, new Rect(0, 0, width, height));
+                }
+
+                var target = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                target.Render(visual);
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(target));
+                using var output = new MemoryStream();
+                encoder.Save(output);
+                result = output.ToArray();
+            }
+            catch
+            {
+                result = null;
+            }
+        })
+        {
+            IsBackground = true
+        };
+
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        worker.Join();
+        return result;
     }
 
     private static ImageSource LoadFromFile(string path, int decodeWidth)
@@ -325,9 +423,9 @@ public static class HeroImageCache
         return bitmap;
     }
 
-    private static string GetLocalPath(string url)
-        => Path.Combine(CacheDirectory, CacheFileNaming.FromUrl(url));
+    private static string GetLocalPath(string url, int storeWidth = 0)
+        => Path.Combine(CacheDirectory, CacheFileNaming.FromUrl(url, storeWidth));
 
-    private static string BuildMemoryKey(string url, int decodeWidth)
-        => $"{decodeWidth}|{url}";
+    private static string BuildMemoryKey(string url, int decodeWidth, int storeWidth)
+        => $"{decodeWidth}|{storeWidth}|{url}";
 }

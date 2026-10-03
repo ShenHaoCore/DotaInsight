@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace DotaInsight.Helpers;
 
@@ -11,7 +12,8 @@ public static class HeroAssetHelper
     private const string HeroIconBase =
         "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/";
 
-    private const string PackIconBase = "pack://application:,,,/Assets/Icons/";
+    private const string PackIconBase = "pack://application:,,,/DotaInsight;component/Assets/Icons/";
+    private const string StatIconBase = PackIconBase + "stats/";
 
     /// <summary>三维主属性：官方矢量图标（HeroIcons.xaml，任意 DPI 清晰）。</summary>
     public static ImageSource StrIcon => GetVectorIcon("HeroStrengthIcon");
@@ -22,18 +24,33 @@ public static class HeroAssetHelper
     public static string HealthIcon { get; } = PackIcon("icon_health.png");
     public static string ManaIcon { get; } = PackIcon("icon_mana.png");
 
-    /// <summary>战斗属性：按官方 heroes/stats 字形重制的白色矢量图标。</summary>
-    public static ImageSource ArmorIcon => GetVectorIcon("StatArmorIcon");
-    public static ImageSource MagicResistIcon => GetVectorIcon("StatMagicResistIcon");
-    public static ImageSource DamageIcon => GetVectorIcon("StatDamageIcon");
-    public static ImageSource AttackTimeIcon => GetVectorIcon("StatAttackTimeIcon");
-    public static ImageSource AttackRangeIcon => GetVectorIcon("StatAttackRangeIcon");
-    public static ImageSource ProjectileSpeedIcon => GetVectorIcon("StatProjectileSpeedIcon");
-    public static ImageSource MoveSpeedIcon => GetVectorIcon("StatMoveSpeedIcon");
-    public static ImageSource TurnRateIcon => GetVectorIcon("StatTurnRateIcon");
-    public static ImageSource VisionIcon => GetVectorIcon("StatVisionIcon");
+    /// <summary>
+    /// 战斗属性图标：与 dota2.com 官网英雄页同一套 PNG（dota_react/heroes/stats/）。
+    /// 直接显示原图（中灰主体 + 深色细节 + alpha 渐变），浅色/深色主题下都有足够对比度；
+    /// 不要用 OpacityMask 染成单色 —— 那会压平官网素材的灰度层次（眼睛变实心椭圆、飞靴丢翅膀）。
+    /// </summary>
+    public static ImageSource ArmorIcon => StatIcon("icon_armor.png");
+    public static ImageSource MagicResistIcon => StatIcon("icon_magic_resist.png");
+    public static ImageSource DamageIcon => StatIcon("icon_damage.png");
+    public static ImageSource AttackTimeIcon => StatIcon("icon_attack_time.png");
+    public static ImageSource AttackRangeIcon => StatIcon("icon_attack_range.png");
+    public static ImageSource ProjectileSpeedIcon => StatIcon("icon_projectile_speed.png");
+    public static ImageSource MoveSpeedIcon => StatIcon("icon_movement_speed.png");
+    public static ImageSource TurnRateIcon => StatIcon("icon_turn_rate.png");
+    public static ImageSource VisionIcon => StatIcon("icon_vision.png");
 
     private static string PackIcon(string fileName) => PackIconBase + fileName;
+
+    private static ImageSource StatIcon(string fileName)
+    {
+        var bmp = new BitmapImage(new Uri(StatIconBase + fileName, UriKind.Absolute));
+        if (bmp.CanFreeze)
+        {
+            bmp.Freeze();
+        }
+
+        return bmp;
+    }
 
     private static ImageSource GetVectorIcon(string resourceKey) =>
         (ImageSource)(Application.Current?.Resources[resourceKey]
