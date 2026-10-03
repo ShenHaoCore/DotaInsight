@@ -160,7 +160,8 @@ public partial class HomeViewModel : ObservableObject
 
     private void SaveHistoryId(string accountId)
     {
-        var list = _liteCache.Get<List<string>>("match_history_ids") ?? new List<string>();
+        const string key = Helpers.CacheKeys.LegacyMatchHistoryIds;
+        var list = _liteCache.Get<List<string>>(key) ?? new List<string>();
         list.Remove(accountId);
         list.Insert(0, accountId);
         if (list.Count > 8)
@@ -168,7 +169,7 @@ public partial class HomeViewModel : ObservableObject
             list.RemoveAt(list.Count - 1);
         }
 
-        _liteCache.Set("match_history_ids", list, TimeSpan.FromDays(30));
+        _liteCache.Set(key, list, TimeSpan.FromDays(30));
     }
 
     [RelayCommand]

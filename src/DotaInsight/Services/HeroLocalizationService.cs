@@ -31,6 +31,10 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILiteDbCacheService _cache;
     private readonly ILogger _logger;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
+    /// <summary>进程内缓存：命中后跳过 LiteDB 反序列化（整张名字表每页导航都会用到）。</summary>
+    private IReadOnlyDictionary<int, string>? _memory;
 
     public HeroLocalizationService(
         IHttpClientFactory httpClientFactory,
@@ -45,51 +49,73 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
     public async Task<IReadOnlyDictionary<int, string>> GetChineseNamesByIdAsync(
         CancellationToken cancellationToken = default)
     {
-        var cached = _cache.Get<Dictionary<int, string>>(CacheKey);
-        if (cached is { Count: > 0 })
+        var memory = _memory;
+        if (memory is not null)
         {
-            _logger.Debug("使用缓存的中文英雄名，共 {Count} 个", cached.Count);
-            return cached;
+            return memory;
         }
 
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _logger.Information("请求国服英雄列表以获取中文名：{Url}", HeroListUrl);
-            var http = _httpClientFactory.CreateClient(HttpClientName);
-            var response = await http
-                .GetFromJsonAsync<CnHeroListResponse>(HeroListUrl, cancellationToken)
-                .ConfigureAwait(false);
-
-            var map = response?.Result?.Heroes?
-                .Where(h => h.Id > 0 && !string.IsNullOrWhiteSpace(h.NameLoc))
-                .GroupBy(h => h.Id)
-                .ToDictionary(g => g.Key, g => g.First().NameLoc!.Trim())
-                ?? new Dictionary<int, string>();
-
-            if (map.Count > 0)
+            if (_memory is not null)
             {
-                _cache.Set(CacheKey, map);
-                _logger.Information("已刷新中文英雄名缓存，共 {Count} 个", map.Count);
-                return map;
+                return _memory;
             }
 
-            _logger.Warning("国服英雄列表为空，回退内置中文名表");
-        }
-        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.Warning(ex, "拉取国服中文名失败，回退内置表或过期缓存");
-            var stale = _cache.GetStale<Dictionary<int, string>>(CacheKey);
-            if (stale is { Count: > 0 })
+            var cached = _cache.Get<Dictionary<int, string>>(CacheKey);
+            if (cached is { Count: > 0 })
             {
-                return stale;
+                _memory = cached;
+                _logger.Debug("使用缓存的中文英雄名，共 {Count} 个", cached.Count);
+                return _memory;
             }
-        }
 
-        return HeroChineseNames.ById;
+            try
+            {
+                _logger.Information("请求国服英雄列表以获取中文名：{Url}", HeroListUrl);
+                var http = _httpClientFactory.CreateClient(HttpClientName);
+                var response = await http
+                    .GetFromJsonAsync<CnHeroListResponse>(HeroListUrl, cancellationToken)
+                    .ConfigureAwait(false);
+
+                var map = response?.Result?.Heroes?
+                    .Where(h => h.Id > 0 && !string.IsNullOrWhiteSpace(h.NameLoc))
+                    .GroupBy(h => h.Id)
+                    .ToDictionary(g => g.Key, g => g.First().NameLoc!.Trim())
+                    ?? new Dictionary<int, string>();
+
+                if (map.Count > 0)
+                {
+                    _cache.Set(CacheKey, map);
+                    _memory = map;
+                    _logger.Information("已刷新中文英雄名缓存，共 {Count} 个", map.Count);
+                    return _memory;
+                }
+
+                _logger.Warning("国服英雄列表为空，回退内置中文名表");
+            }
+            catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "拉取国服中文名失败，回退内置表或过期缓存");
+                var stale = _cache.GetStale<Dictionary<int, string>>(CacheKey);
+                if (stale is { Count: > 0 })
+                {
+                    // 失败降级的结果只作本次返回，不进 _memory，下次调用仍会重试拉取
+                    return stale;
+                }
+            }
+
+            return HeroChineseNames.ById;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private sealed class CnHeroListResponse

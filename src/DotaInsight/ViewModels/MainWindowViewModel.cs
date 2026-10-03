@@ -58,11 +58,21 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string cacheInfoText = "缓存统计中...";
 
+    private SymbolIcon? _themeToggleIcon;
+
+    /// <summary>主题图标：按需创建并复用同一实例，仅主题切换时重建（不在 getter 里每次 new 控件）。</summary>
     public SymbolIcon ThemeToggleIcon
-        => new()
+    {
+        get
         {
-            Symbol = ThemeToggleSymbol
-        };
+            if (_themeToggleIcon is null || _themeToggleIcon.Symbol != ThemeToggleSymbol)
+            {
+                _themeToggleIcon = new SymbolIcon { Symbol = ThemeToggleSymbol };
+            }
+
+            return _themeToggleIcon;
+        }
+    }
 
     public SymbolRegular ThemeToggleSymbol
         => IsDarkTheme ? SymbolRegular.WeatherSunny24 : SymbolRegular.WeatherMoon24;

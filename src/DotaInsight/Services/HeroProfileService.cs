@@ -94,14 +94,14 @@ public sealed class HeroProfileService : IHeroProfileService
             raw.TopVideo,
             string.IsNullOrWhiteSpace(key)
                 ? null
-                : $"https://cdn.cloudflare.steamstatic.com/apps/dota2/videos/dota_react/heroes/renders/{key}.webm");
+                : $"{HeroAssetHelper.DotaReactVideosBase}heroes/renders/{key}.webm");
 
         var poster = HeroDisplayHelper.FirstNonEmpty(
             raw.TopImg,
             raw.CropsImg,
             string.IsNullOrWhiteSpace(key)
                 ? null
-                : $"https://cdn.cloudflare.steamstatic.com/apps/dota2/videos/dota_react/heroes/renders/{key}.png");
+                : $"{HeroAssetHelper.DotaReactVideosBase}heroes/renders/{key}.png");
 
         var abilities = (raw.Abilities ?? [])
             .Where(a => a is not null && !string.IsNullOrWhiteSpace(a.NameLoc))
@@ -360,7 +360,7 @@ public sealed class HeroProfileService : IHeroProfileService
             return string.Empty;
         }
 
-        return $"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/{abilityName}.png";
+        return $"{HeroAssetHelper.DotaReactImagesBase}abilities/{abilityName}.png";
     }
 
     private sealed class CnHeroDataResponse

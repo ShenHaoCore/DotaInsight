@@ -8,6 +8,9 @@ public static class CacheKeys
     /// <summary>已保存账户（昵称 / 头像 / 段位）。</summary>
     public const string SavedAccounts = "saved_accounts";
 
+    /// <summary>旧版战绩页查询历史（纯 ID 列表，仅用于一次性迁移到账户卡片）。</summary>
+    public const string LegacyMatchHistoryIds = "match_history_ids";
+
     /// <summary>
     /// 属于「用户资产」的键前缀：这些数据是用户攒下来的，清缓存时必须保留。
     /// 可再生的数据缓存（战绩、英雄资料等）不在此列。

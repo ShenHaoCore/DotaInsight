@@ -26,6 +26,14 @@ public sealed class HeroCounterService : IHeroCounterService
     private readonly ILiteDbCacheService _cache;
     private readonly IHeroLocalizationService _localization;
     private readonly ILogger _logger;
+    private readonly SemaphoreSlim _heroesGate = new(1, 1);
+
+    /// <summary>
+    /// 进程内缓存：英雄列表 + Id 索引。每次页面导航都会调 GetHeroesAsync，
+    /// 命中内存可跳过整包 heroStats 的 LiteDB 反序列化与中文名覆盖。
+    /// </summary>
+    private IReadOnlyList<HeroStat>? _heroesMemory;
+    private IReadOnlyDictionary<int, HeroStat>? _heroByIdMemory;
 
     public HeroCounterService(
         IHttpClientFactory httpClientFactory,
@@ -43,57 +51,84 @@ public sealed class HeroCounterService : IHeroCounterService
 
     public async Task<IReadOnlyList<HeroStat>> GetHeroesAsync(CancellationToken cancellationToken = default)
     {
-        var chineseNames = await _localization
-            .GetChineseNamesByIdAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var cached = _cache.Get<List<HeroStat>>(HeroStatsCacheKey);
-        if (cached is { Count: > 0 })
+        var memory = _heroesMemory;
+        if (memory is not null)
         {
-            ApplyChineseNames(cached, chineseNames);
-            _logger.Information("从缓存加载英雄列表，共 {Count} 个", cached.Count);
-            return cached;
+            return memory;
         }
 
+        await _heroesGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _logger.Information("请求 OpenDota /api/heroStats");
-            var heroes = await Http
-                .GetFromJsonAsync<List<HeroStat>>(
-                    "api/heroStats",
-                    HttpCall.JsonOptions,
-                    cancellationToken)
+            if (_heroesMemory is not null)
+            {
+                return _heroesMemory;
+            }
+
+            var chineseNames = await _localization
+                .GetChineseNamesByIdAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            if (heroes is null || heroes.Count == 0)
+            var cached = _cache.Get<List<HeroStat>>(HeroStatsCacheKey);
+            if (cached is { Count: > 0 })
             {
-                _logger.Warning("heroStats 返回空数据，尝试使用过期缓存");
-                var staleEmpty = _cache.GetStale<List<HeroStat>>(HeroStatsCacheKey) ?? [];
-                ApplyChineseNames(staleEmpty, chineseNames);
-                return staleEmpty;
+                ApplyChineseNames(cached, chineseNames);
+                _logger.Information("从缓存加载英雄列表，共 {Count} 个", cached.Count);
+                return StoreHeroes(cached);
             }
 
-            var normalized = NormalizeHeroStats(heroes, chineseNames);
-            _cache.Set(HeroStatsCacheKey, normalized);
-            _logger.Information("已刷新英雄列表缓存，共 {Count} 个", normalized.Count);
-            return normalized;
-        }
-        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.Warning(ex, "拉取 heroStats 失败，尝试离线缓存");
-            var stale = _cache.GetStale<List<HeroStat>>(HeroStatsCacheKey);
-            if (stale is { Count: > 0 })
+            try
             {
-                ApplyChineseNames(stale, chineseNames);
-                return stale;
-            }
+                _logger.Information("请求 OpenDota /api/heroStats");
+                var heroes = await Http
+                    .GetFromJsonAsync<List<HeroStat>>(
+                        "api/heroStats",
+                        HttpCall.JsonOptions,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
-            throw;
+                if (heroes is null || heroes.Count == 0)
+                {
+                    _logger.Warning("heroStats 返回空数据，尝试使用过期缓存");
+                    var staleEmpty = _cache.GetStale<List<HeroStat>>(HeroStatsCacheKey) ?? [];
+                    ApplyChineseNames(staleEmpty, chineseNames);
+                    return staleEmpty.Count > 0 ? StoreHeroes(staleEmpty) : staleEmpty;
+                }
+
+                var normalized = NormalizeHeroStats(heroes, chineseNames);
+                _cache.Set(HeroStatsCacheKey, normalized);
+                _logger.Information("已刷新英雄列表缓存，共 {Count} 个", normalized.Count);
+                return StoreHeroes(normalized);
+            }
+            catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "拉取 heroStats 失败，尝试离线缓存");
+                var stale = _cache.GetStale<List<HeroStat>>(HeroStatsCacheKey);
+                if (stale is { Count: > 0 })
+                {
+                    ApplyChineseNames(stale, chineseNames);
+                    return StoreHeroes(stale);
+                }
+
+                throw;
+            }
         }
+        finally
+        {
+            _heroesGate.Release();
+        }
+    }
+
+    /// <summary>把加载成功的英雄列表连同 Id 索引一起存入进程内缓存。</summary>
+    private IReadOnlyList<HeroStat> StoreHeroes(List<HeroStat> heroes)
+    {
+        _heroesMemory = heroes;
+        _heroByIdMemory = heroes.ToDictionary(h => h.Id);
+        return heroes;
     }
 
     public async Task<HeroCounterResult> GetCounterRelationsAsync(
@@ -112,7 +147,7 @@ public sealed class HeroCounterService : IHeroCounterService
             };
         }
 
-        var heroLookup = heroes.ToDictionary(h => h.Id);
+        var heroLookup = _heroByIdMemory ?? heroes.ToDictionary(h => h.Id);
         var cacheKey = MatchupsCacheKeyPrefix + heroId;
         var (matchups, fromCache, isOffline) = await LoadMatchupsAsync(
             heroId,

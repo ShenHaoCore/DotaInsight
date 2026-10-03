@@ -111,7 +111,34 @@ public partial class HeroGalleryViewModel : ObservableObject
         }
     }
 
-    partial void OnSearchTextChanged(string value) => ApplyFilter();
+    private CancellationTokenSource? _searchDebounceCts;
+
+    /// <summary>
+    /// 搜索词防抖：搜索框是逐字符触发（UpdateSourceTrigger=PropertyChanged），
+    /// 而 ApplyFilter 会整体重建分组集合并让 127 个磁贴重新布局，每个键都跑一遍太浪费；
+    /// 停顿 300ms 后才真正过滤，属性筛选不走防抖（点击频率低、需要即时反馈）。
+    /// </summary>
+    partial void OnSearchTextChanged(string value)
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _searchDebounceCts = new CancellationTokenSource();
+        _ = ApplyFilterAfterDelayAsync(_searchDebounceCts.Token);
+    }
+
+    private async Task ApplyFilterAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(300, token).ConfigureAwait(true);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        ApplyFilter();
+    }
 
     partial void OnAttrFilterChanged(string? value) => ApplyFilter();
 

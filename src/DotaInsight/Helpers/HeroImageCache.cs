@@ -42,9 +42,6 @@ public static class HeroImageCache
         return client;
     }
 
-    /// <summary>当前头像缓存目录。</summary>
-    public static string GetCacheDirectory() => CacheDirectory;
-
     /// <summary>
     /// 获取图片：优先内存 → 本地文件 → 外网（并后台落盘）。
     /// </summary>
@@ -75,9 +72,13 @@ public static class HeroImageCache
             return fromDisk;
         }
 
-        // 远程图先不进内存：失败重试时还能重新拉取；落盘成功后由下次 Get 缓存
+        // 远程图先不进磁盘路径：失败重试时还能重新拉取；落盘成功后由下次 Get 走文件路径。
+        // WPF 网络栈的直载位图同样进内存缓存 —— 首屏多个控件绑同一 URL 时复用同一
+        // BitmapImage 实例（WPF 内部按 Uri 去重下载），不重复分配解码对象。
         QueueDownload(url, localPath, storeWidth);
-        return LoadFromUri(url, decodeWidth);
+        var direct = LoadFromUri(url, decodeWidth);
+        MemoryCache[memoryKey] = direct;
+        return direct;
     }
 
     /// <summary>

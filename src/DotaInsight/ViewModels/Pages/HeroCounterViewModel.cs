@@ -255,7 +255,7 @@ public partial class HeroCounterViewModel : ObservableObject, INavigationAware
                     : $"不利 {CounteredByList.Count} · 有利 {CountersList.Count}";
             });
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             _logger.Debug("克制请求已取消 HeroId={HeroId}", hero.Id);
         }

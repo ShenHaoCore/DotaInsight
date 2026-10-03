@@ -67,11 +67,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasProfile))]
-    [NotifyPropertyChangedFor(nameof(HasVideo))]
-    [NotifyPropertyChangedFor(nameof(HasHype))]
-    [NotifyPropertyChangedFor(nameof(HasNpeDesc))]
     [NotifyPropertyChangedFor(nameof(HasBio))]
-    [NotifyPropertyChangedFor(nameof(HasAbilities))]
     [NotifyPropertyChangedFor(nameof(HasInnateAbilities))]
     [NotifyPropertyChangedFor(nameof(HasTalents))]
     [NotifyPropertyChangedFor(nameof(ComplexityLevel))]
@@ -83,37 +79,20 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     private HeroDetailProfile? profile;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelectedAbility))]
     private HeroAbilityInfo? selectedAbility;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(BioToggleText))]
-    private bool isBioExpanded;
-
-    [ObservableProperty]
     private int selectedTabIndex;
-
-    public string BioToggleText => IsBioExpanded ? "收起" : "展开全文";
 
     public bool HasHero => Hero is not null;
 
     public bool HasProfile => Profile is not null;
 
-    public bool HasVideo => !string.IsNullOrWhiteSpace(Profile?.VideoUrl);
-
-    public bool HasHype => !string.IsNullOrWhiteSpace(Profile?.Hype);
-
-    public bool HasNpeDesc => !string.IsNullOrWhiteSpace(Profile?.NpeDesc);
-
     public bool HasBio => !string.IsNullOrWhiteSpace(Profile?.Bio);
-
-    public bool HasAbilities => NormalAbilities.Count > 0;
 
     public bool HasInnateAbilities => InnateAbilities.Count > 0;
 
     public bool HasTalents => TalentRows.Count > 0;
-
-    public bool HasSelectedAbility => SelectedAbility is not null;
 
     public int ComplexityLevel => Profile?.Complexity ?? 0;
 
@@ -316,12 +295,6 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     }
 
     /// <summary>
-    /// 把 UI 状态更新切回 UI 线程执行。
-    /// 服务层内部使用 ConfigureAwait(false)，await 之后的续体线程并不保证是 UI 线程；
-    /// 若直接在续体里改绑定属性，PropertyChanged 会在后台线程抛出，
-    /// 页面的封面 / 视频控件随即因跨线程访问而崩溃。
-    /// </summary>
-    /// <summary>
     /// 为并行发出的任务预注册静默观察者。
     /// 若因提前返回（未找到英雄 / 新的一次加载顶掉旧的）而无人 await 它，
     /// 其异常会以「未观察」的形式残留；取消时 GetProfileAsync 是会把异常抛出来的。
@@ -334,17 +307,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
 
-    private static Task OnUiThreadAsync(Action action)
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess())
-        {
-            action();
-            return Task.CompletedTask;
-        }
-
-        return dispatcher.InvokeAsync(action).Task;
-    }
+    private static Task OnUiThreadAsync(Action action) => UiDispatcher.OnUiAsync(action);
 
     /// <summary>
     /// 清空上一个英雄的全部展示内容。切换英雄时必须在发起请求之前调用，
@@ -364,13 +327,10 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         CountersPreview.Clear();
 
         MatchupStatus = string.Empty;
-        IsBioExpanded = false;
         SelectedTabIndex = 0;
 
-        OnPropertyChanged(nameof(HasAbilities));
         OnPropertyChanged(nameof(HasInnateAbilities));
         OnPropertyChanged(nameof(HasTalents));
-        OnPropertyChanged(nameof(HasSelectedAbility));
         OnPropertyChanged(nameof(HasMatchupPreview));
     }
 
@@ -427,10 +387,8 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             });
         }
 
-        OnPropertyChanged(nameof(HasAbilities));
         OnPropertyChanged(nameof(HasInnateAbilities));
         OnPropertyChanged(nameof(HasTalents));
-        OnPropertyChanged(nameof(HasSelectedAbility));
     }
 
     private async Task LoadMatchupPreviewAsync(int heroId, CancellationToken token, int generation)
@@ -521,9 +479,6 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
         SelectedAbility = ability;
     }
-
-    [RelayCommand]
-    private void ToggleBio() => IsBioExpanded = !IsBioExpanded;
 
     [RelayCommand]
     private void OpenCounter()

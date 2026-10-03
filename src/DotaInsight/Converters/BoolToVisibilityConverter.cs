@@ -69,22 +69,34 @@ public sealed class AdvantageToProgressConverter : IValueConverter
 
 /// <summary>
 /// 主属性 → 属性色画刷（力量/敏捷/智力/全才）。
+/// 颜色固定不随主题变化，静态冻结缓存：127 磁贴 / 对位列表随绑定反复求值时零分配。
 /// </summary>
 public sealed class AttrBrushConverter : IValueConverter
 {
+    private static readonly SolidColorBrush StrBrush = Frozen(0xC2, 0x3C, 0x2A);
+    private static readonly SolidColorBrush AgiBrush = Frozen(0x2F, 0xCB, 0x7A);
+    private static readonly SolidColorBrush IntBrush = Frozen(0x4A, 0x8E, 0xF0);
+    private static readonly SolidColorBrush UniBrush = Frozen(0xC9, 0xA2, 0x27);
+    private static readonly SolidColorBrush FallbackBrush = Frozen(0x8B, 0x98, 0xA8);
+
+    private static SolidColorBrush Frozen(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         var attr = (value as string ?? string.Empty).Trim();
-        var color = attr switch
+        return attr switch
         {
-            "力量" or "str" or "0" => Color.FromRgb(0xC2, 0x3C, 0x2A),
-            "敏捷" or "agi" or "1" => Color.FromRgb(0x2F, 0xCB, 0x7A),
-            "智力" or "int" or "2" => Color.FromRgb(0x4A, 0x8E, 0xF0),
-            "全才" or "all" or "universal" or "3" => Color.FromRgb(0xC9, 0xA2, 0x27),
-            _ => Color.FromRgb(0x8B, 0x98, 0xA8)
+            "力量" or "str" or "0" => StrBrush,
+            "敏捷" or "agi" or "1" => AgiBrush,
+            "智力" or "int" or "2" => IntBrush,
+            "全才" or "all" or "universal" or "3" => UniBrush,
+            _ => FallbackBrush
         };
-
-        return new SolidColorBrush(color);
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -146,9 +158,18 @@ public sealed class AdvantageBrushConverter : IValueConverter
             return brush;
         }
 
-        return advantage
-            ? new SolidColorBrush(Color.FromRgb(0x2F, 0xD5, 0x7F))
-            : new SolidColorBrush(Color.FromRgb(0xF0, 0x56, 0x4A));
+        // 仅在主题字典缺失时兜底；画刷静态冻结，避免每次转换分配
+        return advantage ? FallbackAdvantageBrush : FallbackDisadvantageBrush;
+    }
+
+    private static readonly Brush FallbackAdvantageBrush = FrozenBrush(0x2F, 0xD5, 0x7F);
+    private static readonly Brush FallbackDisadvantageBrush = FrozenBrush(0xF0, 0x56, 0x4A);
+
+    private static Brush FrozenBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

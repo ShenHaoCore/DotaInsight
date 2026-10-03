@@ -148,11 +148,25 @@ public sealed class HeroStat
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public double PickRate { get; set; }
 
-    [JsonIgnore]
-    public string IconUrl => HeroAssetHelper.GetIconUrl(Name);
+    // —— 派生值惰性缓存 ——
+    // HeroStat 无属性通知，反序列化/归一化定型后派生值不再变化，
+    // 而 127 磁贴 / 40 行对位 / 8 行分段会随绑定反复求值这些 getter，缓存为字段避免重复分配。
+    // 注意：写入 LocalizedName 等基础字段前不要先读取派生属性（服务的加载顺序已满足）。
+    private string? _displayName;
+    private string? _iconUrl;
+    private string? _smallIconUrl;
+    private string? _englishName;
+    private string? _winRateText;
+    private string? _pickRateText;
+    private string? _attackTypeText;
+    private IReadOnlyList<string>? _chineseRoles;
+    private IReadOnlyList<HeroRoleStat>? _roleStats;
 
     [JsonIgnore]
-    public string SmallIconUrl => HeroAssetHelper.GetSmallIconUrl(Name);
+    public string IconUrl => _iconUrl ??= HeroAssetHelper.GetIconUrl(Name);
+
+    [JsonIgnore]
+    public string SmallIconUrl => _smallIconUrl ??= HeroAssetHelper.GetSmallIconUrl(Name);
 
     [JsonIgnore]
     public ImageSource PrimaryAttrIcon => HeroAssetHelper.GetPrimaryAttrIcon(PrimaryAttr);
@@ -165,12 +179,6 @@ public sealed class HeroStat
 
     [JsonIgnore]
     public ImageSource IntIcon => HeroAssetHelper.IntIcon;
-
-    [JsonIgnore]
-    public string HealthIcon => HeroAssetHelper.HealthIcon;
-
-    [JsonIgnore]
-    public string ManaIcon => HeroAssetHelper.ManaIcon;
 
     [JsonIgnore]
     public ImageSource ArmorIcon => HeroAssetHelper.ArmorIcon;
@@ -194,11 +202,11 @@ public sealed class HeroStat
     public ImageSource VisionIcon => HeroAssetHelper.VisionIcon;
 
     [JsonIgnore]
-    public string DisplayName => string.IsNullOrWhiteSpace(LocalizedName) ? Name : LocalizedName;
+    public string DisplayName => _displayName ??= string.IsNullOrWhiteSpace(LocalizedName) ? Name : LocalizedName;
 
     /// <summary>英文展示名，如 Elder Titan。</summary>
     [JsonIgnore]
-    public string EnglishName => HeroAssetHelper.GetEnglishDisplayName(Name);
+    public string EnglishName => _englishName ??= HeroAssetHelper.GetEnglishDisplayName(Name);
 
     [JsonIgnore]
     public bool IsPrimaryStr => PrimaryAttr is "力量" or "str";
@@ -213,46 +221,25 @@ public sealed class HeroStat
     public bool IsPrimaryUni => PrimaryAttr is "全才" or "all" or "universal";
 
     [JsonIgnore]
-    public string WinRateText => $"{WinRate:F1}%";
+    public string WinRateText => _winRateText ??= $"{WinRate:F1}%";
 
     [JsonIgnore]
-    public string PickRateText => $"{PickRate:F1}%";
+    public string PickRateText => _pickRateText ??= $"{PickRate:F1}%";
 
     [JsonIgnore]
-    public string RolesText => Roles.Count == 0 ? "—" : string.Join(" · ", Roles);
-
-    [JsonIgnore]
-    public IReadOnlyList<string> ChineseRoles => HeroDisplayHelper.ToChineseRoles(Roles);
+    public IReadOnlyList<string> ChineseRoles => _chineseRoles ??= HeroDisplayHelper.ToChineseRoles(Roles);
 
     [JsonIgnore]
     public bool HasRoles => Roles.Count > 0;
 
     [JsonIgnore]
-    public string AttackTypeText => HeroDisplayHelper.ToChineseAttackType(AttackType);
+    public string AttackTypeText => _attackTypeText ??= HeroDisplayHelper.ToChineseAttackType(AttackType);
 
     [JsonIgnore]
     public bool IsMelee => AttackType is "Melee" or "近战";
 
     [JsonIgnore]
     public bool IsRanged => AttackType is "Ranged" or "远程";
-
-    [JsonIgnore]
-    public double ProWinRate => ProPick > 0 ? ProWin * 100.0 / ProPick : 0;
-
-    [JsonIgnore]
-    public string ProWinRateText => ProPick > 0 ? $"{ProWinRate:F1}%" : "—";
-
-    [JsonIgnore]
-    public double PubWinRate => PubPick > 0 ? PubWin * 100.0 / PubPick : 0;
-
-    [JsonIgnore]
-    public string PubWinRateText => PubPick > 0 ? $"{PubWinRate:F1}%" : "—";
-
-    [JsonIgnore]
-    public double TurboWinRate => TurboPicks > 0 ? TurboWins * 100.0 / TurboPicks : 0;
-
-    [JsonIgnore]
-    public string TurboWinRateText => TurboPicks > 0 ? $"{TurboWinRate:F1}%" : "—";
 
     [JsonIgnore]
     public string BaseDamageText
@@ -316,21 +303,20 @@ public sealed class HeroStat
     /// 新英雄不在等级表中时回退为“有该定位则满格”。
     /// </summary>
     [JsonIgnore]
-    public IReadOnlyList<HeroRoleStat> RoleStats
+    public IReadOnlyList<HeroRoleStat> RoleStats => _roleStats ??= BuildRoleStats();
+
+    private IReadOnlyList<HeroRoleStat> BuildRoleStats()
     {
-        get
-        {
-            var set = new HashSet<string>(ChineseRoles, StringComparer.Ordinal);
-            return HeroDisplayHelper.StandardRoles
-                .Select((name, i) => new HeroRoleStat
-                {
-                    Name = name,
-                    Score = HeroRoleLevelTable.TryGetLevel(Id, i, out var level)
-                        ? level * 100d / 3d
-                        : (set.Contains(name) ? 100 : 0)
-                })
-                .ToList();
-        }
+        var set = new HashSet<string>(ChineseRoles, StringComparer.Ordinal);
+        return HeroDisplayHelper.StandardRoles
+            .Select((name, i) => new HeroRoleStat
+            {
+                Name = name,
+                Score = HeroRoleLevelTable.TryGetLevel(Id, i, out var level)
+                    ? level * 100d / 3d
+                    : (set.Contains(name) ? 100 : 0)
+            })
+            .ToList();
     }
 
     private int PrimaryDamageBonus

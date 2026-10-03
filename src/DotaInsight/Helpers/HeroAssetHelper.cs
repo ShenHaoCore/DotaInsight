@@ -9,8 +9,16 @@ namespace DotaInsight.Helpers;
 /// </summary>
 public static class HeroAssetHelper
 {
-    private const string HeroIconBase =
-        "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/";
+    /// <summary>Steam CDN 根（物品等含完整路径的资源用它拼接）。</summary>
+    internal const string SteamCdnBase = "https://cdn.cloudflare.steamstatic.com";
+
+    /// <summary>官网 dota_react 静态资源根（英雄头像 / 技能图标）。</summary>
+    internal const string DotaReactImagesBase = SteamCdnBase + "/apps/dota2/images/dota_react/";
+
+    /// <summary>官网渲染视频 / 封面根（webm 与 png 同路径不同扩展名）。</summary>
+    internal const string DotaReactVideosBase = SteamCdnBase + "/apps/dota2/videos/dota_react/";
+
+    private const string HeroIconBase = DotaReactImagesBase + "heroes/";
 
     private const string PackIconBase = "pack://application:,,,/DotaInsight;component/Assets/Icons/";
     private const string StatIconBase = PackIconBase + "stats/";
@@ -21,23 +29,33 @@ public static class HeroAssetHelper
     public static ImageSource IntIcon => GetVectorIcon("HeroIntelligenceIcon");
     public static ImageSource UniIcon => GetVectorIcon("HeroUniversalIcon");
 
-    public static string HealthIcon { get; } = PackIcon("icon_health.png");
     public static string ManaIcon { get; } = PackIcon("icon_mana.png");
 
     /// <summary>
     /// 战斗属性图标：与 dota2.com 官网英雄页同一套 PNG（dota_react/heroes/stats/）。
     /// 直接显示原图（中灰主体 + 深色细节 + alpha 渐变），浅色/深色主题下都有足够对比度；
     /// 不要用 OpacityMask 染成单色 —— 那会压平官网素材的灰度层次（眼睛变实心椭圆、飞靴丢翅膀）。
+    /// 每个图标惰性解码一次并 Freeze：绑定热路径反复求值时不再重复 new BitmapImage。
     /// </summary>
-    public static ImageSource ArmorIcon => StatIcon("icon_armor.png");
-    public static ImageSource MagicResistIcon => StatIcon("icon_magic_resist.png");
-    public static ImageSource DamageIcon => StatIcon("icon_damage.png");
-    public static ImageSource AttackTimeIcon => StatIcon("icon_attack_time.png");
-    public static ImageSource AttackRangeIcon => StatIcon("icon_attack_range.png");
-    public static ImageSource ProjectileSpeedIcon => StatIcon("icon_projectile_speed.png");
-    public static ImageSource MoveSpeedIcon => StatIcon("icon_movement_speed.png");
-    public static ImageSource TurnRateIcon => StatIcon("icon_turn_rate.png");
-    public static ImageSource VisionIcon => StatIcon("icon_vision.png");
+    public static ImageSource ArmorIcon => ArmorIconSource.Value;
+    public static ImageSource MagicResistIcon => MagicResistIconSource.Value;
+    public static ImageSource DamageIcon => DamageIconSource.Value;
+    public static ImageSource AttackTimeIcon => AttackTimeIconSource.Value;
+    public static ImageSource AttackRangeIcon => AttackRangeIconSource.Value;
+    public static ImageSource ProjectileSpeedIcon => ProjectileSpeedIconSource.Value;
+    public static ImageSource MoveSpeedIcon => MoveSpeedIconSource.Value;
+    public static ImageSource TurnRateIcon => TurnRateIconSource.Value;
+    public static ImageSource VisionIcon => VisionIconSource.Value;
+
+    private static readonly Lazy<ImageSource> ArmorIconSource = new(() => StatIcon("icon_armor.png"));
+    private static readonly Lazy<ImageSource> MagicResistIconSource = new(() => StatIcon("icon_magic_resist.png"));
+    private static readonly Lazy<ImageSource> DamageIconSource = new(() => StatIcon("icon_damage.png"));
+    private static readonly Lazy<ImageSource> AttackTimeIconSource = new(() => StatIcon("icon_attack_time.png"));
+    private static readonly Lazy<ImageSource> AttackRangeIconSource = new(() => StatIcon("icon_attack_range.png"));
+    private static readonly Lazy<ImageSource> ProjectileSpeedIconSource = new(() => StatIcon("icon_projectile_speed.png"));
+    private static readonly Lazy<ImageSource> MoveSpeedIconSource = new(() => StatIcon("icon_movement_speed.png"));
+    private static readonly Lazy<ImageSource> TurnRateIconSource = new(() => StatIcon("icon_turn_rate.png"));
+    private static readonly Lazy<ImageSource> VisionIconSource = new(() => StatIcon("icon_vision.png"));
 
     private static string PackIcon(string fileName) => PackIconBase + fileName;
 

@@ -184,15 +184,5 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         }
     }
 
-    private static Task OnUiThreadAsync(Action action)
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess())
-        {
-            action();
-            return Task.CompletedTask;
-        }
-
-        return dispatcher.InvokeAsync(action).Task;
-    }
+    private static Task OnUiThreadAsync(Action action) => UiDispatcher.OnUiAsync(action);
 }

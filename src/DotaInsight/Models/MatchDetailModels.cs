@@ -36,16 +36,7 @@ public sealed class MatchDetail
     public bool HasPlayers => Radiant.Count > 0 || Dire.Count > 0;
 
     [JsonIgnore]
-    public string DurationText
-    {
-        get
-        {
-            var span = TimeSpan.FromSeconds(Math.Max(0, DurationSeconds));
-            return span.TotalHours >= 1
-                ? span.ToString(@"h\:mm\:ss")
-                : span.ToString(@"mm\:ss");
-        }
-    }
+    public string DurationText => Helpers.TimeFormatting.FormatDuration(DurationSeconds);
 
     [JsonIgnore]
     public string StartTimeText => StartTimeLocal.ToString("yyyy-MM-dd HH:mm");

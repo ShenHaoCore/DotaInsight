@@ -13,7 +13,6 @@ public sealed class PlayerProfile
 
     public string AvatarUrl { get; init; } = string.Empty;
 
-    public string ProfileUrl { get; init; } = string.Empty;
 
     public int? RankTier { get; init; }
 
@@ -69,7 +68,7 @@ public sealed class RecentMatchItem
 
     public string KdaRatioText => $"{KdaRatio:F2}";
 
-    public string DurationText => $"{DurationSeconds / 60}:{DurationSeconds % 60:D2}";
+    public string DurationText => Helpers.TimeFormatting.FormatDuration(DurationSeconds);
 
     public string SideText => IsRadiant ? "天辉" : "夜魇";
 

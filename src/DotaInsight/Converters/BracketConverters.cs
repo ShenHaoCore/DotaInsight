@@ -69,9 +69,18 @@ public sealed class BracketWinRateBrushConverter : IValueConverter
             return brush;
         }
 
-        return new SolidColorBrush(double.IsNaN(winRate) || winRate >= 50
-            ? Color.FromRgb(0x1F, 0x9D, 0x5B)
-            : Color.FromRgb(0xD6, 0x3B, 0x32));
+        // 仅在主题字典缺失时兜底；画刷静态冻结，避免每次转换分配
+        return double.IsNaN(winRate) || winRate >= 50 ? FallbackAdvantageBrush : FallbackDisadvantageBrush;
+    }
+
+    private static readonly Brush FallbackAdvantageBrush = FrozenBrush(0x1F, 0x9D, 0x5B);
+    private static readonly Brush FallbackDisadvantageBrush = FrozenBrush(0xD6, 0x3B, 0x32);
+
+    private static Brush FrozenBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
     }
 
     public object ConvertBack(object value, Type targetType, object? parameter, CultureInfo culture)

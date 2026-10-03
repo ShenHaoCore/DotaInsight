@@ -26,7 +26,6 @@ public sealed class ItemCatalogService : IItemCatalogService
     public const string HttpClientName = HeroCounterService.HttpClientName;
 
     private const string CacheKey = "opendota:itemCatalog:v1";
-    private const string CdnBase = "https://cdn.cloudflare.steamstatic.com";
 
     private static readonly TimeSpan CacheTtl = TimeSpan.FromDays(30);
 
@@ -91,7 +90,7 @@ public sealed class ItemCatalogService : IItemCatalogService
                     continue;
                 }
 
-                map[dto.Id] = CdnBase + StripQuery(dto.Img!);
+                map[dto.Id] = HeroAssetHelper.SteamCdnBase + StripQuery(dto.Img!);
             }
 
             _memory = map;

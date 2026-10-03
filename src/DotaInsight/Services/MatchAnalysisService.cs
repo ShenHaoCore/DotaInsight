@@ -131,7 +131,6 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                     : accountId,
                 PersonaName = profileDto?.Profile?.PersonaName ?? $"玩家 {accountId}",
                 AvatarUrl = profileDto?.Profile?.AvatarFull ?? string.Empty,
-                ProfileUrl = profileDto?.Profile?.ProfileUrl ?? string.Empty,
                 RankTier = profileDto?.RankTier,
                 Wins = wlDto?.Win ?? 0,
                 Losses = wlDto?.Lose ?? 0

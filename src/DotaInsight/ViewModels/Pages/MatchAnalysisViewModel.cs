@@ -230,7 +230,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     {
         // 旧版只存了一串纯 ID。这里幂等并入账户列表：卡片先以「账号 xxxxx」占位，
         // 点一次查询就会补上昵称与头像，历史记录不会因为改版而丢失。
-        var legacy = _cache.Get<List<string>>(LegacyHistoryCacheKey);
+        var legacy = _cache.Get<List<string>>(Helpers.CacheKeys.LegacyMatchHistoryIds);
         if (legacy is { Count: > 0 })
         {
             _accountService.MigrateLegacyIds(legacy);
@@ -254,9 +254,6 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
         OnPropertyChanged(nameof(HasAccounts));
     }
-
-    /// <summary>旧版历史记录的缓存键，仅用于一次性迁移。</summary>
-    private const string LegacyHistoryCacheKey = "match_history_ids";
 
     private void UpdateChart(IReadOnlyList<RecentMatchItem> matches)
     {
