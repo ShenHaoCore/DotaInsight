@@ -17,7 +17,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # fetch-depth: 0 —— 生成变更日志要用到上一个 tag 与完整历史，
+      # 默认的浅克隆（depth 1）下 git describe / git log <prev>..<tag> 全都拿不到东西。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -45,8 +49,62 @@ jobs:
       - name: Zip artifact
         run: Compress-Archive -Path publish/DotaInsight.exe -DestinationPath DotaInsight-${{ github.ref_name }}-win-x64.zip
 
+      # 自己生成发行说明。
+      # 不用 action 的 generate_release_notes：它只统计「通过 PR 合并」的改动，
+      # 本仓库是直接推 main 的开发方式，auto notes 会只剩一行 Full Changelog（实测 v0.1.0 / v0.2.0 都是空的）。
+      # 这里直接读 git 历史，线性开发下最准确；提交信息本身已是中文条目，无需再加工。
+      - name: Build release notes
+        shell: pwsh
+        run: |
+          $tag  = "${{ github.ref_name }}"
+          $repo = "${{ github.repository }}"
+
+          # 上一个 v* 标签（首个版本时没有 → 用 commits 链接兜底）
+          $prev = git describe --tags --abbrev=0 --match 'v*' "$tag^" 2>$null
+          if ($LASTEXITCODE -ne 0 -or -not $prev) { $prev = "" }
+
+          if ($prev) {
+            $range = "$prev..$tag"
+            # 让 git 自己写文件：PowerShell 5.1 抓取原生命令 stdout 会按控制台代码页解码，中文会乱码
+            git log $range --no-merges --pretty=format:'- %s (`%h`)' --output=commits.txt
+
+            $heading = '## 本次更新'
+            # 版本号提升这类提交对用户无意义，剔除（仅按前缀匹配，保持工作流通用）
+            $body = @(Get-Content commits.txt -Encoding utf8 |
+                      Where-Object { $_ -and $_ -notmatch '^- (版本号提升|Bump version)' })
+            if ($body.Count -eq 0) { $body = @('本次发布以构建/文档调整为主。') }
+          }
+          else {
+            # 首个版本没有对比基准：整段仓库历史塞进「本次更新」只会是噪音
+            $heading = '## 首个公开版本'
+            $body    = @('首次发布，包含此前全部功能。')
+          }
+
+          $zip      = "DotaInsight-$tag-win-x64.zip"
+          $download = "https://github.com/$repo/releases/download/$tag/$zip"
+          $compare  = if ($prev) { "https://github.com/$repo/compare/$prev...$tag" }
+                      else       { "https://github.com/$repo/commits/$tag" }
+
+          $notes = @(
+            $heading
+            ''
+            $body
+            ''
+            '## 下载'
+            ''
+            "[$zip]($download) · 免安装绿色版，解压即用（需 WebView2 运行时；请解压到可写目录，否则自动升级会退化为手动下载）"
+            ''
+            "**Full Changelog**: $compare"
+          ) -join "`n"
+
+          [System.IO.File]::WriteAllText(
+            (Join-Path (Get-Location).Path 'release-notes.md'),
+            $notes,
+            (New-Object System.Text.UTF8Encoding($false)))
+          Write-Host $notes
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: release-notes.md
           files: DotaInsight-${{ github.ref_name }}-win-x64.zip
