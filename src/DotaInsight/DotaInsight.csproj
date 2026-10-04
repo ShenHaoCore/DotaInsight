@@ -9,6 +9,11 @@
     <ApplicationIcon>Assets\dota2.ico</ApplicationIcon>
     <RootNamespace>DotaInsight</RootNamespace>
     <AssemblyName>DotaInsight</AssemblyName>
+    <!-- 版本号：Releases 通道以 tag 为准（release.yml 用 -p:Version 覆盖），
+         这里给本地构建一个基线；应用内升级靠它和远端 tag 比较。 -->
+    <Version>0.1.0</Version>
+    <AssemblyTitle>DotaInsight</AssemblyTitle>
+    <Product>DotaInsight</Product>
     <!-- LiveCharts 传递依赖 OpenTK / SkiaSharp.Views.WPF 的 NU1701 为已知兼容提示 -->
     <NoWarn>$(NoWarn);NU1701</NoWarn>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>

@@ -41,6 +41,11 @@
                 <ui:TitleBar.TrailingContent>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                         <ui:Button Appearance="Transparent"
+                                   ToolTip="{Binding UpdateTooltip}"
+                                   Icon="{ui:SymbolIcon ArrowSync24}"
+                                   Command="{Binding CheckUpdateCommand}"
+                                   Margin="0,0,4,0" />
+                        <ui:Button Appearance="Transparent"
                                    ToolTip="{Binding ClearCacheTooltip}"
                                    Icon="{ui:SymbolIcon Delete24}"
                                    Command="{Binding ClearCacheCommand}"

@@ -1,6 +1,7 @@
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DotaInsight.Helpers;
 using DotaInsight.Services;
 using Serilog;
 using Wpf.Ui.Controls;
@@ -24,17 +25,20 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly INavigationService _navigationService;
     private readonly IThemeService _themeService;
     private readonly IAppCacheService _cacheService;
+    private readonly IUpdateService _updateService;
     private readonly ILogger _logger;
 
     public MainWindowViewModel(
         INavigationService navigationService,
         IThemeService themeService,
         IAppCacheService cacheService,
+        IUpdateService updateService,
         ILogger logger)
     {
         _navigationService = navigationService;
         _themeService = themeService;
         _cacheService = cacheService;
+        _updateService = updateService;
         _logger = logger.ForContext<MainWindowViewModel>();
         IsDarkTheme = _themeService.IsDark;
         RefreshCacheInfo();
@@ -57,6 +61,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string cacheInfoText = "缓存统计中...";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateTooltip))]
+    private bool isCheckingUpdate;
 
     private SymbolIcon? _themeToggleIcon;
 
@@ -81,6 +89,9 @@ public partial class MainWindowViewModel : ObservableObject
         => IsDarkTheme ? "切换到明亮主题" : "切换到暗黑主题";
 
     public string ClearCacheTooltip => $"清理本地缓存\n{CacheInfoText}";
+
+    public string UpdateTooltip
+        => IsCheckingUpdate ? "正在检查更新…" : $"检查更新（当前 {_updateService.CurrentVersionText}）";
 
     [RelayCommand]
     private void NavigateHome()
@@ -148,6 +159,103 @@ public partial class MainWindowViewModel : ObservableObject
         var result = _cacheService.ClearAll();
         RefreshCacheInfo();
         System.Windows.MessageBox.Show(result.Message, "清理完成", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+    }
+
+    /// <summary>
+    /// 手动检查更新：明确告知结论（已是最新 / 有新版 / 失败），有新版时确认后再就地升级。
+    /// </summary>
+    [RelayCommand]
+    private async Task CheckUpdateAsync()
+    {
+        if (IsCheckingUpdate)
+        {
+            return;
+        }
+
+        IsCheckingUpdate = true;
+        try
+        {
+            var result = await _updateService.CheckAsync();
+
+            switch (result.Status)
+            {
+                case UpdateCheckStatus.UpToDate:
+                    System.Windows.MessageBox.Show(
+                        result.Message,
+                        "检查更新",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                    break;
+
+                case UpdateCheckStatus.Failed:
+                    System.Windows.MessageBox.Show(
+                        result.Message,
+                        "检查更新失败",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Warning);
+                    break;
+
+                case UpdateCheckStatus.UpdateAvailable when result.Release is { } release:
+                    var confirm = System.Windows.MessageBox.Show(
+                        $"{result.Message}\n\n是否现在下载并升级？升级时应用会自动关闭，装好后重新打开。",
+                        "发现新版本",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Question);
+
+                    if (confirm == System.Windows.MessageBoxResult.Yes)
+                    {
+                        ApplyUpdate(release);
+                    }
+
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "检查更新时发生异常");
+            System.Windows.MessageBox.Show(
+                $"检查更新时发生异常：{ex.Message}",
+                "检查更新失败",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    /// <summary>就地升级；无法自动完成时提供打开发布页面的退路。</summary>
+    private void ApplyUpdate(GitHubReleaseInfo release)
+    {
+        switch (_updateService.Apply(release))
+        {
+            case UpdateApplyStatus.Started:
+                // 下载框已交棒给 ZipExtractor，应用马上退出，无需再提示
+                break;
+
+            case UpdateApplyStatus.NotWritable:
+                OfferManualDownload(release, "当前程序目录没有写入权限，无法自动升级。\n是否打开发布页面手动下载？", "无法自动升级");
+                break;
+
+            case UpdateApplyStatus.Failed:
+                OfferManualDownload(release, "升级包下载失败或已取消。\n是否打开发布页面手动下载？", "升级失败");
+                break;
+        }
+    }
+
+    private void OfferManualDownload(GitHubReleaseInfo release, string message, string caption)
+    {
+        var open = System.Windows.MessageBox.Show(
+            message,
+            caption,
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (open == System.Windows.MessageBoxResult.Yes)
+        {
+            _updateService.OpenReleasePage(release);
+        }
     }
 }
 

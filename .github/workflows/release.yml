@@ -1,4 +1,8 @@
 # 发布：推送 v* 标签时构建单文件 exe 并附加到 GitHub Release
+#
+# 标签号同时是应用内升级的版本来源：
+#   git tag v0.2.0 && git push origin v0.2.0
+# 会把 -p:Version=0.2.0 注入程序集，客户端据此判断（对比 /releases/latest 的 tag）是否有新版。
 name: Release
 
 on:
@@ -21,15 +25,22 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Publish (self-contained single file)
-        run: >
-          dotnet publish src/DotaInsight/DotaInsight.csproj
-          --configuration Release
-          --runtime win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:DebugType=none
-          --output publish
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+            throw "标签必须是 v<major>.<minor>.<patch> 形式（如 v0.2.0），当前：${{ github.ref_name }}"
+          }
+          Write-Host "发布版本：$version"
+          dotnet publish src/DotaInsight/DotaInsight.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugType=none `
+            -p:Version=$version `
+            --output publish
 
       - name: Zip artifact
         run: Compress-Archive -Path publish/DotaInsight.exe -DestinationPath DotaInsight-${{ github.ref_name }}-win-x64.zip

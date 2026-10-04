@@ -46,6 +46,9 @@ public partial class App : Application
         mainWindow.Show();
         // 主窗口已创建后再套一次，确保窗口级主题生效
         theme.ApplyTheme(theme.IsDark);
+
+        // 启动静默检查更新：有新版才弹窗，失败不打扰（Release 构建才启用）
+        _serviceProvider.GetRequiredService<IUpdateService>().StartStartupCheck();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -127,6 +130,12 @@ public partial class App : Application
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
             })
             .AddPolicyHandler(GetRetryPolicy());
+
+        // GitHub Releases：升级检查。GitHub 强制要求 User-Agent，缺了直接 403。
+        services.AddHttpClient(UpdateService.HttpClientName, UpdateService.ConfigureHttpClient)
+            .AddPolicyHandler(GetRetryPolicy());
+
+        services.AddSingleton<IUpdateService, UpdateService>();
 
         services.AddSingleton<IHeroLocalizationService, HeroLocalizationService>();
         services.AddSingleton<IHeroProfileService, HeroProfileService>();
