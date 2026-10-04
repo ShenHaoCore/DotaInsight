@@ -1,6 +1,24 @@
 # DotaInsight
 
+[![Release](https://img.shields.io/github/v/release/ShenHaoCore/DotaInsight?label=release)](https://github.com/ShenHaoCore/DotaInsight/releases/latest)
+[![CI](https://github.com/ShenHaoCore/DotaInsight/actions/workflows/dotnet.yml/badge.svg)](https://github.com/ShenHaoCore/DotaInsight/actions/workflows/dotnet.yml)
+
 基于 WPF + MVVM 的 Dota2 赛事数据分析工具。
+
+## 下载
+
+**最新版**：[Releases · latest](https://github.com/ShenHaoCore/DotaInsight/releases/latest)
+
+在 Releases 页下载 `DotaInsight-<版本>-win-x64.zip`，**解压后双击 `DotaInsight.exe` 即可运行**。
+
+- win-x64 **自包含单文件**，无需预装 .NET 运行时
+- 系统要求：Windows 10 / 11（64 位）
+- 用户数据（缓存、账号）在 `%LocalAppData%\DotaInsight`，覆盖升级不受影响
+- 应用内可自动升级：启动后静默检查，标题栏 ⟳ 也可手动检查
+
+> 为什么不直接放裸 `.exe`：单文件 exe 有 207 MB，而我们发布的 zip 里就它一个文件、
+> 压缩后只有 85 MB；且应用内升级**必须**走 zip（见下方「发布与升级」），
+> 保持单一资产可让手动下载与自动升级取同一个文件，避免下错。
 
 ## 技术栈
 
@@ -31,6 +49,10 @@ git tag v0.2.0 && git push origin v0.2.0
 
 `.github/workflows/release.yml` 会发布自包含单文件 exe（win-x64，约 207 MB），zip 资产命名固定为
 `DotaInsight-<tag>-win-x64.zip` —— 客户端按这个后缀找安装包，改名会导致客户端取不到。
+
+> 不要额外上传裸 `.exe` 资产：Autoupdater.NET 只对 `.zip` 下载地址做「解压覆盖」，
+> 非 zip 地址会被当成安装器去执行——裸 exe 被跑起来只会启一个新实例，并不会替换任何文件，
+> 升级会静默失败。zip 是唯一的正确升级载体。
 
 **客户端行为**：
 
