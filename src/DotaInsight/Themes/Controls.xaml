@@ -79,7 +79,30 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
-    <!-- 极简进度条：自定义模板，ScaleX 精确控制填充，100% 必满、0% 无填充 -->
+    <!-- 极简进度条模板：ScaleX 精确控制填充，100% 必满、0% 无填充。
+         两端固定 3px 圆角：4px 细条呈胶囊形、6px 弹窗条为圆角矩形，一套模板够用 -->
+    <ControlTemplate x:Key="DiProgressBarTemplate" TargetType="ProgressBar">
+        <Border Height="{TemplateBinding Height}"
+                Background="{TemplateBinding Background}"
+                CornerRadius="3"
+                ClipToBounds="True">
+            <Border x:Name="PART_Indicator"
+                    Background="{TemplateBinding Foreground}"
+                    HorizontalAlignment="Stretch">
+                <Border.RenderTransform>
+                    <ScaleTransform>
+                        <ScaleTransform.ScaleX>
+                            <MultiBinding Converter="{StaticResource ProgressRatioConverter}">
+                                <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
+                                <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Maximum" />
+                            </MultiBinding>
+                        </ScaleTransform.ScaleX>
+                    </ScaleTransform>
+                </Border.RenderTransform>
+            </Border>
+        </Border>
+    </ControlTemplate>
+
     <Style x:Key="DiThinProgressStyle" TargetType="ProgressBar">
         <Setter Property="Height" Value="4" />
         <Setter Property="Minimum" Value="0" />
@@ -87,30 +110,18 @@
         <Setter Property="Background" Value="{DynamicResource DiProgressTrackBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource DiAccentBrush}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ProgressBar">
-                    <Border Height="{TemplateBinding Height}"
-                            Background="{TemplateBinding Background}"
-                            CornerRadius="2" ClipToBounds="True">
-                        <Border x:Name="PART_Indicator"
-                                Background="{TemplateBinding Foreground}"
-                                HorizontalAlignment="Stretch">
-                            <Border.RenderTransform>
-                                <ScaleTransform>
-                                    <ScaleTransform.ScaleX>
-                                        <MultiBinding Converter="{StaticResource ProgressRatioConverter}">
-                                            <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
-                                            <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Maximum" />
-                                        </MultiBinding>
-                                    </ScaleTransform.ScaleX>
-                                </ScaleTransform>
-                            </Border.RenderTransform>
-                        </Border>
-                    </Border>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Template" Value="{StaticResource DiProgressBarTemplate}" />
+    </Style>
+
+    <!-- 弹窗主进度条：比列表内的细条更粗 -->
+    <Style x:Key="DiBarProgressStyle" TargetType="ProgressBar">
+        <Setter Property="Height" Value="6" />
+        <Setter Property="Minimum" Value="0" />
+        <Setter Property="Maximum" Value="100" />
+        <Setter Property="Background" Value="{DynamicResource DiProgressTrackBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource DiAccentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template" Value="{StaticResource DiProgressBarTemplate}" />
     </Style>
 
     <!-- ================= 卡片 ================= -->

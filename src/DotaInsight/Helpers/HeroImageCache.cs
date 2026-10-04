@@ -177,7 +177,11 @@ public static class HeroImageCache
     /// <summary>
     /// 清空内存与磁盘头像缓存，返回删除的文件数与字节数。
     /// </summary>
-    public static (int DeletedFiles, long FreedBytes) Clear()
+    /// <param name="onProgress">
+    /// 每删除若干文件回调一次 (已完成, 总数)。总数在执行前一次性枚举得到，
+    /// 因此回调方可以据此算出稳定的百分比。
+    /// </param>
+    public static (int DeletedFiles, long FreedBytes) Clear(Action<int, int>? onProgress = null)
     {
         MemoryCache.Clear();
         DownloadGates.Clear();
@@ -192,7 +196,20 @@ public static class HeroImageCache
                 return (0, 0);
             }
 
-            foreach (var file in Directory.EnumerateFiles(dir))
+            // 先枚举出总数：边删边枚举拿不到稳定的分母，进度条会一直停在 0%
+            List<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(dir).ToList();
+            }
+            catch
+            {
+                return (0, 0);
+            }
+
+            onProgress?.Invoke(0, files.Count);
+
+            foreach (var file in files)
             {
                 try
                 {
@@ -205,6 +222,8 @@ public static class HeroImageCache
                 {
                     // ignore locked files
                 }
+
+                onProgress?.Invoke(deleted, files.Count);
             }
         }
         catch

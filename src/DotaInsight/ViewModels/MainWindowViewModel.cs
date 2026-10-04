@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IAppCacheService _cacheService;
     private readonly IUpdateService _updateService;
+    private readonly IDialogService _dialogService;
     private readonly ILogger _logger;
 
     public MainWindowViewModel(
@@ -33,12 +34,14 @@ public partial class MainWindowViewModel : ObservableObject
         IThemeService themeService,
         IAppCacheService cacheService,
         IUpdateService updateService,
+        IDialogService dialogService,
         ILogger logger)
     {
         _navigationService = navigationService;
         _themeService = themeService;
         _cacheService = cacheService;
         _updateService = updateService;
+        _dialogService = dialogService;
         _logger = logger.ForContext<MainWindowViewModel>();
         IsDarkTheme = _themeService.IsDark;
         RefreshCacheInfo();
@@ -148,20 +151,12 @@ public partial class MainWindowViewModel : ObservableObject
     private void ClearCache()
     {
         RefreshCacheInfo();
-        var confirm = System.Windows.MessageBox.Show(
-            $"将删除本地头像与数据缓存：\n{CacheInfoText}\n\n清理后需重新联网加载，是否继续？",
-            "清理缓存",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Question);
 
-        if (confirm != System.Windows.MessageBoxResult.Yes)
+        // 确认、进度与结果都在弹窗里完成（含进度条）；这里只在真的清过之后刷新统计
+        if (_dialogService.ShowClearCacheDialog())
         {
-            return;
+            RefreshCacheInfo();
         }
-
-        var result = _cacheService.ClearAll();
-        RefreshCacheInfo();
-        System.Windows.MessageBox.Show(result.Message, "清理完成", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
     }
 
     /// <summary>

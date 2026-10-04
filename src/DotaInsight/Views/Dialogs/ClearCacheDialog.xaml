@@ -1,0 +1,224 @@
+<UserControl x:Class="DotaInsight.Views.Dialogs.ClearCacheDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:DotaInsight.ViewModels.Dialogs"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ClearCacheDialogViewModel}"
+             d:DesignWidth="520">
+
+    <!-- 三个状态同处一格，靠 Visibility 切换；MinHeight 取确认态的自然高度 288，
+         让进度/结果态补齐到同一高度 —— SizeToContent=Height 时窗口尺寸全程不变 -->
+    <Grid Margin="24,20,24,22" MinHeight="288">
+
+        <!-- ==================== 1) 确认 ==================== -->
+        <StackPanel Visibility="{Binding IsConfirm, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Width="42" Height="42"
+                        CornerRadius="10"
+                        VerticalAlignment="Top"
+                        Background="{DynamicResource DiAccentSoftBrush}">
+                    <ui:SymbolIcon Symbol="Delete24"
+                                   FontSize="19"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiAccentBrush}" />
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="清理本地缓存" Style="{StaticResource DiSectionTitleStyle}" />
+                    <TextBlock Text="删除头像与数据缓存以释放磁盘空间，清理后首次浏览需重新联网加载。"
+                               FontSize="12"
+                               Margin="0,5,0,0"
+                               TextWrapping="Wrap"
+                               LineHeight="17"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </StackPanel>
+            </Grid>
+
+            <UniformGrid Columns="3" Margin="0,18,0,0">
+                <Border Style="{StaticResource DiPanelCardStyle}" Padding="14,12" Margin="0,0,5,0">
+                    <StackPanel>
+                        <TextBlock Text="头像缓存" Style="{StaticResource DiKickerTextStyle}" />
+                        <TextBlock Text="{Binding IconCountText}"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Margin="0,6,0,0"
+                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                        <TextBlock Text="{Binding IconSizeText}"
+                                   FontSize="11"
+                                   Margin="0,2,0,0"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource DiPanelCardStyle}" Padding="14,12" Margin="5,0">
+                    <StackPanel>
+                        <TextBlock Text="数据缓存" Style="{StaticResource DiKickerTextStyle}" />
+                        <TextBlock Text="{Binding DataSizeText}"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Margin="0,6,0,0"
+                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                        <TextBlock Text="LiteDB 条目"
+                                   FontSize="11"
+                                   Margin="0,2,0,0"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource DiPanelCardStyle}" Padding="14,12" Margin="5,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="合计可释放" Style="{StaticResource DiKickerTextStyle}" />
+                        <TextBlock Text="{Binding TotalSizeText}"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Margin="0,6,0,0"
+                                   Foreground="{DynamicResource DiAccentBrush}" />
+                        <TextBlock Text="全部可再生"
+                                   FontSize="11"
+                                   Margin="0,2,0,0"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <Border Margin="0,14,0,0"
+                    Padding="12,9"
+                    CornerRadius="4"
+                    Background="{DynamicResource DiShardSoftBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Info24"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiShardBrush}" />
+                    <TextBlock Margin="8,0,0,0"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource DiMutedTextBrush}"
+                               Text="已保存的账号卡片是本地数据，不会被清理。" />
+                </StackPanel>
+            </Border>
+
+            <Border Margin="0,8,0,0"
+                    Padding="12,9"
+                    CornerRadius="4"
+                    Background="{DynamicResource DiGoldSoftBrush}"
+                    Visibility="{Binding HasNoCache, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource DiMutedTextBrush}"
+                           Text="本地缓存为空，暂无可清理内容。" />
+            </Border>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <ui:Button Appearance="Secondary"
+                           Content="取消"
+                           MinWidth="88"
+                           Command="{Binding DismissCommand}" />
+                <ui:Button Appearance="Primary"
+                           Content="开始清理"
+                           MinWidth="108"
+                           Margin="10,0,0,0"
+                           IsEnabled="{Binding CanStart}"
+                           Command="{Binding StartCommand}" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- ==================== 2) 进度 ==================== -->
+        <StackPanel VerticalAlignment="Center"
+                    Visibility="{Binding IsProgress, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="正在清理本地缓存"
+                       Style="{StaticResource DiSectionTitleStyle}"
+                       HorizontalAlignment="Center" />
+
+            <TextBlock Text="{Binding ProgressPercentText}"
+                       FontSize="34"
+                       FontWeight="Bold"
+                       Margin="0,12,0,0"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource DiAccentBrush}" />
+
+            <ProgressBar Style="{StaticResource DiBarProgressStyle}"
+                         Margin="0,10,0,0"
+                         Value="{Binding ProgressPercent, Mode=OneWay}" />
+
+            <Grid Margin="0,9,0,0">
+                <TextBlock Text="{Binding StageText}"
+                           FontSize="12"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource DiMutedTextBrush}" />
+                <TextBlock Text="{Binding ProgressDetailText}"
+                           FontSize="12"
+                           HorizontalAlignment="Right"
+                           Foreground="{DynamicResource DiMutedTextBrush}"
+                           Visibility="{Binding HasProgressDetail, Converter={StaticResource BoolToVisibilityConverter}}" />
+            </Grid>
+        </StackPanel>
+
+        <!-- ==================== 3) 结果 ==================== -->
+        <StackPanel VerticalAlignment="Center"
+                    Visibility="{Binding IsDone, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Border Width="52" Height="52"
+                    CornerRadius="26"
+                    HorizontalAlignment="Center"
+                    Background="{DynamicResource DiAdvantageBrush}"
+                    Visibility="{Binding IsSuccess, Converter={StaticResource BoolToVisibilityConverter}}">
+                <ui:SymbolIcon Symbol="Checkmark24"
+                               FontSize="24"
+                               Foreground="White"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+            </Border>
+
+            <Border Width="52" Height="52"
+                    CornerRadius="26"
+                    HorizontalAlignment="Center"
+                    Background="{DynamicResource DiDisadvantageBrush}"
+                    Visibility="{Binding IsFailure, Converter={StaticResource BoolToVisibilityConverter}}">
+                <ui:SymbolIcon Symbol="Warning24"
+                               FontSize="22"
+                               Foreground="White"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+            </Border>
+
+            <TextBlock Text="{Binding DoneHeadline}"
+                       FontSize="17"
+                       FontWeight="SemiBold"
+                       Margin="0,14,0,0"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
+
+            <TextBlock Text="{Binding DoneSummary}"
+                       FontSize="12"
+                       Margin="0,9,0,0"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       LineHeight="18"
+                       Foreground="{DynamicResource DiMutedTextBrush}" />
+
+            <TextBlock Text="{Binding DoneElapsedText}"
+                       FontSize="11"
+                       Margin="0,6,0,0"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource DiMutedTextBrush}"
+                       Visibility="{Binding HasElapsed, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+            <ui:Button Appearance="Primary"
+                       Content="完成"
+                       MinWidth="108"
+                       Margin="0,20,0,0"
+                       HorizontalAlignment="Center"
+                       Command="{Binding DismissCommand}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

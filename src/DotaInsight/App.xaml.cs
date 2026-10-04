@@ -4,7 +4,9 @@ using System.Windows;
 using System.Windows.Threading;
 using DotaInsight.Services;
 using DotaInsight.ViewModels;
+using DotaInsight.ViewModels.Dialogs;
 using DotaInsight.ViewModels.Pages;
+using DotaInsight.Views.Dialogs;
 using DotaInsight.Views.Pages;
 using Microsoft.Extensions.DependencyInjection;
 using Polly;
@@ -136,6 +138,7 @@ public partial class App : Application
             .AddPolicyHandler(GetRetryPolicy());
 
         services.AddSingleton<IUpdateService, UpdateService>();
+        services.AddSingleton<IDialogService, DialogService>();
 
         services.AddSingleton<IHeroLocalizationService, HeroLocalizationService>();
         services.AddSingleton<IHeroProfileService, HeroProfileService>();
@@ -156,6 +159,11 @@ public partial class App : Application
         services.AddSingleton<MatchDetailViewModel>();
         services.AddSingleton<MatchDetailPage>();
         services.AddSingleton<MainWindowViewModel>();
+
+        // 清理缓存弹窗：每次打开都要一份新的状态（上次的进度/结果不能残留）
+        services.AddTransient<ClearCacheDialogViewModel>();
+        services.AddTransient<ClearCacheDialogWindow>();
+
         services.AddTransient<MainWindow>();
     }
 
