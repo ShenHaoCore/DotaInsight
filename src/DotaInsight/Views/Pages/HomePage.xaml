@@ -195,6 +195,23 @@
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center"
                                 Margin="16,0,0,0">
+                        <!-- 检查更新（复用外壳命令）+ 当前版本号 -->
+                        <ui:Button Appearance="Secondary"
+                                   ToolTip="检查更新"
+                                   Content="检查更新"
+                                   Icon="{ui:SymbolIcon ArrowSync24}"
+                                   FontSize="12"
+                                   Padding="10,4"
+                                   Command="{Binding CheckUpdateCommand}" />
+                        <TextBlock Text="{Binding VersionText}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   Margin="8,0,0,0"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <Rectangle Width="1" Height="14"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,12,0"
+                                   Fill="{DynamicResource DiStrokeBrush}" />
                         <TextBlock Text="{Binding CacheInfoText}"
                                    FontSize="12"
                                    VerticalAlignment="Center"

@@ -90,8 +90,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     public string ClearCacheTooltip => $"清理本地缓存\n{CacheInfoText}";
 
+    /// <summary>当前程序版本展示串，如 v0.1.0（由发布 tag 注入到程序集）。</summary>
+    public string CurrentVersionText => _updateService.CurrentVersionText;
+
     public string UpdateTooltip
-        => IsCheckingUpdate ? "正在检查更新…" : $"检查更新（当前 {_updateService.CurrentVersionText}）";
+        => IsCheckingUpdate ? "正在检查更新…" : $"检查更新（当前 {CurrentVersionText}）";
 
     [RelayCommand]
     private void NavigateHome()

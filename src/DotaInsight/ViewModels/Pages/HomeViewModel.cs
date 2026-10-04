@@ -55,6 +55,9 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     private string cacheInfoText = "缓存统计中...";
 
+    /// <summary>当前程序版本展示串（如 v0.1.0），取自外壳。</summary>
+    public string VersionText => _shell.CurrentVersionText;
+
     [RelayCommand]
     private async Task InitializeAsync()
     {
@@ -117,6 +120,13 @@ public partial class HomeViewModel : ObservableObject
         _shell.ClearCacheCommand.Execute(null);
         RefreshCacheInfo();
     }
+
+    /// <summary>
+    /// 检查更新：直接复用外壳的命令——重入保护、结论弹窗、升级确认与「无法自动升级」退路
+    /// 都已在 <see cref="MainWindowViewModel"/> 里，这里不重复实现。
+    /// </summary>
+    [RelayCommand]
+    private void CheckUpdate() => _shell.CheckUpdateCommand.Execute(null);
 
     [RelayCommand]
     private void OpenGallery()
