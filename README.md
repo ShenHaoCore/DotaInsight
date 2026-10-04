@@ -11,9 +11,16 @@
 
 在 Releases 页下载 `DotaInsight-<版本>-win-x64.zip`，**解压后双击 `DotaInsight.exe` 即可运行**。
 
+**免安装**：绿色版，解压即用；不写注册表，也不往程序目录落文件——缓存、日志、账号全部在
+`%LocalAppData%\DotaInsight`。
+
 - win-x64 **自包含单文件**，无需预装 .NET 运行时
 - 系统要求：Windows 10 / 11（64 位）
-- 用户数据（缓存、账号）在 `%LocalAppData%\DotaInsight`，覆盖升级不受影响
+- 需要 **WebView2 运行时**（Win11 自带；Win10 装了 Edge 即具备）。缺失时应用照常运行，
+  仅英雄头图的动态视频静默退化为静态封面
+- 建议解压到**有写入权限**的目录（别放 `C:\Program Files`）：应用内升级要就地覆盖 exe，
+  目录不可写时会退化为「打开发布页手动下载」
+- 用户数据在 `%LocalAppData%\DotaInsight`，覆盖升级不受影响
 - 应用内可自动升级：启动后静默检查，标题栏 ⟳ 也可手动检查
 
 > 为什么不直接放裸 `.exe`：单文件 exe 有 207 MB，而我们发布的 zip 里就它一个文件、
