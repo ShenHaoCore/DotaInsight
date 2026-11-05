@@ -16,11 +16,13 @@ public partial class MainWindowViewModel : ObservableObject
     public const string HomePageKey = "Home";
     public const string HeroGalleryPageKey = "HeroGallery";
     public const string HeroDetailPageKey = "HeroDetail";
-    public const string HeroCounterPageKey = "HeroCounter";
     public const string MatchAnalysisPageKey = "MatchAnalysis";
 
     /// <summary>比赛详情是战绩分析的下级页面，不在侧边栏导航里。</summary>
     public const string MatchDetailPageKey = "MatchDetail";
+
+    /// <summary>主窗口标题；单实例保护按它跨进程查找已有窗口（App.OnStartup）。</summary>
+    public const string WindowTitle = "DotaInsight - Dota2 赛事数据分析";
 
     private readonly INavigationService _navigationService;
     private readonly IThemeService _themeService;
@@ -48,7 +50,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    private string title = "DotaInsight - Dota2 赛事数据分析";
+    private string title = MainWindowViewModel.WindowTitle;
 
     [ObservableProperty]
     private string currentPageTitle = "首页";
@@ -116,20 +118,13 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NavigateCounter()
-    {
-        CurrentPageTitle = "克制分析";
-        ActiveNav = HeroCounterPageKey;
-        _navigationService.NavigateTo(HeroCounterPageKey);
-    }
-
-    [RelayCommand]
     private void NavigateMatchAnalysis()
     {
         CurrentPageTitle = "战绩分析";
         ActiveNav = MatchAnalysisPageKey;
         _navigationService.NavigateTo(MatchAnalysisPageKey);
     }
+
 
     [RelayCommand]
     private void ToggleTheme()

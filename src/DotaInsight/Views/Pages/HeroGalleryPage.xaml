@@ -27,7 +27,7 @@
                     <Border VerticalAlignment="Bottom" Background="{DynamicResource DiNameOverlayBrush}">
                         <TextBlock Text="{Binding DisplayName}"
                                    Margin="6,14,6,5"
-                                   FontSize="11" FontWeight="SemiBold"
+                                   FontSize="11" FontWeight="Medium"
                                    Foreground="White"
                                    TextTrimming="CharacterEllipsis"
                                    TextAlignment="Center" />
@@ -37,16 +37,15 @@
         </DataTemplate>
 
         <DataTemplate x:Key="HeroGroupTemplate" DataType="{x:Type pages:HeroAttrGroup}">
-            <StackPanel Margin="0,0,0,18">
+            <StackPanel Margin="0,0,0,20">
                 <DockPanel Margin="4,0,4,8">
                     <Rectangle DockPanel.Dock="Left"
                                Width="4" Height="15"
                                Fill="{Binding AttrName, Converter={StaticResource AttrBrushConverter}}"
                                VerticalAlignment="Center" Margin="0,0,10,0" />
                     <TextBlock Text="{Binding HeaderText}"
-                               FontSize="14" FontWeight="Bold"
-                               VerticalAlignment="Center"
-                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                               Style="{StaticResource DiSectionTitleStyle}"
+                               VerticalAlignment="Center" />
                 </DockPanel>
                 <ItemsControl ItemsSource="{Binding Heroes}"
                               ItemTemplate="{StaticResource HeroTileTemplate}">
@@ -60,7 +59,7 @@
         </DataTemplate>
     </Page.Resources>
 
-    <Grid Margin="28,20,28,20">
+    <Grid Margin="28,20,28,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="12" />
@@ -78,13 +77,8 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                    <Rectangle Width="7" Height="7" Fill="{DynamicResource DiAccentBrush}"
-                               VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <TextBlock Text="HERO LIBRARY" Style="{StaticResource DiKickerTextStyle}" />
-                </StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="英雄" Style="{StaticResource DiPageTitleStyle}" />
+                    <TextBlock Text="英雄图鉴" Style="{StaticResource DiPageTitleStyle}" />
                     <TextBlock Text="{Binding StatusMessage}"
                                Margin="12,0,0,0" FontSize="13"
                                VerticalAlignment="Center"
@@ -112,7 +106,7 @@
 
             <ui:AutoSuggestBox Grid.Column="3"
                                VerticalAlignment="Center"
-                               PlaceholderText="快速搜索"
+                               PlaceholderText="搜索英雄"
                                OriginalItemsSource="{Binding AllHeroes}"
                                Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                ClearButtonEnabled="True"
@@ -134,10 +128,7 @@
 
         <!-- 英雄列表 -->
         <Border Grid.Row="2"
-                Background="{DynamicResource DiPanelBrush}"
-                BorderBrush="{DynamicResource DiStrokeBrush}"
-                BorderThickness="1"
-                CornerRadius="4"
+                Style="{StaticResource DiPanelCardStyle}"
                 Padding="16,14">
             <Grid>
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -149,12 +140,9 @@
 
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
                             Visibility="{Binding HasNoResults, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <Rectangle Width="32" Height="3" Fill="{DynamicResource DiAccentBrush}"
-                               HorizontalAlignment="Center" Margin="0,0,0,14" />
                     <TextBlock Text="没有匹配的英雄"
-                               FontSize="15" FontWeight="Bold"
-                               HorizontalAlignment="Center"
-                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                               Style="{StaticResource DiSectionTitleStyle}"
+                               HorizontalAlignment="Center" />
                     <TextBlock Text="调整搜索词或属性筛选后再试"
                                Margin="0,8,0,0" FontSize="13"
                                HorizontalAlignment="Center"

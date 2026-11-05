@@ -14,49 +14,86 @@
     <converters:AttrBrushConverter x:Key="AttrBrushConverter" />
     <converters:BoolToAppearanceConverter x:Key="BoolToAppearanceConverter" />
 
-    <!-- ================= 文字层级 ================= -->
-    <!-- kicker：红块/红条旁的小标签 -->
+    <!-- ================= 文字层级 =================
+         字阶：11 / 12 / 13 / 15 / 17 / 20 / 24 / 32；字重 400/500，强调 600 -->
+    <!-- 小节标签：卡片内的微型列头 -->
     <Style x:Key="DiKickerTextStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="11" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- 页面大标题 -->
+    <!-- 说明文字：多行内容用 secondary，短提示用 muted -->
+    <Style x:Key="DiBodyTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource DiSecondaryTextBrush}" />
+        <Setter Property="LineHeight" Value="21" />
+    </Style>
+
+    <!-- 页面大标题：唯一用 600 的地方 -->
     <Style x:Key="DiPageTitleStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="26" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- 区块标题 -->
+    <!-- 区块标题：字号承担层级，不再加重 -->
     <Style x:Key="DiSectionTitleStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="15" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- 排行榜幽灵大序号 -->
+    <!-- 列表行内的排位序号：安静等宽数字 -->
     <Style x:Key="DiRankNumberStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="#2EF4F7FA" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="HorizontalAlignment" Value="Center" />
-        <Setter Property="Width" Value="26" />
+        <Setter Property="Width" Value="22" />
+    </Style>
+
+    <!-- ============ 分段页签：选中态是全应用唯一的红色实心块（签名细节） ============ -->
+    <Style x:Key="DiSegmentedItem" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            CornerRadius="4" Padding="14,6">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DiRowHoverBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DiAccentBrush}" />
+                            <Setter Property="Foreground" Value="#FFFFFFFF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ================= 行 / 区块 / 进度条 ================= -->
+    <!-- 数据行：安静的条纹，不描边——列表行再描边就成了堆叠的盒子；
+         分层靠底色与 2px 行距，悬停抬表面 -->
     <Style x:Key="MatchupRowBorderStyle" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource DiRowBrush}" />
-        <Setter Property="Padding" Value="12,9" />
-        <Setter Property="Margin" Value="5,2" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="Margin" Value="0,0,0,2" />
         <Setter Property="CornerRadius" Value="4" />
-        <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="0" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource DiRowHoverBrush}" />
@@ -65,7 +102,7 @@
     </Style>
 
     <Style x:Key="SectionHeaderStyle" TargetType="Border">
-        <Setter Property="Padding" Value="16,11" />
+        <Setter Property="Padding" Value="16,12" />
         <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
         <Setter Property="Background" Value="{DynamicResource DiSectionHeaderBrush}" />
@@ -125,16 +162,16 @@
     </Style>
 
     <!-- ================= 卡片 ================= -->
-    <!-- 主卡片：利落 4px 角 + 细描边 -->
     <Style x:Key="DiPanelCardStyle" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource DiPanelBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
     <!-- ================= 英雄磁贴 ================= -->
+    <!-- 悬停只抬表面与描边，不做缩放 -->
     <Style x:Key="HeroTileButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource DiTileBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
@@ -150,41 +187,13 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="4"
-                            ClipToBounds="True"
-                            RenderTransformOrigin="0.5,0.5">
-                        <Border.RenderTransform>
-                            <ScaleTransform ScaleX="1" ScaleY="1" />
-                        </Border.RenderTransform>
+                            ClipToBounds="True">
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DiAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DiTileHoverBorderBrush}" />
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
-                            <Trigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Root"
-                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                                                         To="1.03" Duration="0:0:0.12" />
-                                        <DoubleAnimation Storyboard.TargetName="Root"
-                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                                                         To="1.03" Duration="0:0:0.12" />
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.EnterActions>
-                            <Trigger.ExitActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="Root"
-                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                                                         To="1" Duration="0:0:0.12" />
-                                        <DoubleAnimation Storyboard.TargetName="Root"
-                                                         Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                                                         To="1" Duration="0:0:0.12" />
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Root" Property="Opacity" Value="0.9" />
@@ -196,12 +205,11 @@
     </Style>
 
     <!-- ================= 侧栏导航 ================= -->
-    <!-- 新版导航项：图标 + 中文小标签（外层 Grid 提供左侧指示条） -->
     <Style x:Key="DiSidebarItemStyle" TargetType="Button">
         <Setter Property="Width" Value="64" />
-        <Setter Property="Height" Value="58" />
+        <Setter Property="Height" Value="56" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0,3" />
+        <Setter Property="Margin" Value="0,2" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="HorizontalAlignment" Value="Center" />
@@ -281,7 +289,7 @@
                             <ControlTemplate TargetType="ListBoxItem">
                                 <Border x:Name="Root"
                                         Background="Transparent"
-                                        CornerRadius="3"
+                                        CornerRadius="4"
                                         Padding="{TemplateBinding Padding}">
                                     <ContentPresenter />
                                 </Border>
@@ -298,7 +306,7 @@
         </Setter>
     </Style>
 
-    <!-- 已保存账号卡片：点击切换查询；当前账号以强调色描边 + 淡底高亮 -->
+    <!-- 已保存账号卡片：当前账号 = 签名红（描边 + 淡底） -->
     <Style x:Key="DiAccountCardStyle" TargetType="Button">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Padding" Value="10,8" />
@@ -327,7 +335,6 @@
                         </DataTrigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DiAccentBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

@@ -10,26 +10,68 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
         <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
+        <converters:IntEqualityConverter x:Key="IntEquality" />
+        <converters:IntEqualsToVisibilityConverter x:Key="IntEqualsVisibility" />
+
+        <!-- 打法结论色条 + 徽标：红=待改进 金=画像 绿=亮点 -->
+        <Style x:Key="FindingBarStyle" TargetType="Rectangle">
+            <Setter Property="Width" Value="4" />
+            <Setter Property="RadiusX" Value="2" />
+            <Setter Property="RadiusY" Value="2" />
+            <Setter Property="Fill" Value="{DynamicResource DiGoldBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Level}" Value="Improve">
+                    <Setter Property="Fill" Value="{DynamicResource DiDisadvantageBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="Good">
+                    <Setter Property="Fill" Value="{DynamicResource DiAdvantageBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FindingBadgeStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource DiGoldBrush}" />
+            <Setter Property="Text" Value="画像" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Level}" Value="Improve">
+                    <Setter Property="Foreground" Value="{DynamicResource DiDisadvantageBrush}" />
+                    <Setter Property="Text" Value="待改进" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Level}" Value="Good">
+                    <Setter Property="Foreground" Value="{DynamicResource DiAdvantageBrush}" />
+                    <Setter Property="Text" Value="亮点" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Page.Resources>
 
-    <Grid Margin="24,16,24,20">
+    <!-- 整页滚动：固定行（查询/账号/摘要/常用英雄/底部页签）总高在 900 窗口下会
+         超出视口，曾把底部页签裁到不可达。比赛列表的内部滚动由
+         ScrollViewer.VerticalScrollBarVisibility 继承禁用——列表全高展开，整页滚动。 -->
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+    <Grid Margin="28,20,28,24"
+          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <!-- 我的账号：查询过的账号做成卡片，点头像即切换 -->
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <!-- 近期常用英雄：与比赛列表同源聚合，点击进英雄详情 -->
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" MinHeight="260" />
             <RowDefinition Height="12" />
-            <RowDefinition Height="180" />
+            <RowDefinition Height="280" />
         </Grid.RowDefinitions>
 
         <!-- 查询栏 -->
         <Border Grid.Row="0"
-                Background="{DynamicResource DiPanelBrush}"
-                BorderBrush="{DynamicResource DiStrokeBrush}"
-                BorderThickness="1"
-                CornerRadius="4"
-                Padding="18,14"
+                Style="{StaticResource DiPanelCardStyle}"
+                Padding="20,16"
                 Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -40,12 +82,10 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <Rectangle Width="7" Height="7" Fill="{DynamicResource DiAccentBrush}"
-                                   VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <TextBlock Text="MATCH RECORDS" Style="{StaticResource DiKickerTextStyle}" />
-                    </StackPanel>
                     <TextBlock Text="战绩分析" Style="{StaticResource DiPageTitleStyle}" />
+                    <TextBlock Text="输入 Account ID 或 SteamID64 查询玩家近期对局"
+                               Margin="0,5,0,0" FontSize="12"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
                 </StackPanel>
 
                 <ui:TextBox Grid.Column="1"
@@ -74,27 +114,20 @@
 
         <!-- 我的账号：查询过的账号自动缓存成卡片，点头像即切换并查询 -->
         <Border Grid.Row="1"
-                Background="{DynamicResource DiPanelBrush}"
-                BorderBrush="{DynamicResource DiStrokeBrush}"
-                BorderThickness="1"
-                CornerRadius="4"
+                Style="{StaticResource DiPanelCardStyle}"
                 Padding="16,12"
                 Margin="0,0,0,12"
                 Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
                 <DockPanel Margin="0,0,0,10">
                     <TextBlock DockPanel.Dock="Right"
-                               Text="点击卡片切换账号，右上角 × 移除"
+                               Text="点击卡片切换 · 右上角 × 移除"
                                FontSize="11"
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource DiMutedTextBrush}" />
-                    <StackPanel Orientation="Horizontal">
-                        <Rectangle Width="7" Height="7" Fill="{DynamicResource DiAccentBrush}"
-                                   VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <TextBlock Text="我的账号" Style="{StaticResource DiKickerTextStyle}" />
-                        <TextBlock Text="{Binding Accounts.Count, StringFormat={}· {0}}"
-                                   Style="{StaticResource DiKickerTextStyle}" Margin="4,0,0,0" />
-                    </StackPanel>
+                    <TextBlock Text="我的账号" Style="{StaticResource DiKickerTextStyle}" />
+                    <TextBlock Text="{Binding Accounts.Count, StringFormat={}· {0}}"
+                               Style="{StaticResource DiKickerTextStyle}" Margin="4,0,0,0" />
                 </DockPanel>
 
                 <ItemsControl ItemsSource="{Binding Accounts}">
@@ -141,13 +174,12 @@
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DisplayName}"
                                                        FontSize="13"
-                                                       FontWeight="SemiBold"
+                                                       FontWeight="Medium"
                                                        TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource DiPrimaryTextBrush}" />
                                             <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                                                 <TextBlock Text="{Binding StatusText}"
-                                                           FontSize="11"
-                                                           FontWeight="SemiBold">
+                                                           FontSize="11" FontWeight="Medium">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="{DynamicResource DiGoldBrush}" />
@@ -190,10 +222,7 @@
 
         <!-- 玩家摘要 -->
         <Border Grid.Row="2"
-                Background="{DynamicResource DiHeroBannerBrush}"
-                BorderBrush="{DynamicResource DiStrokeBrush}"
-                BorderThickness="1"
-                CornerRadius="4"
+                Style="{StaticResource DiPanelCardStyle}"
                 Padding="16"
                 Margin="0,0,0,12"
                 Visibility="{Binding Profile, Converter={StaticResource NullToVisibilityConverter}}">
@@ -204,37 +233,54 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Border Width="68"
-                        Height="68"
-                        CornerRadius="34"
-                        ClipToBounds="True"
-                        BorderBrush="{DynamicResource DiStrokeBrush}"
-                        BorderThickness="1"
-                        Background="{DynamicResource DiChromeBrush}"
-                        Margin="0,0,16,0">
-                    <Image Source="{Binding Profile.AvatarUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}"
-                           Stretch="UniformToFill"
+                <!-- 头像 + Steam 头像框：框图自带外扩留白，叠在圆形头像上层；
+                     无框 / 被墙时图片源为空，不渲染任何内容 -->
+                <Grid Width="68" Height="68" Margin="0,0,16,0">
+                    <Border Width="68"
+                            Height="68"
+                            CornerRadius="34"
+                            ClipToBounds="True"
+                            BorderBrush="{DynamicResource DiStrokeBrush}"
+                            BorderThickness="1"
+                            Background="{DynamicResource DiChromeBrush}">
+                        <Grid>
+                            <ui:SymbolIcon Symbol="PersonCircle24"
+                                           FontSize="30"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DiMutedTextBrush}" />
+                            <Image Source="{Binding Profile.AvatarUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}"
+                                   Stretch="UniformToFill"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                        </Grid>
+                    </Border>
+                    <!-- 框图与头像同尺寸后按 Steam 官方规则 scale(1.225) 居中放大：68 × 1.225 ≈ 84 -->
+                    <Image Width="84" Height="84"
+                           Source="{Binding AvatarFrameUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=192}"
+                           Stretch="Uniform"
+                           IsHitTestVisible="False"
+                           Visibility="{Binding HasAvatarFrame, Converter={StaticResource BoolToVisibilityConverter}}"
                            RenderOptions.BitmapScalingMode="HighQuality" />
-                </Border>
+                </Grid>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Profile.PersonaName}"
-                               FontSize="21"
-                               FontWeight="Bold"
+                               FontSize="20"
+                               FontWeight="SemiBold"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Border Background="{DynamicResource DiGoldSoftBrush}"
-                                CornerRadius="3"
+                                CornerRadius="4"
                                 Padding="8,3"
                                 Margin="0,0,10,0">
                             <TextBlock Text="{Binding Profile.RankText}"
-                                       FontSize="12" FontWeight="SemiBold"
+                                       FontSize="12" FontWeight="Medium"
                                        Foreground="{DynamicResource DiGoldBrush}" />
                         </Border>
                         <TextBlock Text="{Binding Profile.RecordText}"
                                    FontSize="13"
                                    VerticalAlignment="Center"
-                                   Foreground="{DynamicResource DiMutedTextBrush}"
+                                   Foreground="{DynamicResource DiSecondaryTextBrush}"
                                    Margin="0,0,12,0" />
                         <TextBlock Text="{Binding Profile.WinRateText, StringFormat={}总胜率 {0}}"
                                    FontSize="13"
@@ -256,31 +302,119 @@
             </Grid>
         </Border>
 
-        <!-- 比赛列表 -->
+        <!-- 近期常用英雄：按对局数聚合，点击进入英雄详情 -->
         <Border Grid.Row="3"
+                Style="{StaticResource DiPanelCardStyle}"
+                Padding="16,12"
+                Margin="0,0,0,12"
+                Visibility="{Binding HasRecentHeroes, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,10">
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="点击查看英雄详情"
+                               FontSize="11"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                    <TextBlock Text="近期常用英雄" Style="{StaticResource DiKickerTextStyle}" />
+                    <TextBlock Text="{Binding RecentHeroes.Count, StringFormat={}· {0}}"
+                               Style="{StaticResource DiKickerTextStyle}" Margin="4,0,0,0" />
+                </DockPanel>
+
+                <ItemsControl ItemsSource="{Binding RecentHeroes}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Margin="0,0,10,10"
+                                    Cursor="Hand"
+                                    Focusable="False"
+                                    Command="{Binding DataContext.OpenRecentHeroCommand,
+                                                      RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}"
+                                    ToolTip="{Binding HeroName}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Card"
+                                                Background="{DynamicResource DiChromeBrush}"
+                                                BorderBrush="{DynamicResource DiStrokeBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="12,10">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Card" Property="BorderBrush"
+                                                        Value="{DynamicResource DiTileHoverBorderBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="44"
+                                            Height="30"
+                                            CornerRadius="3"
+                                            ClipToBounds="True"
+                                            Background="{DynamicResource DiChromeBrush}">
+                                        <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
+                                               Stretch="UniformToFill"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                    </Border>
+                                    <StackPanel Margin="10,0,4,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding HeroName}"
+                                                   FontSize="13"
+                                                   FontWeight="Medium"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="120"
+                                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                            <TextBlock Text="{Binding RecordText}"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                                            <TextBlock Text="{Binding WinRateText}"
+                                                       FontSize="11"
+                                                       FontWeight="Medium"
+                                                       Margin="8,0,0,0"
+                                                       Foreground="{Binding WinRate, Converter={StaticResource AdvantageBrushConverter}}" />
+                                            <TextBlock Text="{Binding AvgKdaText, StringFormat={}KDA {0}}"
+                                                       FontSize="11"
+                                                       Margin="8,0,0,0"
+                                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- 比赛列表 -->
+        <Border Grid.Row="4"
                 Style="{StaticResource DiPanelCardStyle}"
                 ClipToBounds="True">
             <DockPanel>
                 <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                     <DockPanel>
-                        <Rectangle Width="3" Height="18" Fill="{DynamicResource DiAccentBrush}"
-                                   Margin="0,0,10,0" VerticalAlignment="Center" />
-                        <TextBlock Text="近期比赛"
-                                   FontWeight="Bold"
-                                   FontSize="15"
-                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
                         <TextBlock DockPanel.Dock="Right"
                                    Text="{Binding Matches.Count, StringFormat={}{0} 场}"
-                                   FontSize="13"
+                                   FontSize="12"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <TextBlock Text="近期比赛"
+                                   Style="{StaticResource DiSectionTitleStyle}" />
                     </DockPanel>
                 </Border>
 
+                    <Grid>
                 <ListBox ItemsSource="{Binding Matches}"
                          Background="Transparent"
                          BorderThickness="0"
-                         Padding="8,4"
+                         Padding="12,8"
                          Cursor="Hand"
                          SelectionChanged="OnMatchSelectionChanged"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -315,7 +449,7 @@
                                     <Border Grid.Column="0"
                                             Width="56"
                                             Height="32"
-                                            CornerRadius="3"
+                                            CornerRadius="4"
                                             ClipToBounds="True"
                                             Background="{DynamicResource DiChromeBrush}"
                                             Margin="0,0,10,0">
@@ -326,7 +460,7 @@
 
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding HeroName}"
-                                                   FontWeight="SemiBold"
+                                                   FontWeight="Medium"
                                                    FontSize="13"
                                                    Foreground="{DynamicResource DiPrimaryTextBrush}" />
                                         <TextBlock Text="{Binding SideText}"
@@ -336,7 +470,7 @@
 
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding ResultText}"
-                                               FontWeight="Bold"
+                                               FontWeight="Medium"
                                                FontSize="13"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center">
@@ -384,36 +518,119 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+
+                        <TextBlock Text="查询账号后展示近期对局"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource DiMutedTextBrush}"
+                                   Visibility="{Binding HasData, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+                    </Grid>
             </DockPanel>
         </Border>
 
-        <!-- 胜负走势图 -->
-        <Border Grid.Row="5"
+        <!-- 底部区：胜负走势 / 打法建议 页签（与英雄详情页同一套分段样式） -->
+        <Border Grid.Row="6"
                 Style="{StaticResource DiPanelCardStyle}"
-                Padding="14,10">
+                Padding="16,12">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <TextBlock Text="近期胜负走势"
-                           FontWeight="SemiBold"
-                           FontSize="13"
-                           Foreground="{DynamicResource DiPrimaryTextBrush}"
-                           Margin="2,0,2,4" />
-                <lvc:CartesianChart Grid.Row="1"
-                                    Series="{Binding Series}"
-                                    XAxes="{Binding XAxes}"
-                                    YAxes="{Binding YAxes}"
-                                    LegendPosition="Hidden"
-                                    Visibility="{Binding HasData, Converter={StaticResource BoolToVisibilityConverter}}" />
-                <TextBlock Grid.Row="1"
-                           Text="查询账号后展示胜负走势"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Foreground="{DynamicResource DiMutedTextBrush}"
-                           Visibility="{Binding HasData, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+
+                <Border Grid.Row="0" Padding="2" HorizontalAlignment="Left"
+                        Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
+                        BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="胜负走势" Style="{StaticResource DiSegmentedItem}"
+                                     IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
+                        <RadioButton Content="打法建议" Style="{StaticResource DiSegmentedItem}"
+                                     IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- 页签 0：胜负走势 -->
+                <Grid Grid.Row="1" Margin="0,12,0,0"
+                      Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=0}">
+                    <lvc:CartesianChart Background="Transparent"
+                                        Series="{Binding Series}"
+                                        XAxes="{Binding XAxes}"
+                                        YAxes="{Binding YAxes}"
+                                        LegendPosition="Hidden"
+                                        Visibility="{Binding HasData, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <TextBlock Text="查询账号后展示胜负走势"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}"
+                               Visibility="{Binding HasData, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+                </Grid>
+
+                <!-- 页签 1：打法建议（与比赛列表同源聚合，不发额外请求） -->
+                <Grid Grid.Row="1" Margin="0,12,0,0"
+                      Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=1}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding PlaystyleSummary}"
+                               FontSize="12"
+                               Margin="2,0,2,8"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding Findings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource DiRowBrush}"
+                                                BorderBrush="{DynamicResource DiStrokeBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="12,10"
+                                                Margin="0,0,0,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Rectangle Grid.Column="0" Style="{StaticResource FindingBarStyle}"
+                                                           VerticalAlignment="Stretch" Margin="0,0,12,0" />
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Title}"
+                                                               FontSize="13"
+                                                               FontWeight="Medium"
+                                                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                                    <TextBlock Text="{Binding Detail}"
+                                                               FontSize="11"
+                                                               Margin="0,2,0,0"
+                                                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                                                    <TextBlock Text="{Binding Suggestion}"
+                                                               FontSize="12"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,4,0,0"
+                                                               Foreground="{DynamicResource DiSecondaryTextBrush}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Style="{StaticResource FindingBadgeStyle}"
+                                                           Margin="12,0,0,0" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="查询账号后生成打法画像与改进建议（经验规则参考）"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,20,0,10"
+                                       Foreground="{DynamicResource DiMutedTextBrush}"
+                                       Visibility="{Binding HasFindings, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
         </Border>
     </Grid>
+    </ScrollViewer>
 </Page>

@@ -4,6 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using DotaInsight.Helpers;
 using DotaInsight.ViewModels.Pages;
+using LiveChartsCore.Kernel;
+using LiveChartsCore.Kernel.Sketches;
 
 namespace DotaInsight.Views.Pages;
 
@@ -29,6 +31,26 @@ public partial class HeroDetailPage : Page
     }
 
     private (string? VideoUrl, string? PosterUrl) ResolveMedia() => (_viewModel.Profile?.VideoUrl, HeroDisplayHelper.FirstNonEmpty(_viewModel.Profile?.PosterUrl, _viewModel.Hero?.IconUrl));
+
+    /// <summary>
+    /// 克制页签分布图的柱子点击：转发给 VM，按柱序号打开对应敌方英雄的克制分析。
+    /// DataPointerDown 的委托签名是 (IChartView, IEnumerable&lt;ChartPoint&gt;)，无 sender。
+    /// </summary>
+    private void OnMatchupChartPointerDown(IChartView chart, IEnumerable<ChartPoint> points)
+    {
+        if (points is null)
+        {
+            return;
+        }
+
+        var list = points.ToList();
+        if (list.Count == 0)
+        {
+            return;
+        }
+
+        _viewModel.OpenMatchupChartHeroAt(list[0].Index);
+    }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {

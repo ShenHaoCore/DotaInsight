@@ -106,6 +106,17 @@ public static class HeroAssetHelper
             : $"{HeroIconBase}icons/{key}.png";
     }
 
+    /// <summary>
+    /// 技能图标 URL（dota_react abilities 目录），如 antimage_blink → abilities/antimage_blink.png。
+    /// 空名与占位名（generic_hidden）返回空串，调用方按空槽位渲染。
+    /// </summary>
+    public static string GetAbilityIconUrl(string? abilityName)
+    {
+        return string.IsNullOrWhiteSpace(abilityName) || abilityName == "generic_hidden"
+            ? string.Empty
+            : $"{DotaReactImagesBase}abilities/{abilityName}.png";
+    }
+
     /// <summary>npc_dota_hero_elder_titan → elder_titan</summary>
     public static string GetHeroKey(string? internalName)
     {

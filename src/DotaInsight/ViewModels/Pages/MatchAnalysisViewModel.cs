@@ -19,25 +19,36 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 {
     private readonly IMatchAnalysisService _matchService;
     private readonly IAccountService _accountService;
+    private readonly ISteamAvatarFrameService _frameService;
     private readonly ILiteDbCacheService _cache;
     private readonly INavigationService _navigation;
+    private readonly MainWindowViewModel _shell;
     private readonly ILogger _logger;
     private CancellationTokenSource? _cts;
+
+    /// <summary>头像框查询的轮次：新查询发起后，旧查询迟到的框结果作废。</summary>
+    private int _frameQueryEpoch;
 
     public MatchAnalysisViewModel(
         IMatchAnalysisService matchService,
         IAccountService accountService,
+        ISteamAvatarFrameService frameService,
         ILiteDbCacheService cache,
         INavigationService navigation,
+        MainWindowViewModel shell,
         ILogger logger)
     {
         _matchService = matchService;
         _accountService = accountService;
+        _frameService = frameService;
         _cache = cache;
         _navigation = navigation;
+        _shell = shell;
         _logger = logger.ForContext<MatchAnalysisViewModel>();
         Matches = new ObservableCollection<RecentMatchItem>();
         Accounts = new ObservableCollection<SavedAccount>();
+        RecentHeroes = new ObservableCollection<RecentHeroSummary>();
+        Findings = new ObservableCollection<PlaystyleFinding>();
         Series = Array.Empty<ISeries>();
         XAxes = [new Axis { Labels = [] }];
         YAxes = [new Axis { MinLimit = 0, MaxLimit = 1.2 }];
@@ -59,10 +70,18 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
     public ObservableCollection<RecentMatchItem> Matches { get; }
 
+    /// <summary>打法分析结论（待改进优先），与比赛列表同源聚合。</summary>
+    public ObservableCollection<PlaystyleFinding> Findings { get; }
+
     /// <summary>已保存的账号（最近使用在前），做成卡片用于一键切换。</summary>
     public ObservableCollection<SavedAccount> Accounts { get; }
 
+    /// <summary>近期对局按英雄聚合的常用英雄卡（对局数降序）。</summary>
+    public ObservableCollection<RecentHeroSummary> RecentHeroes { get; }
+
     public bool HasAccounts => Accounts.Count > 0;
+
+    public bool HasRecentHeroes => RecentHeroes.Count > 0;
 
     [ObservableProperty]
     private string accountInput = string.Empty;
@@ -79,8 +98,25 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     private PlayerProfile? profile;
 
+    /// <summary>当前查询玩家的 Steam 头像框图地址；无框 / 被墙 / 未加载为空。</summary>
+    [ObservableProperty]
+    private string avatarFrameUrl = string.Empty;
+
+    partial void OnAvatarFrameUrlChanged(string value) => OnPropertyChanged(nameof(HasAvatarFrame));
+
+    public bool HasAvatarFrame => !string.IsNullOrWhiteSpace(AvatarFrameUrl);
+
     [ObservableProperty]
     private string recentSummary = string.Empty;
+
+    [ObservableProperty]
+    private string playstyleSummary = string.Empty;
+
+    /// <summary>底部区页签：0 胜负走势 / 1 打法建议。</summary>
+    [ObservableProperty]
+    private int bottomTabIndex;
+
+    public bool HasFindings => Findings.Count > 0;
 
     [ObservableProperty]
     private ISeries[] series;
@@ -104,6 +140,10 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
+        // 换账号查询时先清掉上一个人的框，避免串框
+        AvatarFrameUrl = string.Empty;
+        _frameQueryEpoch++;
+        var frameEpoch = _frameQueryEpoch;
 
         try
         {
@@ -132,6 +172,9 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 {
                     _accountService.SaveOrUpdate(result.Profile);
                     RefreshAccounts();
+                    // 头像框独立于主查询：数据在 steamcommunity（可能被墙），
+                    // 失败静默为无框，不拖慢也不影响战绩展示
+                    _ = LoadAvatarFrameAsync(accountId, frameEpoch, token);
                 }
 
                 Matches.Clear();
@@ -140,6 +183,8 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                     Matches.Add(match);
                 }
 
+                RefreshRecentHeroes(result.Matches);
+                RefreshPlaystyle(result);
                 UpdateChart(result.Matches);
                 HasData = !result.IsEmpty;
 
@@ -176,6 +221,29 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             {
                 IsLoading = false;
             }
+        }
+    }
+
+    /// <summary>
+    /// 异步补拉头像框：命中缓存则几乎即时，未命中走资料页抓取（服务内部静默降级）。
+    /// 迟到结果按轮次作废，避免换账号后串框。
+    /// </summary>
+    private async Task LoadAvatarFrameAsync(long accountId, int frameEpoch, CancellationToken token)
+    {
+        try
+        {
+            var url = await _frameService.GetFrameUrlAsync(accountId, token).ConfigureAwait(true);
+            if (frameEpoch != _frameQueryEpoch || token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            AvatarFrameUrl = url ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            // 含用户取消与网络失败：框是装饰，不值得任何打扰
+            _logger.Debug(ex, "头像框加载跳过 AccountId={AccountId}", accountId);
         }
     }
 
@@ -218,12 +286,60 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         {
             Profile = null;
             Matches.Clear();
+            RecentHeroes.Clear();
+            Findings.Clear();
+            PlaystyleSummary = string.Empty;
+            OnPropertyChanged(nameof(HasRecentHeroes));
+            OnPropertyChanged(nameof(HasFindings));
             HasData = false;
             RecentSummary = string.Empty;
             StatusMessage = "已移除该账号，可输入 ID 重新查询";
         }
 
         RefreshAccounts();
+    }
+
+    /// <summary>重建「近期常用英雄」卡：数据与比赛列表同源，纯客户端聚合。</summary>
+    private void RefreshRecentHeroes(IReadOnlyList<RecentMatchItem> matches)
+    {
+        RecentHeroes.Clear();
+        foreach (var summary in RecentHeroSummary.Summarize(matches))
+        {
+            RecentHeroes.Add(summary);
+        }
+
+        OnPropertyChanged(nameof(HasRecentHeroes));
+    }
+
+    /// <summary>
+    /// 与比赛列表同源的打法结论：不再发额外请求，聚合已有对位行后过规则引擎。
+    /// </summary>
+    private void RefreshPlaystyle(MatchAnalysisResult result)
+    {
+        Findings.Clear();
+        var sample = PlaystyleAdvisor.BuildSample(result.Matches);
+        var report = PlaystyleAdvisor.Evaluate(result.Profile?.AccountId ?? 0, sample);
+        PlaystyleSummary = report.SummaryText;
+        foreach (var finding in report.Findings)
+        {
+            Findings.Add(finding);
+        }
+
+        OnPropertyChanged(nameof(HasFindings));
+    }
+
+    /// <summary>点击常用英雄卡：进入该英雄详情页（与图鉴/首页行为一致）。</summary>
+    [RelayCommand]
+    private void OpenRecentHero(RecentHeroSummary? summary)
+    {
+        if (summary is null || summary.HeroId <= 0)
+        {
+            return;
+        }
+
+        _shell.CurrentPageTitle = "英雄详情";
+        _shell.ActiveNav = MainWindowViewModel.HeroGalleryPageKey;
+        _navigation.NavigateTo(MainWindowViewModel.HeroDetailPageKey, summary.HeroId);
     }
 
     private void LoadAccounts()

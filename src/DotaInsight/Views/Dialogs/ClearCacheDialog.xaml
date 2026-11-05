@@ -33,7 +33,8 @@
                 </Border>
 
                 <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="清理本地缓存" Style="{StaticResource DiSectionTitleStyle}" />
+                    <TextBlock Text="清理本地缓存" FontSize="17" FontWeight="SemiBold"
+                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
                     <TextBlock Text="删除头像与数据缓存以释放磁盘空间，清理后首次浏览需重新联网加载。"
                                FontSize="12"
                                Margin="0,5,0,0"
@@ -141,8 +142,8 @@
                        HorizontalAlignment="Center" />
 
             <TextBlock Text="{Binding ProgressPercentText}"
-                       FontSize="34"
-                       FontWeight="Bold"
+                       FontSize="28"
+                       FontWeight="SemiBold"
                        Margin="0,12,0,0"
                        HorizontalAlignment="Center"
                        Foreground="{DynamicResource DiAccentBrush}" />

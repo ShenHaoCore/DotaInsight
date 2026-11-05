@@ -5,7 +5,11 @@ using CommunityToolkit.Mvvm.Input;
 using DotaInsight.Helpers;
 using DotaInsight.Models;
 using DotaInsight.Services;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
 using Serilog;
+using SkiaSharp;
 
 namespace DotaInsight.ViewModels.Pages;
 
@@ -35,17 +39,49 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         _navigation = navigation;
         _shell = shell;
         _logger = logger.ForContext<HeroDetailViewModel>();
-        CounteredByPreview = new ObservableCollection<HeroCounterItem>();
-        CountersPreview = new ObservableCollection<HeroCounterItem>();
+        CounteredByList = new ObservableCollection<HeroCounterItem>();
+        CountersList = new ObservableCollection<HeroCounterItem>();
+        MatchupSeries = Array.Empty<ISeries>();
+        MatchupXAxes = [new Axis { Labels = [], LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")) }];
+        MatchupYAxes =
+        [
+            new Axis
+            {
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#232A36"))
+            }
+        ];
         RoleStats = new ObservableCollection<HeroRoleStat>();
         NormalAbilities = new ObservableCollection<HeroAbilityInfo>();
         InnateAbilities = new ObservableCollection<HeroAbilityInfo>();
         TalentRows = new ObservableCollection<HeroTalentRow>();
     }
 
-    public ObservableCollection<HeroCounterItem> CounteredByPreview { get; }
+    /// <summary>完整克制列表（吸收独立克制页后的全量数据，最多 40 条）。</summary>
+    public ObservableCollection<HeroCounterItem> CounteredByList { get; }
 
-    public ObservableCollection<HeroCounterItem> CountersPreview { get; }
+    public ObservableCollection<HeroCounterItem> CountersList { get; }
+
+    /// <summary>对位优势分布图（克制页迁入）。</summary>
+    [ObservableProperty]
+    private ISeries[] matchupSeries;
+
+    [ObservableProperty]
+    private Axis[] matchupXAxes;
+
+    [ObservableProperty]
+    private Axis[] matchupYAxes;
+
+    /// <summary>分布图有数据可画。</summary>
+    public bool MatchupHasData => MatchupSeries.Length > 0;
+
+    /// <summary>克制页签的英雄切换列表（英雄列表就绪时填充，零额外请求）。</summary>
+    [ObservableProperty]
+    private IReadOnlyList<HeroStat>? pickOptions;
+
+    [ObservableProperty]
+    private HeroStat? pickedHero;
 
     public ObservableCollection<HeroRoleStat> RoleStats { get; }
 
@@ -81,9 +117,6 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     private HeroAbilityInfo? selectedAbility;
 
-    [ObservableProperty]
-    private int selectedTabIndex;
-
     public bool HasHero => Hero is not null;
 
     public bool HasProfile => Profile is not null;
@@ -104,7 +137,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
 
     public bool HasBrackets => Hero?.Brackets is { Count: > 0 };
 
-    public bool HasMatchupPreview => CounteredByPreview.Count > 0 || CountersPreview.Count > 0;
+    public bool HasMatchupPreview => CounteredByList.Count > 0 || CountersList.Count > 0;
 
     /// <summary>已开始加载但英雄基础信息尚未就绪：显示占位，避免整块 banner 消失导致版式跳动。</summary>
     public bool ShowHeroPlaceholder => IsLoading && Hero is null;
@@ -229,6 +262,8 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                 return;
             }
 
+            PickOptions = heroes;
+
             var found = heroes.FirstOrDefault(h => h.Id == heroId);
             if (found is null)
             {
@@ -240,7 +275,13 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                 return;
             }
 
-            await OnUiThreadAsync(() => Hero = found).ConfigureAwait(true);
+            await OnUiThreadAsync(() =>
+            {
+                Hero = found;
+                // 下拉回显当前英雄；OnPickedHeroChanged 里 Id 相同会直接返回，不会重入加载
+                PickedHero = found;
+            }).ConfigureAwait(true);
+            _ = WarmHeroIconsAsync(found, token, generation);
 
             var profile = await profileTask.ConfigureAwait(true);
             token.ThrowIfCancellationRequested();
@@ -260,6 +301,8 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                 _loadedHeroId = found.Id;
                 StatusMessage = string.Empty;
             }).ConfigureAwait(true);
+
+            _ = WarmProfileIconsAsync(profile, token, generation);
 
             await LoadMatchupPreviewAsync(found.Id, token, generation).ConfigureAwait(true);
         }
@@ -307,27 +350,139 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
 
+    /// <summary>
+    /// 预热横幅小图标：SmallIconUrl（icons/ 子路径）不在启动预热范围内，
+    /// 冷路径依赖 WPF 懒下载且失败的实例会驻留内存缓存 —— 下载落盘后触发 Hero 重求值，
+    /// 绑定重新走磁盘同步解码。
+    /// </summary>
+    private async Task WarmHeroIconsAsync(HeroStat hero, CancellationToken token, int generation)
+    {
+        try
+        {
+            await HeroImageCache.WarmUpAsync(
+                [hero.IconUrl, hero.SmallIconUrl],
+                decodeWidth: 64).ConfigureAwait(true);
+
+            if (token.IsCancellationRequested || generation != _loadGeneration)
+            {
+                return;
+            }
+
+            await OnUiThreadAsync(() => OnPropertyChanged(nameof(Hero))).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, token) || generation != _loadGeneration)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "预热英雄图标失败");
+        }
+    }
+
+    /// <summary>预热技能图标并重建技能集合，让图标绑定重新求值走磁盘解码。</summary>
+    private async Task WarmProfileIconsAsync(HeroDetailProfile? profile, CancellationToken token, int generation)
+    {
+        try
+        {
+            if (profile is null)
+            {
+                return;
+            }
+
+            var urls = profile.Abilities
+                .Select(a => a.IconUrl)
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (urls.Count == 0)
+            {
+                return;
+            }
+
+            await HeroImageCache.WarmUpAsync(urls, decodeWidth: 128).ConfigureAwait(true);
+            if (token.IsCancellationRequested || generation != _loadGeneration)
+            {
+                return;
+            }
+
+            await OnUiThreadAsync(() =>
+            {
+                if (token.IsCancellationRequested || generation != _loadGeneration)
+                {
+                    return;
+                }
+
+                // 集合重建让列表图标绑定重新求值；详情面板靠 SelectedAbility 通知重求值
+                NormalAbilities.Clear();
+                InnateAbilities.Clear();
+                foreach (var ability in profile.Abilities)
+                {
+                    if (ability.IsInnate)
+                    {
+                        InnateAbilities.Add(ability);
+                    }
+                    else
+                    {
+                        NormalAbilities.Add(ability);
+                    }
+                }
+
+                OnPropertyChanged(nameof(SelectedAbility));
+            }).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, token) || generation != _loadGeneration)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "预热技能图标失败");
+        }
+    }
+
     private static Task OnUiThreadAsync(Action action) => UiDispatcher.OnUiAsync(action);
 
     /// <summary>
     /// 清空上一个英雄的全部展示内容。切换英雄时必须在发起请求之前调用，
     /// 并且要连派生状态一起通知，否则集合虽已清空但页面仍按旧值渲染。
     /// </summary>
+    partial void OnPickedHeroChanged(HeroStat? value)
+    {
+        // 从克制页签的下拉里直接换分析对象：整页跟随加载并停在克制页签。
+        // Id 相同（可能是加载完成后的同一引用回填）时不重复加载。
+        if (value is null || value.Id == Hero?.Id || value.Id == _loadedHeroId)
+        {
+            return;
+        }
+
+        _ = LoadAsync(value.Id);
+    }
+
     private void ResetLoadedContent()
     {
         Hero = null;
         Profile = null;
+        PickedHero = null;
         SelectedAbility = null;
 
         NormalAbilities.Clear();
         InnateAbilities.Clear();
         TalentRows.Clear();
         RoleStats.Clear();
-        CounteredByPreview.Clear();
-        CountersPreview.Clear();
+        CounteredByList.Clear();
+        CountersList.Clear();
+        MatchupSeries = Array.Empty<ISeries>();
+        _matchupChartItems = Array.Empty<HeroCounterItem>();
+        MatchupTopCountered = [];
+        MatchupTopCounters = [];
+        OnPropertyChanged(nameof(HasMatchupTop));
+        OnPropertyChanged(nameof(MatchupHasData));
 
         MatchupStatus = string.Empty;
-        SelectedTabIndex = 0;
+
+        // 刻意不复位 SelectedTabIndex：克制列表行点击 / 页签内下拉换英雄时必须停留在
+        // 「克制」页签，否则追溯动线每换一个英雄就被扔回总览（实测缺陷）。
+        // 代价是从图鉴进入详情时会显示上次的页签——「记住位置」比硬复位更符合预期。
 
         OnPropertyChanged(nameof(HasInnateAbilities));
         OnPropertyChanged(nameof(HasTalents));
@@ -398,7 +553,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             await OnUiThreadAsync(() =>
             {
                 IsLoadingMatchups = true;
-                MatchupStatus = "加载对位预览...";
+                MatchupStatus = "正在加载对位数据...";
             }).ConfigureAwait(true);
 
             var result = await _heroService.GetCounterRelationsAsync(heroId, token).ConfigureAwait(true);
@@ -414,33 +569,39 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                     return;
                 }
 
-                CounteredByPreview.Clear();
-                foreach (var item in result.CounteredBy.Take(5))
+                CounteredByList.Clear();
+                foreach (var item in result.CounteredBy.Take(40))
                 {
-                    CounteredByPreview.Add(item);
+                    CounteredByList.Add(item);
                 }
 
-                CountersPreview.Clear();
-                foreach (var item in result.Counters.Take(5))
+                CountersList.Clear();
+                foreach (var item in result.Counters.Take(40))
                 {
-                    CountersPreview.Add(item);
+                    CountersList.Add(item);
                 }
+
+                UpdateMatchupChart(result);
+                MatchupTopCountered = result.CounteredBy.Take(3).ToList();
+                MatchupTopCounters = result.Counters.Take(3).ToList();
+                OnPropertyChanged(nameof(HasMatchupTop));
+                OnPropertyChanged(nameof(MatchupHasData));
 
                 if (result.IsEmpty)
                 {
-                    MatchupStatus = "对位预览暂无数据";
+                    MatchupStatus = "暂无对位数据";
                 }
                 else if (result.IsOffline)
                 {
-                    MatchupStatus = "对位预览（离线缓存）";
+                    MatchupStatus = "克制分析（离线缓存）";
                 }
                 else if (result.FromCache)
                 {
-                    MatchupStatus = "对位预览（缓存）";
+                    MatchupStatus = "克制分析（缓存）";
                 }
                 else
                 {
-                    MatchupStatus = "对位预览";
+                    MatchupStatus = "克制分析";
                 }
 
                 OnPropertyChanged(nameof(HasMatchupPreview));
@@ -457,7 +618,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                 return;
             }
 
-            _logger.Warning(ex, "加载对位预览失败 HeroId={HeroId}", heroId);
+            _logger.Warning(ex, "加载对位数据失败 HeroId={HeroId}", heroId);
             await OnUiThreadAsync(() => MatchupStatus = "对位预览加载失败").ConfigureAwait(true);
         }
         finally
@@ -480,18 +641,19 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         SelectedAbility = ability;
     }
 
+    /// <summary>克制分析在长页「对位克制」分区，头部按钮滚动到该分区（页面监听事件）。</summary>
+    public event Action? RequestScrollToMatchups;
+
     [RelayCommand]
     private void OpenCounter()
     {
-        if (Hero is null)
-        {
-            return;
-        }
-
-        NavigateToCounter(Hero.Id);
+        RequestScrollToMatchups?.Invoke();
     }
 
-    /// <summary>点击对位列表条目：跳到该英雄自己的克制分析页。</summary>
+    /// <summary>
+    /// 点击克制列表条目：在本页直接加载该英雄，并停在克制页签——
+    /// 逐层追克制关系的动线不再跨页。
+    /// </summary>
     [RelayCommand]
     private void OpenCounterForHero(HeroCounterItem? item)
     {
@@ -500,14 +662,83 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             return;
         }
 
-        NavigateToCounter(item.HeroId);
+        _ = LoadAsync(item.HeroId);
     }
 
-    private void NavigateToCounter(int heroId)
+    /// <summary>克制页签的刷新：重跑当前英雄加载（英雄列表/资料/对位均走缓存，成本可控）。</summary>
+    [RelayCommand]
+    private void RefreshMatchups()
     {
-        _shell.CurrentPageTitle = "克制分析";
-        _shell.ActiveNav = MainWindowViewModel.HeroCounterPageKey;
-        _navigation.NavigateTo(MainWindowViewModel.HeroCounterPageKey, heroId);
+        if (Hero is null)
+        {
+            return;
+        }
+
+        _ = LoadAsync(Hero.Id);
+    }
+
+    /// <summary>分布图的构图条目（柱 → 英雄，供点击跳转）。</summary>
+    private IReadOnlyList<HeroCounterItem> _matchupChartItems = Array.Empty<HeroCounterItem>();
+
+    /// <summary>横幅克制速览：最不利 / 最有利各前 3（对位数据就绪后填充）。</summary>
+    [ObservableProperty]
+    private IReadOnlyList<HeroCounterItem> matchupTopCountered = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<HeroCounterItem> matchupTopCounters = [];
+
+    public bool HasMatchupTop => MatchupTopCountered.Count > 0 || MatchupTopCounters.Count > 0;
+
+    /// <summary>点击分布图柱子：打开该敌方英雄的克制分析（本页直接切换）。</summary>
+    public void OpenMatchupChartHeroAt(int index)
+    {
+        if (index < 0 || index >= _matchupChartItems.Count)
+        {
+            return;
+        }
+
+        var item = _matchupChartItems[index];
+        _ = LoadAsync(item.HeroId);
+    }
+
+    /// <summary>对位优势分布图：与原克制页同一构图（最劣势 6 + 最有利 6）。</summary>
+    private void UpdateMatchupChart(HeroCounterResult result)
+    {
+        var items = result.CounteredBy.Take(6).Reverse()
+            .Concat(result.Counters.Take(6))
+            .ToList();
+
+        if (items.Count == 0)
+        {
+            MatchupSeries = Array.Empty<ISeries>();
+            MatchupXAxes = [new Axis { Labels = [] }];
+            return;
+        }
+
+        MatchupSeries =
+        [
+            new ColumnSeries<double>
+            {
+                Name = "胜率差",
+                Values = items.Select(x => x.WinRateDiff).ToArray(),
+                Fill = new SolidColorPaint(SKColor.Parse("#F03D2E")),
+                MaxBarWidth = 26
+            }
+        ];
+
+        MatchupXAxes =
+        [
+            new Axis
+            {
+                Labels = items.Select(x => x.HeroName).ToArray(),
+                LabelsRotation = 16,
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
+            }
+        ];
+
+        _matchupChartItems = items;
     }
 
     [RelayCommand]

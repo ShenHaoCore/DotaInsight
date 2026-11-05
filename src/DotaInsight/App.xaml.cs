@@ -22,6 +22,7 @@ namespace DotaInsight;
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
+    private IDisposable? _singleInstanceGuard;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -35,6 +36,17 @@ public partial class App : Application
 
         ConfigureLogging();
         Log.Information("DotaInsight 启动，数据目录：{Root}", Helpers.AppPaths.Root);
+
+        // 单实例保护：第二个进程激活已有窗口后退出。
+        // 双实例时 LiteDB 能扛（Connection=shared），但 WebView2 用户数据目录是排他锁，
+        // 第二个实例的英雄视频区会静默失效。互斥体在 UI 线程获取、OnExit（同线程）释放。
+        if (!Helpers.SingleInstance.TryAcquireFirst(out _singleInstanceGuard))
+        {
+            Log.Information("检测到已有实例，激活主窗口后退出");
+            Helpers.SingleInstance.TryActivateExisting(ViewModels.MainWindowViewModel.WindowTitle);
+            Shutdown();
+            return;
+        }
 
         var services = new ServiceCollection();
         ConfigureServices(services);
@@ -63,6 +75,7 @@ public partial class App : Application
 
         Log.CloseAndFlush();
         _serviceProvider?.Dispose();
+        _singleInstanceGuard?.Dispose();
         base.OnExit(e);
     }
 
@@ -86,7 +99,13 @@ public partial class App : Application
         Directory.CreateDirectory(logDir);
 
         Log.Logger = new LoggerConfiguration()
+#if DEBUG
             .MinimumLevel.Debug()
+#else
+            // Release 收口到 Information：Debug 级日志（逐条缓存命中/写入）对用户排障无必要，
+            // 却会让 Async sink 在每次页面导航时写几十条磁盘日志。
+            .MinimumLevel.Information()
+#endif
             .Enrich.WithExceptionDetails()
             .Enrich.FromLogContext()
             .WriteTo.Async(a => a.File(
@@ -112,7 +131,6 @@ public partial class App : Application
             nav.Register(MainWindowViewModel.HomePageKey, typeof(HomePage));
             nav.Register(MainWindowViewModel.HeroGalleryPageKey, typeof(HeroGalleryPage));
             nav.Register(MainWindowViewModel.HeroDetailPageKey, typeof(HeroDetailPage));
-            nav.Register(MainWindowViewModel.HeroCounterPageKey, typeof(HeroCounterPage));
             nav.Register(MainWindowViewModel.MatchAnalysisPageKey, typeof(MatchAnalysisPage));
             nav.Register(MainWindowViewModel.MatchDetailPageKey, typeof(MatchDetailPage));
             return nav;
@@ -137,6 +155,21 @@ public partial class App : Application
         services.AddHttpClient(UpdateService.HttpClientName, UpdateService.ConfigureHttpClient)
             .AddPolicyHandler(GetRetryPolicy());
 
+        // Steam 头像框：抓 steamcommunity 资料页。部分地区对该域名是「间歇放行」而非全断
+        // （实测同机多次连接被重置、偶发成功）——重试能显著提高穿透率；
+        // 被重置是瞬时失败，短间隔重试成本极低。整体失败由服务静默降级为无框。
+        services.AddHttpClient(SteamAvatarFrameService.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(8);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
+        })
+        .AddPolicyHandler(HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .OrResult(r => (int)r.StatusCode == 429)
+            .WaitAndRetryAsync(
+                retryCount: 2,
+                sleepDurationProvider: _ => TimeSpan.FromMilliseconds(600)));
+
         services.AddSingleton<IUpdateService, UpdateService>();
         services.AddSingleton<IDialogService, DialogService>();
 
@@ -145,6 +178,7 @@ public partial class App : Application
         services.AddSingleton<IHeroCounterService, HeroCounterService>();
         services.AddSingleton<IItemCatalogService, ItemCatalogService>();
         services.AddSingleton<IMatchAnalysisService, MatchAnalysisService>();
+        services.AddSingleton<ISteamAvatarFrameService, SteamAvatarFrameService>();
 
         services.AddSingleton<HomeViewModel>();
         services.AddSingleton<HomePage>();
@@ -152,8 +186,6 @@ public partial class App : Application
         services.AddSingleton<HeroGalleryPage>();
         services.AddSingleton<HeroDetailViewModel>();
         services.AddSingleton<HeroDetailPage>();
-        services.AddSingleton<HeroCounterViewModel>();
-        services.AddSingleton<HeroCounterPage>();
         services.AddSingleton<MatchAnalysisViewModel>();
         services.AddSingleton<MatchAnalysisPage>();
         services.AddSingleton<MatchDetailViewModel>();

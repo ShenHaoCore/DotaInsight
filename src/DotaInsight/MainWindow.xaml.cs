@@ -47,7 +47,6 @@ public partial class MainWindow : FluentWindow
         {
             // 单例页提前创建，避免第一次点侧栏时再解析 XAML
             _ = _services.GetRequiredService<HeroGalleryPage>();
-            _ = _services.GetRequiredService<HeroCounterPage>();
             _ = _services.GetRequiredService<MatchAnalysisPage>();
             _ = _services.GetRequiredService<HeroDetailPage>();
         }

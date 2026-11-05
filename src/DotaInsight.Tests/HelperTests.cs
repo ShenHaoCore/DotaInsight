@@ -75,6 +75,23 @@ public class SteamAccountIdTests
     {
         Assert.False(SteamAccountId.TryParse(input, out _));
     }
+
+    [Theory]
+    [InlineData("76561197960265728")]          // = SteamId64Base：换算出 0，不能放行为「账号 = base」
+    [InlineData("76561202255233024")]          // base + 2^32：换算结果超出 uint32 账号域
+    [InlineData("99999999999999999")]          // 大于 base 但不是合法 SteamID64（如多抄一位）
+    [InlineData("4294967296")]                 // 2^32：刚好超出 uint32 上限，非账号也非 SteamID64
+    public void TryParse_RejectsOutOfRangeNumbers(string input)
+    {
+        Assert.False(SteamAccountId.TryParse(input, out _));
+    }
+
+    [Fact]
+    public void TryParse_AcceptsUint32Boundary()
+    {
+        Assert.True(SteamAccountId.TryParse("4294967295", out var id));
+        Assert.Equal(4_294_967_295L, id);
+    }
 }
 
 public class HeroRoleTests
@@ -168,6 +185,50 @@ public class HttpCallTests
         Assert.Equal(0, heroes[0].TurnRate);
         Assert.Equal(305, heroes[0].MoveSpeed);
         Assert.Equal(1.3, heroes[0].StrGain, 3);
+    }
+
+    [Fact]
+    public void JsonOptions_NullBoolean_ReadsAsFalse()
+    {
+        // 实测 OpenDota recentMatches：非游走局 is_roaming 返回 null
+        const string json =
+            "[{\"match_id\":1001,\"is_roaming\":null,\"lane_role\":null,\"average_rank\":null}]";
+
+        var rows = JsonSerializer.Deserialize<List<RecentMatchDtoProxy>>(json, HttpCall.JsonOptions);
+
+        Assert.NotNull(rows);
+        Assert.False(rows![0].IsRoaming);
+        Assert.Equal(0, rows[0].LaneRole);
+        Assert.Equal(0, rows[0].AverageRank);
+    }
+
+    [Fact]
+    public void JsonOptions_BooleanValues_ParseNormally()
+    {
+        const string json = "[{\"match_id\":1,\"is_roaming\":true,\"radiant_win\":false}]";
+
+        var rows = JsonSerializer.Deserialize<List<RecentMatchDtoProxy>>(json, HttpCall.JsonOptions);
+
+        Assert.NotNull(rows);
+        Assert.True(rows![0].IsRoaming);
+    }
+
+    private sealed class RecentMatchDtoProxy
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("match_id")]
+        public long MatchId { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_roaming")]
+        public bool IsRoaming { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("lane_role")]
+        public int LaneRole { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("average_rank")]
+        public int AverageRank { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("radiant_win")]
+        public bool RadiantWin { get; set; }
     }
 
     [Fact]

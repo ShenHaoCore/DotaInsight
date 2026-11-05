@@ -25,6 +25,13 @@
     <Resource Include="Assets\dota2-48.png" />
     <Resource Include="Assets\Icons\*.png" />
     <Resource Include="Assets\Icons\stats\*.png" />
+    <!-- 小地图底图：OpenDota（odota/web，MIT）分发的 Valve 地图资产 -->
+    <Resource Include="Assets\Map\*.jpg" />
+  </ItemGroup>
+
+  <!-- 单元测试需要触达 internal 成员（如 HeroImageCache.TryLoadFromDisk 的损坏自愈分支） -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="DotaInsight.Tests" />
   </ItemGroup>
 
   <ItemGroup>

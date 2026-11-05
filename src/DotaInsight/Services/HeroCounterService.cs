@@ -244,7 +244,7 @@ public sealed class HeroCounterService : IHeroCounterService
         return (stale, FromCache: hasStale, IsOffline: hasStale);
     }
 
-    private static List<HeroCounterItem> BuildCounterItems(
+    internal static List<HeroCounterItem> BuildCounterItems(
         IEnumerable<HeroMatchupDto> matchups,
         IReadOnlyDictionary<int, HeroStat> heroLookup)
     {
@@ -290,7 +290,7 @@ public sealed class HeroCounterService : IHeroCounterService
     /// <summary>
     /// 就地归一化 heroStats：计算分段/胜率/选取率、应用中文名与中文枚举。
     /// </summary>
-    private static List<HeroStat> NormalizeHeroStats(
+    internal static List<HeroStat> NormalizeHeroStats(
         List<HeroStat> heroes,
         IReadOnlyDictionary<int, string> chineseNames)
     {

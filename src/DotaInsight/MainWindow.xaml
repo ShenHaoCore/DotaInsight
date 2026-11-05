@@ -14,10 +14,9 @@
                  Background="{DynamicResource DiCanvasBrush}">
 
     <Grid>
-        <!-- 背景层：纯黑底 + 战术网格 + 顶部赤红光晕 -->
+        <!-- 铺底层：FluentWindow 标题栏区域不吃 Window.Background，必须由铺满全窗的
+             Rectangle 刷底（原网格与光晕装饰层已随 unslop 移除，只保留底色一层） -->
         <Rectangle Fill="{DynamicResource DiCanvasBrush}" />
-        <Rectangle Fill="{DynamicResource DiGridBrush}" />
-        <Rectangle Fill="{DynamicResource DiAccentGlowBrush}" />
 
         <Grid>
             <Grid.RowDefinitions>
@@ -82,23 +81,6 @@
                                    RenderOptions.BitmapScalingMode="HighQuality" />
                         </Border>
 
-                        <!-- 底部主题切换：图标 + 标签 -->
-                        <Grid DockPanel.Dock="Bottom" Margin="0,0,0,10">
-                            <Button Style="{StaticResource DiSidebarItemStyle}"
-                                    ToolTip="{Binding ThemeToggleTooltip}"
-                                    Command="{Binding ToggleThemeCommand}">
-                                <StackPanel>
-                                    <ui:SymbolIcon FontSize="18" Width="18" Height="18"
-                                                   Foreground="{DynamicResource DiPrimaryTextBrush}"
-                                                   Symbol="{Binding ThemeToggleSymbol}"
-                                                   HorizontalAlignment="Center" />
-                                    <TextBlock Text="主题" FontSize="10" Margin="0,5,0,0"
-                                               Foreground="{DynamicResource DiMutedTextBrush}"
-                                               HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-
                         <StackPanel HorizontalAlignment="Center">
                             <!-- 首页 -->
                             <Grid>
@@ -115,9 +97,19 @@
                                     </Button.Style>
                                     <StackPanel>
                                         <ui:SymbolIcon Symbol="Home24" FontSize="18" Width="18" Height="18"
-                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
-                                                       HorizontalAlignment="Center" />
-                                        <TextBlock Text="首页" FontSize="10" Margin="0,5,0,0"
+                                                       HorizontalAlignment="Center">
+                                            <ui:SymbolIcon.Style>
+                                                <Style TargetType="ui:SymbolIcon">
+                                                    <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ActiveNav, RelativeSource={RelativeSource AncestorType=Window}}" Value="Home">
+                                                            <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:SymbolIcon.Style>
+                                        </ui:SymbolIcon>
+                                        <TextBlock Text="首页" FontSize="11" Margin="0,5,0,0"
                                                    Foreground="{DynamicResource DiMutedTextBrush}"
                                                    HorizontalAlignment="Center" />
                                     </StackPanel>
@@ -153,9 +145,19 @@
                                     </Button.Style>
                                     <StackPanel>
                                         <ui:SymbolIcon Symbol="Grid24" FontSize="18" Width="18" Height="18"
-                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
-                                                       HorizontalAlignment="Center" />
-                                        <TextBlock Text="图鉴" FontSize="10" Margin="0,5,0,0"
+                                                       HorizontalAlignment="Center">
+                                            <ui:SymbolIcon.Style>
+                                                <Style TargetType="ui:SymbolIcon">
+                                                    <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ActiveNav, RelativeSource={RelativeSource AncestorType=Window}}" Value="HeroGallery">
+                                                            <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:SymbolIcon.Style>
+                                        </ui:SymbolIcon>
+                                        <TextBlock Text="图鉴" FontSize="11" Margin="0,5,0,0"
                                                    Foreground="{DynamicResource DiMutedTextBrush}"
                                                    HorizontalAlignment="Center" />
                                     </StackPanel>
@@ -168,44 +170,6 @@
                                             <Setter Property="Visibility" Value="Collapsed" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ActiveNav}" Value="HeroGallery">
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                </Border>
-                            </Grid>
-
-                            <!-- 克制分析 -->
-                            <Grid>
-                                <Button ToolTip="克制分析"
-                                        Command="{Binding NavigateCounterCommand}">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource DiSidebarItemStyle}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding ActiveNav}" Value="HeroCounter">
-                                                    <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                    <StackPanel>
-                                        <ui:SymbolIcon Symbol="ArrowSwap24" FontSize="18" Width="18" Height="18"
-                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
-                                                       HorizontalAlignment="Center" />
-                                        <TextBlock Text="克制" FontSize="10" Margin="0,5,0,0"
-                                                   Foreground="{DynamicResource DiMutedTextBrush}"
-                                                   HorizontalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                                <Border Width="3" Height="24" CornerRadius="2"
-                                        HorizontalAlignment="Left" VerticalAlignment="Center"
-                                        Background="{DynamicResource DiAccentBrush}">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding ActiveNav}" Value="HeroCounter">
                                                     <Setter Property="Visibility" Value="Visible" />
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -229,9 +193,19 @@
                                     </Button.Style>
                                     <StackPanel>
                                         <ui:SymbolIcon Symbol="DataHistogram24" FontSize="18" Width="18" Height="18"
-                                                       Foreground="{DynamicResource DiPrimaryTextBrush}"
-                                                       HorizontalAlignment="Center" />
-                                        <TextBlock Text="战绩" FontSize="10" Margin="0,5,0,0"
+                                                       HorizontalAlignment="Center">
+                                            <ui:SymbolIcon.Style>
+                                                <Style TargetType="ui:SymbolIcon">
+                                                    <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ActiveNav, RelativeSource={RelativeSource AncestorType=Window}}" Value="MatchAnalysis">
+                                                            <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:SymbolIcon.Style>
+                                        </ui:SymbolIcon>
+                                        <TextBlock Text="战绩" FontSize="11" Margin="0,5,0,0"
                                                    Foreground="{DynamicResource DiMutedTextBrush}"
                                                    HorizontalAlignment="Center" />
                                     </StackPanel>

@@ -137,14 +137,6 @@ public partial class HomeViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenCounter()
-    {
-        _shell.CurrentPageTitle = "克制分析";
-        _shell.ActiveNav = MainWindowViewModel.HeroCounterPageKey;
-        _navigation.NavigateTo(MainWindowViewModel.HeroCounterPageKey);
-    }
-
-    [RelayCommand]
     private void OpenMatchAnalysis()
     {
         _shell.CurrentPageTitle = "战绩分析";

@@ -36,8 +36,10 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
 {
     public const string HttpClientName = HeroCounterService.HttpClientName;
 
-    private const string CachePrefix = "opendota:matchAnalysis:v1:";
-    private const string DetailCachePrefix = "opendota:matchDetail:v1:";
+    // v2：RecentMatchItem 扩展打法字段（GPM/伤害/分路等），旧 v1 缓存缺字段会污染打法分析
+    private const string CachePrefix = "opendota:matchAnalysis:v2:";
+    // v2：MatchDetail 扩展优势曲线与眼位数据，旧 v1 缓存缺字段会让新页签永远显示空
+    private const string DetailCachePrefix = "opendota:matchDetail:v3:";
 
     /// <summary>已解析的比赛内容不会再变，可以放心长期缓存。</summary>
     private static readonly TimeSpan DetailCacheTtl = TimeSpan.FromDays(30);
@@ -194,7 +196,17 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             Assists = dto.Assists,
             DurationSeconds = dto.Duration,
             StartTimeLocal = DateTimeOffset.FromUnixTimeSeconds(dto.StartTime).LocalDateTime,
-            IsRadiant = isRadiant
+            IsRadiant = isRadiant,
+            Gpm = dto.GoldPerMin,
+            Xpm = dto.Xpm,
+            HeroDamage = dto.HeroDamage,
+            TowerDamage = dto.TowerDamage,
+            HeroHealing = dto.HeroHealing,
+            LastHits = dto.LastHits,
+            LaneRole = dto.LaneRole,
+            IsRoaming = dto.IsRoaming,
+            AverageRank = dto.AverageRank,
+            PartySize = dto.PartySize
         };
     }
 
@@ -256,7 +268,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
     }
 
-    private static MatchDetail MapMatchDetail(
+    internal static MatchDetail MapMatchDetail(
         MatchDetailDto dto,
         IReadOnlyDictionary<int, HeroStat> heroMap,
         IReadOnlyDictionary<int, string> itemIcons)
@@ -282,6 +294,15 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         radiant.Sort((a, b) => b.GoldPerMin.CompareTo(a.GoldPerMin));
         dire.Sort((a, b) => b.GoldPerMin.CompareTo(a.GoldPerMin));
 
+        var heroByNpc = BuildHeroNameByNpc(heroMap);
+        // AEGIS 事件按玩家序号（0-9）取英雄，预先解析好显示名
+        var heroNameBySlot = (dto.Players ?? [])
+            .Select(p => heroMap.TryGetValue(p.HeroId, out var hero) ? hero.DisplayName : "玩家")
+            .ToArray();
+        var buildings = CollectBuildings(dto, heroByNpc, heroNameBySlot, out var mapEvents);
+        mapEvents.AddRange(CollectKillEvents(dto, heroByNpc));
+        mapEvents.Sort((a, b) => a.Time.CompareTo(b.Time));
+
         return new MatchDetail
         {
             MatchId = dto.MatchId,
@@ -295,8 +316,298 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             RadiantTeamName = dto.RadiantName,
             DireTeamName = dto.DireName,
             Radiant = radiant,
-            Dire = dire
+            Dire = dire,
+            GoldAdvantage = dto.RadiantGoldAdv,
+            XpAdvantage = dto.RadiantXpAdv,
+            Wards = CollectWards(dto),
+            Buildings = buildings,
+            MapEvents = mapEvents,
+            RadiantHeatmap = CollectHeatmap(dto, isRadiant: true),
+            DireHeatmap = CollectHeatmap(dto, isRadiant: false),
+            DraftSteps = CollectDraftSteps(dto, heroMap)
         };
+    }
+
+    /// <summary>Ban/Pick 序列（队长模式 / 队长征召）：按 order 排序，英雄名与图标就地解析。</summary>
+    private static List<MatchDraftStep> CollectDraftSteps(
+        MatchDetailDto dto,
+        IReadOnlyDictionary<int, HeroStat> heroMap)
+    {
+        if (dto.PicksBans is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        return dto.PicksBans
+            .OrderBy(pb => pb.Order)
+            .Select(pb =>
+            {
+                heroMap.TryGetValue(pb.HeroId, out var hero);
+                return new MatchDraftStep
+                {
+                    Order = pb.Order,
+                    IsPick = pb.IsPick,
+                    IsRadiant = pb.Team == 0,
+                    HeroId = pb.HeroId,
+                    HeroName = hero?.DisplayName ?? $"#{pb.HeroId}",
+                    HeroIconUrl = HeroAssetHelper.GetIconUrl(hero?.Name)
+                };
+            })
+            .ToList();
+    }
+
+    /// <summary>英雄内部名（npc_dota_hero_xxx）→ 显示名，供击杀/建筑事件的单位名转中文。</summary>
+    private static Dictionary<string, string> BuildHeroNameByNpc(IReadOnlyDictionary<int, HeroStat> heroMap)
+        => heroMap.Values
+            .GroupBy(h => h.Name, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().DisplayName, StringComparer.Ordinal);
+
+    /// <summary>
+    /// 建筑 + 推倒时间线：objectives 的 building_kill / tower_deny 按 npc key 对应坐标表。
+    /// 两座基地塔共用 tower4 key，按表序消耗（objectives 无法区分左右，与 odota/web 同限制）。
+    /// </summary>
+    private static List<MatchBuilding> CollectBuildings(
+        MatchDetailDto dto,
+        Dictionary<string, string> heroByNpc,
+        IReadOnlyList<string> heroNameBySlot,
+        out List<MatchMapEvent> mapEvents)
+    {
+        var buildings = MatchBuildingTable.All
+            .Select(e => new MatchBuilding
+            {
+                Id = e.Id,
+                NpcKey = e.NpcKey,
+                DisplayName = e.DisplayName,
+                IsRadiant = e.IsRadiant,
+                IsTower = e.IsTower,
+                IsBarracks = e.IsBarracks,
+                IsAncient = e.IsAncient,
+                LeftPct = e.LeftPct,
+                TopPct = e.TopPct
+            })
+            .ToList();
+
+        mapEvents = [];
+        if (dto.Objectives is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        var byKey = new Dictionary<string, Queue<MatchBuilding>>(StringComparer.Ordinal);
+        foreach (var building in buildings)
+        {
+            if (!byKey.TryGetValue(building.NpcKey, out var queue))
+            {
+                queue = [];
+                byKey[building.NpcKey] = queue;
+            }
+
+            queue.Enqueue(building);
+        }
+
+        foreach (var obj in dto.Objectives)
+        {
+            switch (obj.Type)
+            {
+                // 建筑事件才带 key（npc_dota_*guys_*）；肉山/盾/一血没有 key，不能提前过滤
+                case "building_kill" or "CHAT_MESSAGE_TOWER_DENY"
+                    when !string.IsNullOrEmpty(obj.Key)
+                        && byKey.TryGetValue(obj.Key, out var queue)
+                        && TakeStanding(queue) is { } fallen:
+                {
+                    var key = obj.Key;
+                    // key 含 goodguys = 天辉的建筑被拆；进攻方 = 对面（反补时除外）
+                    var lostRadiant = key.Contains("goodguys", StringComparison.Ordinal);
+                    var isDeny = obj.Type == "CHAT_MESSAGE_TOWER_DENY";
+                    fallen.FallsAt = obj.Time;
+                    fallen.KilledBy = DescribeUnit(obj.Unit, heroByNpc);
+
+                    mapEvents.Add(new MatchMapEvent
+                    {
+                        Time = obj.Time,
+                        Kind = fallen.IsBarracks ? MatchMapEventKind.Barracks : MatchMapEventKind.Tower,
+                        IsRadiant = isDeny ? lostRadiant : !lostRadiant,
+                        Label = (isDeny ? "反补 " : "推掉 ") + fallen.DisplayName
+                    });
+                    break;
+                }
+
+                case "CHAT_MESSAGE_ROSHAN_KILL":
+                    mapEvents.Add(new MatchMapEvent
+                    {
+                        Time = obj.Time,
+                        Kind = MatchMapEventKind.Roshan,
+                        IsRadiant = obj.Team == 2,
+                        Label = "击杀肉山"
+                    });
+                    break;
+
+                case "CHAT_MESSAGE_AEGIS" when obj.Slot is >= 0 && heroNameBySlot.Count > 0:
+                    mapEvents.Add(new MatchMapEvent
+                    {
+                        Time = obj.Time,
+                        Kind = MatchMapEventKind.Aegis,
+                        IsRadiant = (obj.PlayerSlot ?? 0) < 128,
+                        Label = $"{(obj.Slot < heroNameBySlot.Count ? heroNameBySlot[obj.Slot.Value] : "玩家")} 拿到肉山盾"
+                    });
+                    break;
+
+                case "CHAT_MESSAGE_FIRSTBLOOD":
+                    mapEvents.Add(new MatchMapEvent
+                    {
+                        Time = obj.Time,
+                        Kind = MatchMapEventKind.FirstBlood,
+                        IsRadiant = (obj.PlayerSlot ?? 0) < 128,
+                        Label = "一血"
+                    });
+                    break;
+            }
+        }
+
+        mapEvents.Sort((a, b) => a.Time.CompareTo(b.Time));
+        return buildings;
+    }
+
+    private static MatchBuilding? TakeStanding(Queue<MatchBuilding> queue)
+    {
+        while (queue.Count > 0)
+        {
+            var candidate = queue.Dequeue();
+            if (candidate.FallsAt is null)
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>building_kill 的 unit 字段 → 中文描述（英雄名 / 攻城兵 / 小兵）。</summary>
+    private static string DescribeUnit(string? unit, Dictionary<string, string> heroByNpc)
+    {
+        if (string.IsNullOrEmpty(unit))
+        {
+            return "小兵";
+        }
+
+        if (heroByNpc.TryGetValue(unit, out var heroName))
+        {
+            return heroName;
+        }
+
+        return unit.EndsWith("_siege", StringComparison.Ordinal) ? "攻城兵" : "小兵";
+    }
+
+    /// <summary>时间轴事件：建筑事件在 CollectBuildings 里顺带产出，这里补上逐次击杀。</summary>
+    private static List<MatchMapEvent> CollectKillEvents(
+        MatchDetailDto dto,
+        Dictionary<string, string> heroByNpc)
+    {
+        var events = new List<MatchMapEvent>();
+        foreach (var player in dto.Players ?? [])
+        {
+            if (player.KillsLog is null)
+            {
+                continue;
+            }
+
+            var killerRadiant = player.PlayerSlot < 128;
+            foreach (var kill in player.KillsLog)
+            {
+                var victim = kill.Key is not null && heroByNpc.TryGetValue(kill.Key, out var name)
+                    ? name
+                    : "未知英雄";
+                events.Add(new MatchMapEvent
+                {
+                    Time = kill.Time,
+                    Kind = MatchMapEventKind.Kill,
+                    IsRadiant = killerRadiant,
+                    Label = $"击杀 {victim}"
+                });
+            }
+        }
+
+        return events;
+    }
+
+    /// <summary>lane_pos 聚合为单侧活动热区（"x,y" → 出现次数）。</summary>
+    private static Dictionary<string, int> CollectHeatmap(MatchDetailDto dto, bool isRadiant)
+    {
+        var cells = new Dictionary<string, int>();
+        foreach (var player in dto.Players ?? [])
+        {
+            if (player.LanePos is null || (player.PlayerSlot < 128) != isRadiant)
+            {
+                continue;
+            }
+
+            foreach (var (x, ys) in player.LanePos)
+            {
+                foreach (var (y, count) in ys)
+                {
+                    var cellKey = $"{x},{y}";
+                    cells[cellKey] = cells.GetValueOrDefault(cellKey) + count;
+                }
+            }
+        }
+
+        return cells;
+    }
+
+    /// <summary>
+    /// 聚合双方眼位日志并换算 UV 网格（odota/web utility.tsx gameCoordToUV：
+    /// u = x−64，v = 191−y —— 世界左下原点 → 图像左上）。
+    /// </summary>
+    /// <summary>观察/岗哨守卫的存在时长（秒）。无消失记录时按满时长推算。</summary>
+    private const int WardLifetimeSeconds = 360;
+
+    private static List<MatchWardPlacement> CollectWards(MatchDetailDto dto)
+    {
+        var wards = new List<MatchWardPlacement>();
+        foreach (var player in dto.Players ?? [])
+        {
+            AddWards(wards, player.ObsLog, player.ObsLeftLog, isObserver: true, owner: player);
+            AddWards(wards, player.SenLog, player.SenLeftLog, isObserver: false, owner: player);
+        }
+
+        return wards;
+    }
+
+    private static void AddWards(
+        List<MatchWardPlacement> into,
+        List<MatchLogEntryDto>? logs,
+        List<MatchLogEntryDto>? leftLogs,
+        bool isObserver,
+        MatchPlayerDto owner)
+    {
+        if (logs is null)
+        {
+            return;
+        }
+
+        // 按 ehandle 配对消失事件（实测配对率 100%）；缺失时按满时长推算
+        var leftByEhandle = (leftLogs ?? []).Where(l => l.Ehandle is not null)
+            .GroupBy(l => l.Ehandle!.Value)
+            .ToDictionary(g => g.Key, g => g.First().Time);
+
+        foreach (var log in logs)
+        {
+            int? leftTime = null;
+            if (log.Ehandle is not null && leftByEhandle.TryGetValue(log.Ehandle.Value, out var lt))
+            {
+                leftTime = lt ?? 0;
+            }
+
+            into.Add(new MatchWardPlacement
+            {
+                UvX = log.X - 64,
+                UvY = 191 - log.Y,
+                Time = log.Time ?? 0,
+                LeftTime = leftTime,
+                IsObserver = isObserver,
+                IsRadiant = (log.PlayerSlot ?? owner.PlayerSlot) < 128
+            });
+        }
     }
 
     private static MatchPlayerItem MapPlayer(
@@ -335,7 +646,11 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             ItemIconUrls = itemUrls,
             NeutralItemIconUrl = itemIcons.TryGetValue(dto.ItemNeutral, out var neutral)
                 ? neutral
-                : string.Empty
+                : string.Empty,
+            DraftedAbilities = (dto.Abilities ?? [])
+                .Where(a => !string.IsNullOrWhiteSpace(a) && a != "generic_hidden")
+                .Select(a => a!)
+                .ToList()
         };
     }
 
@@ -356,6 +671,27 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         [JsonPropertyName("radiant_name")] public string? RadiantName { get; set; }
         [JsonPropertyName("dire_name")] public string? DireName { get; set; }
         [JsonPropertyName("players")] public List<MatchPlayerDto>? Players { get; set; }
+
+        [JsonPropertyName("radiant_gold_adv")] public List<int?>? RadiantGoldAdv { get; set; }
+
+        [JsonPropertyName("radiant_xp_adv")] public List<int?>? RadiantXpAdv { get; set; }
+
+        /// <summary>推塔/肉山/一血等事件（仅已解析比赛有）。</summary>
+        [JsonPropertyName("objectives")] public List<MatchObjectiveDto>? Objectives { get; set; }
+
+        /// <summary>Ban/Pick 序列（队长模式 2 / 队长征召 16；team 0=天辉 1=夜魇）。</summary>
+        [JsonPropertyName("picks_bans")] public List<MatchPickBanDto>? PicksBans { get; set; }
+    }
+
+    internal sealed class MatchPickBanDto
+    {
+        [JsonPropertyName("is_pick")] public bool IsPick { get; set; }
+
+        [JsonPropertyName("hero_id")] public int HeroId { get; set; }
+
+        [JsonPropertyName("team")] public int Team { get; set; }
+
+        [JsonPropertyName("order")] public int Order { get; set; }
     }
 
     internal sealed class MatchPlayerDto
@@ -383,5 +719,68 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         [JsonPropertyName("item_4")] public int Item4 { get; set; }
         [JsonPropertyName("item_5")] public int Item5 { get; set; }
         [JsonPropertyName("item_neutral")] public int ItemNeutral { get; set; }
+
+        [JsonPropertyName("obs_log")] public List<MatchLogEntryDto>? ObsLog { get; set; }
+
+        [JsonPropertyName("sen_log")] public List<MatchLogEntryDto>? SenLog { get; set; }
+
+        [JsonPropertyName("obs_left_log")] public List<MatchLogEntryDto>? ObsLeftLog { get; set; }
+
+        [JsonPropertyName("sen_left_log")] public List<MatchLogEntryDto>? SenLeftLog { get; set; }
+
+        [JsonPropertyName("kills_log")] public List<MatchKillLogDto>? KillsLog { get; set; }
+
+        /// <summary>技能征召（OMG）选到的技能内部名，按槽位序（仅 OMG 场次有）。</summary>
+        [JsonPropertyName("abilities")] public List<string?>? Abilities { get; set; }
+
+        /// <summary>活动位置热区：{"x": {"y": 次数}}，UV 0-127 网格。</summary>
+        [JsonPropertyName("lane_pos")] public Dictionary<string, Dictionary<string, int>>? LanePos { get; set; }
+    }
+
+    /// <summary>objectives 事件条目（推塔/兵营/肉山/一血/信使等，取所需字段）。</summary>
+    internal sealed class MatchObjectiveDto
+    {
+        [JsonPropertyName("time")] public int Time { get; set; }
+
+        [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
+
+        /// <summary>建筑事件的 NPC 单位名；一血事件为受害者英雄 id 字符串。</summary>
+        [JsonPropertyName("key")] public string? Key { get; set; }
+
+        /// <summary>building_kill 的最后一击单位（npc_dota_hero_xxx / siege）。</summary>
+        [JsonPropertyName("unit")] public string? Unit { get; set; }
+
+        /// <summary>方（2=天辉 3=夜魇），肉山事件用。</summary>
+        [JsonPropertyName("team")] public int? Team { get; set; }
+
+        /// <summary>玩家序号（0-9），拿盾事件用。</summary>
+        [JsonPropertyName("slot")] public int? Slot { get; set; }
+
+        [JsonPropertyName("player_slot")] public int? PlayerSlot { get; set; }
+    }
+
+    /// <summary>击杀日志：只有时间与受害者内部名，无坐标（OpenDota 不提供击杀位置）。</summary>
+    internal sealed class MatchKillLogDto
+    {
+        [JsonPropertyName("time")] public int Time { get; set; }
+
+        [JsonPropertyName("key")] public string? Key { get; set; }
+    }
+
+    /// <summary>
+    /// 眼位日志条目。x/y 为游戏坐标浮点（ odota 解析器原值，非 0-127 网格），
+    /// player_slot 缺失时回退所属玩家。
+    /// </summary>
+    internal sealed class MatchLogEntryDto
+    {
+        [JsonPropertyName("x")] public double X { get; set; }
+
+        [JsonPropertyName("y")] public double Y { get; set; }
+
+        [JsonPropertyName("time")] public int? Time { get; set; }
+
+        [JsonPropertyName("player_slot")] public int? PlayerSlot { get; set; }
+
+        [JsonPropertyName("ehandle")] public long? Ehandle { get; set; }
     }
 }

@@ -67,9 +67,16 @@ public static class HeroImageCache
         var localPath = GetLocalPath(url, storeWidth);
         if (File.Exists(localPath))
         {
-            var fromDisk = LoadFromFile(localPath, decodeWidth);
-            MemoryCache[memoryKey] = fromDisk;
-            return fromDisk;
+            if (TryLoadFromDisk(localPath, decodeWidth, out var fromDisk) && fromDisk is not null)
+            {
+                MemoryCache[memoryKey] = fromDisk;
+                return fromDisk;
+            }
+
+            // 落盘文件损坏（断电残留 / 杀软截断 / 磁盘错误）时删掉坏文件，
+            // 走下面的网络路径重新拉取 —— 否则坏文件会永久挡住这张图，
+            // 每次进入相关页面都重复解码失败。
+            TryDeleteCorruptedFile(localPath);
         }
 
         // 远程图先不进磁盘路径：失败重试时还能重新拉取；落盘成功后由下次 Get 走文件路径。
@@ -135,6 +142,89 @@ public static class HeroImageCache
                 }
             }, DispatcherPriority.Background);
         });
+    }
+
+    /// <summary>
+    /// 可等待的预热：下载缺失文件（整体限时，超时放行不再等）→ 清掉内存里可能
+    /// 已经中毒的懒加载位图 → 在 UI 线程把文件解码进内存缓存。
+    /// 背景：冷路径原先返回 WPF 懒下载位图（DelayCreation），这条链路不可控——
+    /// 失败后实例还留在 <see cref="MemoryCache"/> 里永不自愈，表现为「文件已落盘、UI 仍空白」。
+    /// 调用方在下载完成后让相关绑定重新求值，即可保证走磁盘同步解码。
+    /// </summary>
+    public static async Task WarmUpAsync(
+        IEnumerable<string> urls,
+        int decodeWidth = 160,
+        TimeSpan? maxWait = null)
+    {
+        var list = urls
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (list.Count == 0)
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(CacheDirectory);
+        TryRemoveLegacyInstallCache();
+
+        try
+        {
+            await Task.WhenAll(list.Select(url => DownloadToFileAsync(url, GetLocalPath(url, 0), 0)))
+                .WaitAsync(maxWait ?? TimeSpan.FromSeconds(4))
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            // 个别慢文件不阻塞调用方；已完成的文件仍然有效
+        }
+        catch
+        {
+            // 下载失败交由后续重试
+        }
+
+        EvictMemoryForUrls(list);
+
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null)
+        {
+            return;
+        }
+
+        await dispatcher.InvokeAsync(() =>
+        {
+            foreach (var url in list)
+            {
+                try
+                {
+                    Get(url, decodeWidth, 0);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+        }).Task.ConfigureAwait(false);
+    }
+
+    /// <summary>按 URL 清掉内存缓存条目（键形如 "{decodeWidth}|{storeWidth}|{url}"）。</summary>
+    internal static void EvictMemoryForUrls(IEnumerable<string> urls)
+    {
+        var urlSet = urls.Where(u => !string.IsNullOrWhiteSpace(u)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (urlSet.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var key in MemoryCache.Keys)
+        {
+            var separator = key.LastIndexOf('|');
+            if (separator >= 0 && urlSet.Contains(key[(separator + 1)..]))
+            {
+                MemoryCache.TryRemove(key, out _);
+            }
+        }
     }
 
     /// <summary>统计磁盘头像缓存占用。</summary>
@@ -429,6 +519,36 @@ public static class HeroImageCache
         }
 
         return bitmap;
+    }
+
+    /// <summary>
+    /// 尝试从磁盘文件解码位图。文件损坏（断电残留 / 杀软截断 / 磁盘错误）时返回 false 而不抛出，
+    /// 由调用方删除坏文件后走网络路径重新拉取。拆成独立方法便于对「损坏文件」做单元测试。
+    /// </summary>
+    internal static bool TryLoadFromDisk(string path, int decodeWidth, out ImageSource? image)
+    {
+        try
+        {
+            image = LoadFromFile(path, decodeWidth);
+            return true;
+        }
+        catch
+        {
+            image = null;
+            return false;
+        }
+    }
+
+    private static void TryDeleteCorruptedFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // ignore：被占用时删不掉，下次 Get 再试
+        }
     }
 
     private static ImageSource LoadFromUri(string url, int decodeWidth)

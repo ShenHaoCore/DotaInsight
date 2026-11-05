@@ -28,6 +28,13 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
     private const string CacheKey = "dota2cn:heroNames:zh:v1";
     private const string HeroListUrl = "https://www.dota2.com.cn/datafeed/heroList?task=herolist";
 
+    /// <summary>
+    /// 网络失败降级后的退避期：期间不再重复发起网络请求。
+    /// 没有 LiteDB 缓存又完全离线时（首次启动断网），不退避的话每次页面导航
+    /// 都会触发一次带 Polly 重试的请求，首页/图鉴/克制页逐页卡顿。
+    /// </summary>
+    internal static readonly TimeSpan DegradedBackoff = TimeSpan.FromMinutes(5);
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILiteDbCacheService _cache;
     private readonly ILogger _logger;
@@ -35,6 +42,9 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
 
     /// <summary>进程内缓存：命中后跳过 LiteDB 反序列化（整张名字表每页导航都会用到）。</summary>
     private IReadOnlyDictionary<int, string>? _memory;
+
+    /// <summary>降级退避截止时刻（UTC）；为过去值表示可以再次尝试网络。</summary>
+    private DateTime _degradedUntilUtc;
 
     public HeroLocalizationService(
         IHttpClientFactory httpClientFactory,
@@ -71,6 +81,21 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
                 return _memory;
             }
 
+            // 降级退避期：跳过网络，用过期缓存或内置表顶住（退避期满后允许重试一次）
+            var nowUtc = DateTime.UtcNow;
+            if (nowUtc < _degradedUntilUtc)
+            {
+                var staleDuringBackoff = _cache.GetStale<Dictionary<int, string>>(CacheKey);
+                var degraded = staleDuringBackoff is { Count: > 0 }
+                    ? staleDuringBackoff
+                    : HeroChineseNames.ById;
+                _logger.Debug(
+                    "中文名处于降级退避期，{Source}（剩余 {Seconds:F0}s）",
+                    staleDuringBackoff is { Count: > 0 } ? "返回过期缓存" : "返回内置表",
+                    (_degradedUntilUtc - nowUtc).TotalSeconds);
+                return degraded;
+            }
+
             try
             {
                 _logger.Information("请求国服英雄列表以获取中文名：{Url}", HeroListUrl);
@@ -105,9 +130,15 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
                 var stale = _cache.GetStale<Dictionary<int, string>>(CacheKey);
                 if (stale is { Count: > 0 })
                 {
-                    // 失败降级的结果只作本次返回，不进 _memory，下次调用仍会重试拉取
+                    // 失败降级的结果只作本次返回，不进 _memory；同时进入退避期，
+                    // 避免每次页面导航都重打一轮网络
+                    _degradedUntilUtc = DateTime.UtcNow.Add(DegradedBackoff);
                     return stale;
                 }
+
+                // 完全离线：退避期内直接用内置表，不再逐页重试
+                _degradedUntilUtc = DateTime.UtcNow.Add(DegradedBackoff);
+                return HeroChineseNames.ById;
             }
 
             return HeroChineseNames.ById;

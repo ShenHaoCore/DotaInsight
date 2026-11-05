@@ -24,15 +24,19 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
     private readonly ILogger _logger;
     private readonly object _sync = new();
 
-    public LiteDbCacheService(ILogger logger)
+    public LiteDbCacheService(ILogger logger, string? databasePath = null)
     {
         _logger = logger.ForContext<LiteDbCacheService>();
 
-        AppPaths.EnsureCreated();
-        var dbPath = AppPaths.Database;
+        if (databasePath is null)
+        {
+            AppPaths.EnsureCreated();
+            databasePath = AppPaths.Database;
+        }
+
         // Shared：允许多进程只读/错开写入，避免第二个实例启动即崩溃
-        _database = new LiteDatabase($"Filename={dbPath};Connection=shared");
-        _logger.Information("LiteDB 缓存已打开：{DbPath}", dbPath);
+        _database = new LiteDatabase($"Filename={databasePath};Connection=shared");
+        _logger.Information("LiteDB 缓存已打开：{DbPath}", databasePath);
     }
 
     public T? Get<T>(string key)
@@ -49,8 +53,10 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
 
             if (entry.IsExpired())
             {
+                // 过期只返回空、不删除：条目是离线降级（GetStale）的最后一份底料，
+                // 网络失败时兜底全靠它。删除会让「过期 + 断网」场景永久失去降级能力。
+                // 空间由下次成功刷新覆写同键与「清理缓存」回收。
                 _logger.Debug("缓存已过期：{Key}", key);
-                Collection().Delete(key);
                 return default;
             }
 

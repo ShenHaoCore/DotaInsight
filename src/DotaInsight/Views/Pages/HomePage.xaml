@@ -11,7 +11,7 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:IndexPlusOneConverter x:Key="IndexPlusOneConverter" />
 
-        <!-- 功能入口卡：利落角 + 幽灵序号 -->
+        <!-- 功能入口：横向一行，图标 + 名称 + 说明 + 箭头，悬停抬表面 -->
         <Style x:Key="HomeFeatureButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -26,14 +26,14 @@
                                 Background="{DynamicResource DiPanelBrush}"
                                 BorderBrush="{DynamicResource DiStrokeBrush}"
                                 BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="20,18"
+                                CornerRadius="8"
+                                Padding="20,16"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DiAccentBrush}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DiTileHoverBorderBrush}" />
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
@@ -59,16 +59,16 @@
                                Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter},
                                               Path=(ItemsControl.AlternationIndex),
                                               Converter={StaticResource IndexPlusOneConverter}}" />
-                    <Border Grid.Column="1" Width="56" Height="32" CornerRadius="3" ClipToBounds="True"
+                    <Border Grid.Column="1" Width="56" Height="32" CornerRadius="4" ClipToBounds="True"
                             Background="{DynamicResource DiChromeBrush}" Margin="0,0,10,0">
                         <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}"
                                Stretch="UniformToFill"
                                RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
-                    <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                    <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="Medium"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <TextBlock Grid.Column="3" Text="{Binding WinRateText}" FontSize="14" FontWeight="Bold"
+                    <TextBlock Grid.Column="3" Text="{Binding WinRateText}" FontSize="14" FontWeight="Medium"
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource DiAdvantageBrush}" />
                 </Grid>
@@ -88,39 +88,36 @@
                                Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter},
                                               Path=(ItemsControl.AlternationIndex),
                                               Converter={StaticResource IndexPlusOneConverter}}" />
-                    <Border Grid.Column="1" Width="56" Height="32" CornerRadius="3" ClipToBounds="True"
+                    <Border Grid.Column="1" Width="56" Height="32" CornerRadius="4" ClipToBounds="True"
                             Background="{DynamicResource DiChromeBrush}" Margin="0,0,10,0">
                         <Image Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=140}"
                                Stretch="UniformToFill"
                                RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
-                    <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"
+                    <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="Medium"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <TextBlock Grid.Column="3" Text="{Binding PickRateText}" FontSize="14" FontWeight="Bold"
+                    <TextBlock Grid.Column="3" Text="{Binding PickRateText}" FontSize="14" FontWeight="Medium"
                                VerticalAlignment="Center"
-                               Foreground="{DynamicResource DiAccentBrush}" />
+                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
                 </Grid>
             </Border>
         </DataTemplate>
     </Page.Resources>
 
-    <Grid Margin="32,22,32,28">
+    <Grid Margin="28,20,28,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="16" />
+            <RowDefinition Height="12" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="16" />
+            <RowDefinition Height="12" />
             <RowDefinition Height="*" MinHeight="240" />
         </Grid.RowDefinitions>
 
-        <!-- 顶部品牌横幅 -->
+        <!-- 顶部：产品名 + 查询台 -->
         <Border Grid.Row="0"
-                Background="{DynamicResource DiHeroBannerBrush}"
-                BorderBrush="{DynamicResource DiStrokeBrush}"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="26,22">
+                Style="{StaticResource DiPanelCardStyle}"
+                Padding="24,20">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -134,19 +131,11 @@
                         <ColumnDefinition Width="400" MinWidth="300" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- 品牌 -->
                     <StackPanel VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <Rectangle Width="7" Height="7" Fill="{DynamicResource DiAccentBrush}"
-                                       VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <TextBlock Text="DOTA2 数据终端"
-                                       Style="{StaticResource DiKickerTextStyle}" />
-                        </StackPanel>
                         <TextBlock Text="DotaInsight"
-                                   FontSize="30" FontWeight="Bold"
-                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        <TextBlock Text="英雄克制 · 战绩复盘 · 版本数据"
-                                   Margin="0,7,0,0" FontSize="13"
+                                   Style="{StaticResource DiPageTitleStyle}" />
+                        <TextBlock Text="Dota 2 版本数据 · 战绩复盘 · 英雄克制"
+                                   Margin="0,6,0,0" FontSize="13"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
                     </StackPanel>
 
@@ -160,8 +149,8 @@
                             VerticalAlignment="Center">
                         <StackPanel>
                             <TextBlock Text="查询玩家战绩"
-                                       FontSize="12" Margin="0,0,0,8"
-                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                                       Style="{StaticResource DiKickerTextStyle}"
+                                       Margin="0,0,0,8" />
                             <DockPanel>
                                 <ui:Button DockPanel.Dock="Right"
                                            Content="查询"
@@ -179,52 +168,32 @@
                 </Grid>
 
                 <!-- 底栏状态 -->
-                <DockPanel Grid.Row="1" Margin="0,16,0,0">
-                    <Border DockPanel.Dock="Left" Height="1"
-                            Background="{DynamicResource DiStrokeBrush}"
-                            VerticalAlignment="Center"
-                            Margin="0,0,14,0"
-                            Width="28" />
-                    <TextBlock Text="{Binding MetaStatus}"
-                               FontSize="12"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource DiMutedTextBrush}" />
-
+                <DockPanel Grid.Row="1" Margin="0,14,0,0">
                     <StackPanel DockPanel.Dock="Right"
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center"
                                 Margin="16,0,0,0">
-                        <!-- 检查更新（复用外壳命令）+ 当前版本号 -->
-                        <ui:Button Appearance="Secondary"
-                                   ToolTip="检查更新"
-                                   Content="检查更新"
-                                   Icon="{ui:SymbolIcon ArrowSync24}"
-                                   FontSize="12"
-                                   Padding="10,4"
-                                   Command="{Binding CheckUpdateCommand}" />
                         <TextBlock Text="{Binding VersionText}"
                                    FontSize="12"
                                    VerticalAlignment="Center"
-                                   Margin="8,0,0,0"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
-                        <Rectangle Width="1" Height="14"
+                        <Rectangle Width="1" Height="12"
                                    VerticalAlignment="Center"
-                                   Margin="12,0,12,0"
+                                   Margin="12,0"
                                    Fill="{DynamicResource DiStrokeBrush}" />
                         <TextBlock Text="{Binding CacheInfoText}"
                                    FontSize="12"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource DiMutedTextBrush}"
                                    TextTrimming="CharacterEllipsis"
-                                   MaxWidth="320" />
-                        <ui:Button Appearance="Transparent"
-                                   ToolTip="清理本地缓存"
-                                   Icon="{ui:SymbolIcon Delete24}"
-                                   Command="{Binding ClearCacheCommand}"
-                                   Margin="6,0,0,0"
-                                   Padding="8" />
+                                   MaxWidth="380" />
                     </StackPanel>
+
+                    <TextBlock Text="{Binding MetaStatus}"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
                 </DockPanel>
             </Grid>
         </Border>
@@ -233,66 +202,55 @@
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="14" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="0" Style="{StaticResource HomeFeatureButtonStyle}"
-                    MinHeight="118" Command="{Binding OpenGalleryCommand}">
+                    Command="{Binding OpenGalleryCommand}">
                 <Grid>
-                    <TextBlock Text="01" FontSize="26" FontWeight="Bold"
-                               Foreground="#1AF4F7FA"
-                               HorizontalAlignment="Right" VerticalAlignment="Top" />
-                    <StackPanel VerticalAlignment="Bottom">
-                        <ui:SymbolIcon Symbol="Grid24" FontSize="22"
-                                       Foreground="{DynamicResource DiAccentBrush}"
-                                       HorizontalAlignment="Left" />
-                        <TextBlock Text="英雄图鉴" Margin="0,12,0,5" FontSize="17" FontWeight="Bold"
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ui:SymbolIcon Symbol="Grid24" FontSize="20" Width="20" Height="20"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="英雄图鉴" FontSize="15" FontWeight="Medium"
                                    Foreground="{DynamicResource DiPrimaryTextBrush}" />
                         <TextBlock Text="浏览全部英雄与基础数据"
-                                   FontSize="12"
+                                   Margin="0,2,0,0" FontSize="12"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
                     </StackPanel>
+                    <ui:SymbolIcon Grid.Column="2" Symbol="ArrowRight24" FontSize="16" Width="16" Height="16"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
                 </Grid>
             </Button>
 
             <Button Grid.Column="2" Style="{StaticResource HomeFeatureButtonStyle}"
-                    MinHeight="118" Command="{Binding OpenCounterCommand}">
+                    Command="{Binding OpenMatchAnalysisCommand}">
                 <Grid>
-                    <TextBlock Text="02" FontSize="26" FontWeight="Bold"
-                               Foreground="#1AF4F7FA"
-                               HorizontalAlignment="Right" VerticalAlignment="Top" />
-                    <StackPanel VerticalAlignment="Bottom">
-                        <ui:SymbolIcon Symbol="DualScreenVerticalScroll24" FontSize="22"
-                                       Foreground="{DynamicResource DiAccentBrush}"
-                                       HorizontalAlignment="Left" />
-                        <TextBlock Text="克制分析" Margin="0,12,0,5" FontSize="17" FontWeight="Bold"
-                                   Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                        <TextBlock Text="查看英雄对位优劣与胜率差"
-                                   FontSize="12"
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ui:SymbolIcon Symbol="DataHistogram24" FontSize="20" Width="20" Height="20"
+                                   VerticalAlignment="Center"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
-                    </StackPanel>
-                </Grid>
-            </Button>
-
-            <Button Grid.Column="4" Style="{StaticResource HomeFeatureButtonStyle}"
-                    MinHeight="118" Command="{Binding OpenMatchAnalysisCommand}">
-                <Grid>
-                    <TextBlock Text="03" FontSize="26" FontWeight="Bold"
-                               Foreground="#1AF4F7FA"
-                               HorizontalAlignment="Right" VerticalAlignment="Top" />
-                    <StackPanel VerticalAlignment="Bottom">
-                        <ui:SymbolIcon Symbol="DataHistogram24" FontSize="22"
-                                       Foreground="{DynamicResource DiAccentBrush}"
-                                       HorizontalAlignment="Left" />
-                        <TextBlock Text="战绩分析" Margin="0,12,0,5" FontSize="17" FontWeight="Bold"
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="战绩分析" FontSize="15" FontWeight="Medium"
                                    Foreground="{DynamicResource DiPrimaryTextBrush}" />
                         <TextBlock Text="复盘玩家近期比赛表现"
-                                   FontSize="12"
+                                   Margin="0,2,0,0" FontSize="12"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
                     </StackPanel>
+                    <ui:SymbolIcon Grid.Column="2" Symbol="ArrowRight24" FontSize="16" Width="16" Height="16"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
                 </Grid>
             </Button>
         </Grid>
@@ -301,7 +259,7 @@
         <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -309,25 +267,17 @@
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                         <DockPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Rectangle Width="4" Height="16" Fill="{DynamicResource DiAccentBrush}"
-                                           VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <TextBlock Text="高胜率英雄" Style="{StaticResource DiSectionTitleStyle}" />
-                            </StackPanel>
                             <ui:ProgressRing DockPanel.Dock="Right" Width="18" Height="18"
-                                             IsIndeterminate="True" Margin="8,0,0,0"
+                                             IsIndeterminate="True"
                                              Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
-                            <ui:Button DockPanel.Dock="Right"
-                                       Appearance="Transparent"
-                                       Content="查看图鉴"
-                                       FontSize="12"
-                                       Command="{Binding OpenGalleryCommand}" />
+                            <TextBlock Text="高胜率英雄" Style="{StaticResource DiSectionTitleStyle}" />
                         </DockPanel>
                     </Border>
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding TopWinRateHeroes}"
                                       AlternationCount="20"
+                                      Margin="12,8,12,4"
                                       ItemTemplate="{StaticResource MetaRankRowWin}" />
                     </ScrollViewer>
                 </DockPanel>
@@ -336,23 +286,13 @@
             <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" ClipToBounds="True">
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
-                        <DockPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Rectangle Width="4" Height="16" Fill="{DynamicResource DiAccentBrush}"
-                                           VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <TextBlock Text="高选取英雄" Style="{StaticResource DiSectionTitleStyle}" />
-                            </StackPanel>
-                            <ui:Button DockPanel.Dock="Right"
-                                       Appearance="Transparent"
-                                       Content="查看图鉴"
-                                       FontSize="12"
-                                       Command="{Binding OpenGalleryCommand}" />
-                        </DockPanel>
+                        <TextBlock Text="高选取英雄" Style="{StaticResource DiSectionTitleStyle}" />
                     </Border>
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding TopPickRateHeroes}"
                                       AlternationCount="20"
+                                      Margin="12,8,12,4"
                                       ItemTemplate="{StaticResource MetaRankRowPick}" />
                     </ScrollViewer>
                 </DockPanel>

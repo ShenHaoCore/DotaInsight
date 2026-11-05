@@ -31,8 +31,27 @@ public static class HttpCall
         options.Converters.Add(new NullAsDefaultNumberConverter<int>());
         options.Converters.Add(new NullAsDefaultNumberConverter<long>());
         options.Converters.Add(new NullAsDefaultNumberConverter<double>());
+        // OpenDota 对「非游走局」的 is_roaming 返回 null（实测 2026-11：recentMatches），
+        // 与 turn_rate 等数值字段同类问题，布尔也需要 null 容错。
+        options.Converters.Add(new NullAsDefaultBooleanConverter());
         return options;
     }
+}
+
+/// <summary>
+/// 布尔 null 容错转换器：JSON null 读为 false，其余按布尔解析。
+/// </summary>
+internal sealed class NullAsDefaultBooleanConverter : JsonConverter<bool>
+{
+    public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType == JsonTokenType.Null
+            ? false
+            : reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False
+                ? reader.GetBoolean()
+                : throw new JsonException($"无法把 {reader.TokenType} 解析为布尔");
+
+    public override void Write(Utf8JsonWriter writer, bool value, JsonSerializerOptions options)
+        => writer.WriteBooleanValue(value);
 }
 
 /// <summary>
