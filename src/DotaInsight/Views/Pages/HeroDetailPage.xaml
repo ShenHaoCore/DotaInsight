@@ -321,13 +321,13 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Width="44" Height="44" CornerRadius="4" ClipToBounds="True"
+                                                <Border Width="48" Height="48" CornerRadius="4" ClipToBounds="True"
                                                         BorderThickness="1" BorderBrush="{DynamicResource DiDisadvantageBrush}"
                                                         Background="{DynamicResource DiChromeBrush}" Margin="0,0,6,0"
                                                         ToolTip="{Binding HeroName, StringFormat=克制我方 {0} {WinRateDiffText}}">
-                                                    <!-- 官方渲染 256×144 头部偏右：右对齐裁切 = 方形头像 -->
-                                                    <Image Source="{Binding IconUrl, Converter={StaticResource CachedImage}, ConverterParameter=96}"
-                                                           Stretch="UniformToFill" HorizontalAlignment="Right" />
+                                                    <!-- 英雄名旁的小头像同款（icons/ 59×33）：方框内完整显示，不裁切不压缩 -->
+                                                    <Image Source="{Binding SmallIconUrl, Converter={StaticResource CachedImage}, ConverterParameter=96}"
+                                                           Stretch="Uniform" Margin="3" />
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -343,12 +343,13 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Width="44" Height="44" CornerRadius="4" ClipToBounds="True"
-                                                        BorderThickness="1" BorderBrush="{DynamicResource DiAdvantageBrush}"
+                                                <Border Width="48" Height="48" CornerRadius="4" ClipToBounds="True"
+                                                        BorderThickness="1" BorderBrush="{DynamicResource DiDisadvantageBrush}"
                                                         Background="{DynamicResource DiChromeBrush}" Margin="0,0,6,0"
                                                         ToolTip="{Binding HeroName, StringFormat=我方克制 {0} {WinRateDiffText}}">
-                                                    <Image Source="{Binding IconUrl, Converter={StaticResource CachedImage}, ConverterParameter=96}"
-                                                           Stretch="UniformToFill" HorizontalAlignment="Right" />
+                                                    <!-- 英雄名旁的小头像同款（icons/ 59×33）：方框内完整显示，不裁切不压缩 -->
+                                                    <Image Source="{Binding SmallIconUrl, Converter={StaticResource CachedImage}, ConverterParameter=96}"
+                                                           Stretch="Uniform" Margin="3" />
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

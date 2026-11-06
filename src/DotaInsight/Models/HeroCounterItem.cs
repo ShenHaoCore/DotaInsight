@@ -28,6 +28,9 @@ public sealed class HeroCounterItem
 
     public string IconUrl => HeroAssetHelper.GetIconUrl(InternalName);
 
+    /// <summary>小头像（icons/ 目录 59×33，与英雄详情横幅里英雄名旁的图同款）。</summary>
+    public string SmallIconUrl => HeroAssetHelper.GetSmallIconUrl(InternalName);
+
     public string WinRateText => $"{WinRate:F1}%";
 
     public string WinRateDiffText => $"{WinRateDiff:+0.0;-0.0;0.0}%";

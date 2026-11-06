@@ -389,8 +389,9 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         {
             var urls = result.CounteredBy
                 .Concat(result.Counters)
-                .Select(i => i.IconUrl)
-                .Concat((MatchupTopCountered ?? []).Concat(MatchupTopCounters ?? []).Select(i => i.IconUrl))
+                .SelectMany(i => new[] { i.IconUrl, i.SmallIconUrl })
+                .Concat((MatchupTopCountered ?? []).Concat(MatchupTopCounters ?? [])
+                    .SelectMany(i => new[] { i.IconUrl, i.SmallIconUrl })))
                 .Where(u => !string.IsNullOrWhiteSpace(u))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
