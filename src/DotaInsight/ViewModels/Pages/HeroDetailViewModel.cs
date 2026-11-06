@@ -379,6 +379,55 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
         }
     }
 
+    /// <summary>
+    /// 预热对位速览与克制列表的英雄图标：落盘后重放相关绑定，
+    /// 让冷路径占位的图标走磁盘同步解码补图。
+    /// </summary>
+    private async Task WarmMatchupImagesAsync(HeroCounterResult result, CancellationToken token, int generation)
+    {
+        try
+        {
+            var urls = result.CounteredBy
+                .Concat(result.Counters)
+                .Select(i => i.IconUrl)
+                .Concat((MatchupTopCountered ?? []).Concat(MatchupTopCounters ?? []).Select(i => i.IconUrl))
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (urls.Count == 0)
+            {
+                return;
+            }
+
+            await HeroImageCache.WarmUpAsync(urls, decodeWidth: 96).ConfigureAwait(true);
+            if (token.IsCancellationRequested || generation != _loadGeneration)
+            {
+                return;
+            }
+
+            await OnUiThreadAsync(() =>
+            {
+                if (token.IsCancellationRequested || generation != _loadGeneration)
+                {
+                    return;
+                }
+
+                OnPropertyChanged(nameof(MatchupTopCountered));
+                OnPropertyChanged(nameof(MatchupTopCounters));
+                OnPropertyChanged(nameof(CounteredByList));
+                OnPropertyChanged(nameof(CountersList));
+            }).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, token) || generation != _loadGeneration)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "预热对位图标失败");
+        }
+    }
+
     /// <summary>预热技能图标并重建技能集合，让图标绑定重新求值走磁盘解码。</summary>
     private async Task WarmProfileIconsAsync(HeroDetailProfile? profile, CancellationToken token, int generation)
     {
@@ -605,6 +654,9 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
                 }
 
                 OnPropertyChanged(nameof(HasMatchupPreview));
+
+                // 对位图标预热：冷未命中在 UI 线程返回空位，落盘后重放绑定补图
+                _ = WarmMatchupImagesAsync(result, token, generation);
             }).ConfigureAwait(true);
         }
         catch (Exception ex) when (HttpCall.IsUserCancellation(ex, token) || generation != _loadGeneration)
