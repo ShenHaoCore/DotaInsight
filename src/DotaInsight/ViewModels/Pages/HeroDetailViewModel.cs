@@ -73,6 +73,10 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     private Axis[] matchupYAxes;
 
+    /// <summary>技能与成长页签：0 技能 / 1 先天技能 / 2 天赋树。</summary>
+    [ObservableProperty]
+    private int skillTabIndex;
+
     /// <summary>分布图有数据可画。</summary>
     public bool MatchupHasData => MatchupSeries.Length > 0;
 

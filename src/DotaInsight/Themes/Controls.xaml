@@ -101,11 +101,12 @@
         </Style.Triggers>
     </Style>
 
+    <!-- 卡片头：标题行 + 底部分隔线（无底色带，全局统一轻量卡头） -->
     <Style x:Key="SectionHeaderStyle" TargetType="Border">
         <Setter Property="Padding" Value="16,12" />
         <Setter Property="BorderBrush" Value="{DynamicResource DiStrokeBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Background" Value="{DynamicResource DiSectionHeaderBrush}" />
+        <Setter Property="Background" Value="Transparent" />
     </Style>
 
     <Style x:Key="AdvantageProgressStyle" TargetType="ProgressBar">

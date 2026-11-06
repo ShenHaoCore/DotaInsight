@@ -686,16 +686,27 @@
                                        Visibility="{Binding ShowProfileMissing, Converter={StaticResource BoolVisibility}}" />
                         </Grid>
 
-                        <!-- ===================== 技能 ===================== -->
-                        <StackPanel Margin="0,0,0,20">
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16">
-                                <StackPanel>
-                                    <StackPanel Style="{StaticResource DiCardTitleRow}">
-                                        <TextBlock Text="技能" Style="{StaticResource DiSectionTitleStyle}" />
-                                        <TextBlock Text="点击图标查看详情" FontSize="11" Margin="10,0,0,0"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <!-- ===================== 技能与成长（页签卡：技能 / 先天 / 天赋） ===================== -->
+                        <Border Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,0,0,20">
+                            <StackPanel>
+                                <Border Padding="2" HorizontalAlignment="Left"
+                                        Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
+                                        BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                        Margin="0,0,0,14">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="技能" Style="{StaticResource DiSegmentedItem}"
+                                                     IsChecked="{Binding SkillTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
+                                        <RadioButton Content="先天技能" Style="{StaticResource DiSegmentedItem}"
+                                                     IsChecked="{Binding SkillTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
+                                        <RadioButton Content="天赋树" Style="{StaticResource DiSegmentedItem}"
+                                                     IsChecked="{Binding SkillTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=2, Mode=TwoWay}" />
                                     </StackPanel>
+                                </Border>
+
+                                <!-- 页签 0：技能 -->
+                                <StackPanel Visibility="{Binding SkillTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=0}">
+                                    <TextBlock Text="点击图标查看详情" FontSize="11" Margin="0,0,0,10"
+                                               Foreground="{DynamicResource DiMutedTextBrush}" />
                                     <ItemsControl ItemsSource="{Binding NormalAbilities}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -711,14 +722,14 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </StackPanel>
-                            </Border>
 
-                            <!-- 技能详情 -->
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,14,0,0"
-                                    Visibility="{Binding SelectedAbility, Converter={StaticResource NullVisibility}}">
-                                <StackPanel>
-                                    <Grid>
+                                    <!-- 选中技能详情：页签内的子面板 -->
+                                    <Border Background="{DynamicResource DiRowBrush}"
+                                            BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                            CornerRadius="4" Padding="12" Margin="0,14,0,0"
+                                            Visibility="{Binding SelectedAbility, Converter={StaticResource NullVisibility}}">
+                                        <StackPanel>
+                                            <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
@@ -871,14 +882,10 @@
                                        HorizontalAlignment="Center" Margin="0,24,0,0"
                                        Foreground="{DynamicResource DiMutedTextBrush}"
                                        Visibility="{Binding SelectedAbility, Converter={StaticResource NullVisibility}, ConverterParameter=Invert}" />
+                                </StackPanel>
 
-                            <!-- 先天技能 -->
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,14,0,0"
-                                    Visibility="{Binding HasInnateAbilities, Converter={StaticResource BoolVisibility}}">
-                                <StackPanel>
-                                    <StackPanel Style="{StaticResource DiCardTitleRow}">
-                                        <TextBlock Text="先天技能" Style="{StaticResource DiSectionTitleStyle}" />
-                                    </StackPanel>
+                                <!-- 页签 1：先天技能 -->
+                                <StackPanel Visibility="{Binding SkillTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=1}">
                                     <ItemsControl ItemsSource="{Binding InnateAbilities}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -932,15 +939,9 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
-                            </Border>
-                        </StackPanel>
 
-                        <!-- ===================== 天赋 ===================== -->
-                        <Border Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,0,0,20">
-                            <StackPanel>
-                                <StackPanel Style="{StaticResource DiCardTitleRow}">
-                                    <TextBlock Text="天赋树" Style="{StaticResource DiSectionTitleStyle}" />
-                                </StackPanel>
+                                <!-- 页签 2：天赋树 -->
+                                <StackPanel Visibility="{Binding SkillTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=2}">
 
                                 <Border Padding="20,8" CornerRadius="4"
                                         Background="{DynamicResource DiRowBrush}"
@@ -992,6 +993,7 @@
                                 <TextBlock Text="每个等级可在两个天赋中选择一个，25 级为最高级天赋"
                                            Margin="2,12,0,0" FontSize="11" TextWrapping="Wrap"
                                            Foreground="{DynamicResource DiMutedTextBrush}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
