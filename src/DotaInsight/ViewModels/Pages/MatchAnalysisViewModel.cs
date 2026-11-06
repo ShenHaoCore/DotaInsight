@@ -187,6 +187,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 HasData = !result.IsEmpty;
                 WarmUpMatchImages(result.Matches);
                 _ = LoadHeroWinratesAsync(accountId, frameEpoch, token);
+                _ = LoadPlayerActivityAsync(accountId, frameEpoch, token);
 
                 if (result.IsEmpty)
                 {
@@ -406,6 +407,49 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
         _shell.CurrentPageTitle = "英雄详情";
         _navigation.NavigateTo(MainWindowViewModel.HeroDetailPageKey, stat.HeroId);
+    }
+
+    // ===== 每日游玩热力图 =====
+
+    /// <summary>近 12 个月的日历热力图（周列 × 7 行）。</summary>
+    public ObservableCollection<PlayerActivityWeek> ActivityWeeks { get; } = new();
+
+    public bool HasActivity => ActivityWeeks.Count > 0;
+
+    /// <summary>标题右侧摘要（总场次 / 活跃天数 / 最多一天）。</summary>
+    [ObservableProperty]
+    private string activitySummaryText = string.Empty;
+
+    /// <summary>
+    /// 异步补拉每日游玩热力图：独立于主查询（失败静默），迟到结果按轮次作废。
+    /// </summary>
+    private async Task LoadPlayerActivityAsync(long accountId, int epoch, CancellationToken token)
+    {
+        try
+        {
+            var heatmap = await _matchService.GetPlayerActivityAsync(accountId, token).ConfigureAwait(true);
+            if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            ActivityWeeks.Clear();
+            if (heatmap is not null)
+            {
+                foreach (var week in heatmap.Weeks)
+                {
+                    ActivityWeeks.Add(week);
+                }
+
+                ActivitySummaryText = heatmap.SummaryText;
+            }
+
+            OnPropertyChanged(nameof(HasActivity));
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "每日游玩热力图加载跳过 AccountId={AccountId}", accountId);
+        }
     }
 
     /// <summary>打开展示某场比赛的详情。</summary>

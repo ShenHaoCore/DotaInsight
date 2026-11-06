@@ -32,6 +32,11 @@ public interface IMatchAnalysisService
     /// 玩家生涯英雄胜率榜（按场次降序，最多 10 条）。失败/无数据返回空列表。
     /// </summary>
     Task<IReadOnlyList<PlayerHeroStat>> GetPlayerHeroStatsAsync(long accountId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 每日游玩热力图（近 12 个月，按本地日期聚合）。失败/无数据返回 null。
+    /// </summary>
+    Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(long accountId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -246,6 +251,54 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         {
             _logger.Warning(ex, "拉取英雄胜率榜失败 AccountId={AccountId}", accountId);
             return _cache.GetStale<List<PlayerHeroStat>>(cacheKey) ?? [];
+        }
+    }
+
+    private const string PlayerActivityCachePrefix = "opendota:playerActivity:v1:";
+
+    private static readonly TimeSpan PlayerActivityCacheTtl = TimeSpan.FromHours(12);
+
+    /// <inheritdoc />
+    public async Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(
+        long accountId,
+        CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            return null;
+        }
+
+        var cacheKey = PlayerActivityCachePrefix + accountId;
+        var cached = _cache.Get<PlayerActivityHeatmap>(cacheKey);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
+        try
+        {
+            var dtos = await Http
+                .GetFromJsonAsync<List<RecentMatchDto>>(
+                    $"api/players/{accountId}/matches?limit=600",
+                    HttpCall.JsonOptions,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            var heatmap = PlayerActivityBuilder.Build(
+                (dtos ?? []).Select(d => d.StartTime),
+                DateTime.Today);
+
+            _cache.Set(cacheKey, heatmap, PlayerActivityCacheTtl);
+            return heatmap;
+        }
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "拉取每日游玩热力图失败 AccountId={AccountId}", accountId);
+            return _cache.GetStale<PlayerActivityHeatmap>(cacheKey);
         }
     }
 

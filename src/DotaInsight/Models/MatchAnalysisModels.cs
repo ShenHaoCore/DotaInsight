@@ -231,6 +231,43 @@ internal sealed class PlayerHeroStatDto
     public int Wins { get; set; }
 }
 
+/// <summary>热力图单格：一天的活动量。</summary>
+public sealed class PlayerActivityDay
+{
+    /// <summary>等级 -1 = 该格属于未来（占位透明、无悬浮）。</summary>
+    public int Level { get; init; }
+
+    public DateTime Date { get; init; }
+
+    public int Count { get; init; }
+
+    public string? Tooltip { get; init; }
+}
+
+/// <summary>热力图一列（一周，周一为首）。</summary>
+public sealed class PlayerActivityWeek
+{
+    /// <summary>月初落在该周时的月份标签（如「10月」），否则 null。</summary>
+    public string? MonthLabel { get; init; }
+
+    public IReadOnlyList<PlayerActivityDay> Days { get; init; } = [];
+}
+
+/// <summary>每日游玩热力图（近 12 个月，GitHub 贡献图样式）。</summary>
+public sealed class PlayerActivityHeatmap
+{
+    public IReadOnlyList<PlayerActivityWeek> Weeks { get; init; } = [];
+
+    public int TotalMatches { get; init; }
+
+    public int ActiveDays { get; init; }
+
+    public int BestDayCount { get; init; }
+
+    /// <summary>标题右侧的摘要（近 12 个月 N 局 · 活跃 X 天 · 最多一天 Y 局）。</summary>
+    public string SummaryText { get; init; } = string.Empty;
+}
+
 internal sealed class RecentMatchDto
 {
     [JsonPropertyName("match_id")]

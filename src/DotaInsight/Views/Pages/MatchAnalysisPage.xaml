@@ -61,6 +61,8 @@
             <!-- 我的账号：查询过的账号做成卡片，点头像即切换 -->
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <!-- 每日游玩热力图：近 12 个月日历 -->
+            <RowDefinition Height="Auto" />
             <!-- 近期常用英雄：与比赛列表同源聚合，点击进英雄详情 -->
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -303,8 +305,107 @@
             </Grid>
         </Border>
 
-        <!-- 近期常用英雄：按对局数聚合，点击进入英雄详情 -->
+        <!-- 每日游玩热力图：近 12 个月日历（周列 × 7 行，周一为首） -->
         <Border Grid.Row="3"
+                Style="{StaticResource DiPanelCardStyle}"
+                Padding="16,12"
+                Margin="0,0,0,12"
+                Visibility="{Binding HasActivity, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+                <DockPanel Margin="2,0,2,10">
+                    <TextBlock Text="每日游玩" Style="{StaticResource DiSectionTitleStyle}" />
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="{Binding ActivitySummaryText}"
+                               FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </DockPanel>
+
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <!-- 月标签行 -->
+                        <ItemsControl ItemsSource="{Binding ActivityWeeks}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Width="16" Height="14" FontSize="10"
+                                               Text="{Binding MonthLabel}"
+                                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 日历格：每列一周（周一为首），每格 12×12 -->
+                        <ItemsControl ItemsSource="{Binding ActivityWeeks}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ItemsControl ItemsSource="{Binding Days}" Width="16">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Rows="7" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Width="12" Height="12" Margin="2" CornerRadius="2"
+                                                        ToolTip="{Binding Tooltip}">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Level}" Value="0">
+                                                                    <Setter Property="Background" Value="{DynamicResource DiRowBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Level}" Value="1">
+                                                                    <Setter Property="Background" Value="#402FD57F" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Level}" Value="2">
+                                                                    <Setter Property="Background" Value="#732FD57F" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Level}" Value="3">
+                                                                    <Setter Property="Background" Value="#A62FD57F" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Level}" Value="4">
+                                                                    <Setter Property="Background" Value="#E62FD57F" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 图例 -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2,6,0,0">
+                            <TextBlock Text="少" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                            <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="{DynamicResource DiRowBrush}" />
+                            <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#402FD57F" />
+                            <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#732FD57F" />
+                            <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#A62FD57F" />
+                            <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#E62FD57F" />
+                            <TextBlock Text="多" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <!-- 近期常用英雄：按对局数聚合，点击进入英雄详情 -->
+        <Border Grid.Row="4"
                 Style="{StaticResource DiPanelCardStyle}"
                 Padding="16,12"
                 Margin="0,0,0,12"
@@ -395,7 +496,7 @@
         </Border>
 
         <!-- 英雄胜率榜：生涯数据，按场次排序，点击进英雄详情 -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="5"
                 Style="{StaticResource DiPanelCardStyle}"
                 Padding="16,12"
                 Margin="0,0,0,12"
@@ -453,7 +554,7 @@
         </Border>
 
         <!-- 比赛列表 -->
-        <Border Grid.Row="5"
+        <Border Grid.Row="6"
                 Style="{StaticResource DiPanelCardStyle}"
                 ClipToBounds="True">
             <DockPanel>
@@ -619,7 +720,7 @@
         </Border>
 
         <!-- 底部区：胜负走势 / 打法建议 页签（与英雄详情页同一套分段样式） -->
-        <Border Grid.Row="7"
+        <Border Grid.Row="8"
                 Style="{StaticResource DiPanelCardStyle}"
                 Padding="16,12">
             <Grid>
