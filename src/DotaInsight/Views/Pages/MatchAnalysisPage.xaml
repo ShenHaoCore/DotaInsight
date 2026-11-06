@@ -322,8 +322,8 @@
 
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                     <StackPanel>
-                        <!-- 月标签行 -->
-                        <ItemsControl ItemsSource="{Binding ActivityWeeks}">
+                        <!-- 月标签行：与位图列一一对应 -->
+                        <ItemsControl ItemsSource="{Binding ActivityMonthLabels}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Horizontal" />
@@ -332,60 +332,19 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Width="16" Height="14" FontSize="10"
-                                               Text="{Binding MonthLabel}"
+                                               Text="{Binding}"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <!-- 日历格：每列一周（周一为首），每格 12×12 -->
-                        <ItemsControl ItemsSource="{Binding ActivityWeeks}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <ItemsControl ItemsSource="{Binding Days}" Width="16">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <UniformGrid Rows="7" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Width="12" Height="12" Margin="2" CornerRadius="2"
-                                                        ToolTip="{Binding Tooltip}">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="Transparent" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Level}" Value="0">
-                                                                    <Setter Property="Background" Value="{DynamicResource DiRowBrush}" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Level}" Value="1">
-                                                                    <Setter Property="Background" Value="#402FD57F" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Level}" Value="2">
-                                                                    <Setter Property="Background" Value="#732FD57F" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Level}" Value="3">
-                                                                    <Setter Property="Background" Value="#A62FD57F" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Level}" Value="4">
-                                                                    <Setter Property="Background" Value="#E62FD57F" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <!-- 日历位图：单元素渲染（53×7 格），悬浮提示按坐标反查 -->
+                        <Image Source="{Binding ActivityImage}"
+                               Width="{Binding ActivityImageWidth}"
+                               Height="98"
+                               Stretch="None"
+                               MouseMove="OnActivityImageMouseMove"
+                               MouseLeave="OnActivityImageMouseLeave" />
 
                         <!-- 图例 -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2,6,0,0">

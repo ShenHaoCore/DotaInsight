@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DotaInsight.Models;
@@ -371,11 +373,13 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
     /// <summary>
     /// 异步补拉生涯英雄胜率：独立于主查询（失败静默），迟到结果按轮次作废。
+    /// 装饰性数据延到首帧之后（250ms）再拉，避免与首屏渲染争抢 UI 线程。
     /// </summary>
     private async Task LoadHeroWinratesAsync(long accountId, int epoch, CancellationToken token)
     {
         try
         {
+            await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(true);
             var stats = await _matchService.GetPlayerHeroStatsAsync(accountId, token).ConfigureAwait(true);
             if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
             {
@@ -411,10 +415,21 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
     // ===== 每日游玩热力图 =====
 
-    /// <summary>近 12 个月的日历热力图（周列 × 7 行）。</summary>
-    public ObservableCollection<PlayerActivityWeek> ActivityWeeks { get; } = new();
+    /// <summary>日历位图（53×7 预渲染，单元素零布局成本）。</summary>
+    [ObservableProperty]
+    private ImageSource? activityImage;
 
-    public bool HasActivity => ActivityWeeks.Count > 0;
+    /// <summary>位图宽度（供 Image 定宽）。</summary>
+    [ObservableProperty]
+    private double activityImageWidth;
+
+    /// <summary>扁平格清单（列优先），供悬浮提示按坐标反查。</summary>
+    public IReadOnlyList<PlayerActivityDay> ActivityCells { get; private set; } = [];
+
+    /// <summary>月标签行（与位图列一一对应）。</summary>
+    public IReadOnlyList<string?> ActivityMonthLabels { get; private set; } = [];
+
+    public bool HasActivity => ActivityImage is not null;
 
     /// <summary>标题右侧摘要（总场次 / 活跃天数 / 最多一天）。</summary>
     [ObservableProperty]
@@ -422,28 +437,34 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
     /// <summary>
     /// 异步补拉每日游玩热力图：独立于主查询（失败静默），迟到结果按轮次作废。
+    /// 装饰性数据延到首帧之后（Background 优先级）再拉，避免与首屏渲染争抢 UI 线程。
     /// </summary>
     private async Task LoadPlayerActivityAsync(long accountId, int epoch, CancellationToken token)
     {
         try
         {
+            await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(true);
+
             var heatmap = await _matchService.GetPlayerActivityAsync(accountId, token).ConfigureAwait(true);
             if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
             {
                 return;
             }
 
-            ActivityWeeks.Clear();
-            if (heatmap is not null)
+            if (heatmap is null || heatmap.Weeks.Count == 0)
             {
-                foreach (var week in heatmap.Weeks)
-                {
-                    ActivityWeeks.Add(week);
-                }
-
-                ActivitySummaryText = heatmap.SummaryText;
+                ActivityImage = null;
+                ActivityCells = [];
+                ActivityMonthLabels = [];
+                OnPropertyChanged(nameof(HasActivity));
+                return;
             }
 
+            ActivityImage = Helpers.ActivityCalendarRenderer.Render(heatmap.Weeks);
+            ActivityImageWidth = Helpers.ActivityCalendarRenderer.WidthFor(heatmap.Weeks.Count);
+            ActivityCells = heatmap.Weeks.SelectMany(w => w.Days).ToList();
+            ActivityMonthLabels = heatmap.Weeks.Select(w => w.MonthLabel).ToList();
+            ActivitySummaryText = heatmap.SummaryText;
             OnPropertyChanged(nameof(HasActivity));
         }
         catch (Exception ex)
