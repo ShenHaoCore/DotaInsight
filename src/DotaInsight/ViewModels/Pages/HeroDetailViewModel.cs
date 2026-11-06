@@ -387,11 +387,10 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     {
         try
         {
+            // chip 是克制列表前 3 名的子集，覆盖列表的两种 URL 即已覆盖 chip
             var urls = result.CounteredBy
                 .Concat(result.Counters)
                 .SelectMany(i => new[] { i.IconUrl, i.SmallIconUrl })
-                .Concat((MatchupTopCountered ?? []).Concat(MatchupTopCounters ?? [])
-                    .SelectMany(i => new[] { i.IconUrl, i.SmallIconUrl })))
                 .Where(u => !string.IsNullOrWhiteSpace(u))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
