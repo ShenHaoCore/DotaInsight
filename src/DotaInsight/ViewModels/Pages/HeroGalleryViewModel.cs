@@ -32,12 +32,16 @@ public partial class HeroGalleryViewModel : ObservableObject
         _shell = shell;
         _logger = logger.ForContext<HeroGalleryViewModel>();
         AllHeroes = new ObservableCollection<HeroStat>();
-        HeroGroups = new ObservableCollection<HeroAttrGroup>();
+        FilteredHeroes = new ObservableCollection<HeroStat>();
     }
 
     public ObservableCollection<HeroStat> AllHeroes { get; }
 
-    public ObservableCollection<HeroAttrGroup> HeroGroups { get; }
+    /// <summary>
+    /// 过滤后的扁平英雄列表（主属性顺序 + 中文名排序）；
+    /// 分组由页面的 CollectionViewSource 按 PrimaryAttr 完成，保证虚拟化整页生效。
+    /// </summary>
+    public ObservableCollection<HeroStat> FilteredHeroes { get; } = new();
 
     [ObservableProperty]
     private string searchText = string.Empty;
@@ -182,35 +186,20 @@ public partial class HeroGalleryViewModel : ObservableObject
                 || h.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
         }
 
+        // 扁平列表：主属性顺序在前（决定 CollectionView 的分组顺序），同属性内按中文名排序
         var filtered = query
-            .OrderBy(h => h.DisplayName, Helpers.HeroDisplayHelper.ChineseNameComparer)
+            .OrderBy(h => Array.IndexOf(AttrOrder, h.PrimaryAttr))
+            .ThenBy(h => h.DisplayName, Helpers.HeroDisplayHelper.ChineseNameComparer)
             .ToList();
 
         VisibleCount = filtered.Count;
 
-        var attrs = string.IsNullOrWhiteSpace(AttrFilter)
-            ? AttrOrder
-            : AttrOrder.Where(a => a == AttrFilter);
-
-        HeroGroups.Clear();
-        foreach (var attr in attrs)
+        // 分组本身由页面上的 CollectionViewSource（PrimaryAttr）完成，
+        // 这里只负责产出有序的扁平列表，让 VirtualizingWrapPanel 能整页虚拟化
+        FilteredHeroes.Clear();
+        foreach (var hero in filtered)
         {
-            var heroes = filtered
-                .Where(h => h.PrimaryAttr.Equals(attr, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (heroes.Count == 0)
-            {
-                continue;
-            }
-
-            var group = new HeroAttrGroup(attr, heroes.Count);
-            foreach (var hero in heroes)
-            {
-                group.Heroes.Add(hero);
-            }
-
-            HeroGroups.Add(group);
+            FilteredHeroes.Add(hero);
         }
 
         UpdateStatusMessage();
@@ -236,7 +225,7 @@ public partial class HeroGalleryViewModel : ObservableObject
         }
 
         _ = Helpers.HeroImageCache.WarmUpAsync(urls, decodeWidth: 160).ContinueWith(
-            _ => Helpers.UiDispatcher.OnUiAsync(() => OnPropertyChanged(nameof(HeroGroups))),
+            _ => Helpers.UiDispatcher.OnUiAsync(() => OnPropertyChanged(nameof(FilteredHeroes))),
             TaskScheduler.Default);
     }
 
@@ -252,26 +241,5 @@ public partial class HeroGalleryViewModel : ObservableObject
             ? $"{HeroCount} 名英雄"
             : $"显示 {VisibleCount} / {HeroCount}";
     }
-}
-
-/// <summary>
-/// 按主属性分组的英雄列表。
-/// </summary>
-public sealed class HeroAttrGroup
-{
-    public HeroAttrGroup(string attrName, int count)
-    {
-        AttrName = attrName;
-        Count = count;
-        Heroes = new ObservableCollection<HeroStat>();
-    }
-
-    public string AttrName { get; }
-
-    public int Count { get; }
-
-    public string HeaderText => $"{AttrName}  ·  {Count}";
-
-    public ObservableCollection<HeroStat> Heroes { get; }
 }
 
