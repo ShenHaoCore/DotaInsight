@@ -27,6 +27,11 @@ public interface IMatchAnalysisService
     /// 比赛尚未被 Valve 解析时返回的对象 <see cref="MatchDetail.HasPlayers"/> 为 false。
     /// </summary>
     Task<MatchDetail?> GetMatchDetailAsync(long matchId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 玩家生涯英雄胜率榜（按场次降序，最多 10 条）。失败/无数据返回空列表。
+    /// </summary>
+    Task<IReadOnlyList<PlayerHeroStat>> GetPlayerHeroStatsAsync(long accountId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -175,6 +180,75 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
     }
 
+    private const string PlayerHeroesCachePrefix = "opendota:playerHeroes:v1:";
+
+    private static readonly TimeSpan PlayerHeroesCacheTtl = TimeSpan.FromHours(6);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<PlayerHeroStat>> GetPlayerHeroStatsAsync(
+        long accountId,
+        CancellationToken cancellationToken = default)
+    {
+        if (accountId <= 0)
+        {
+            return [];
+        }
+
+        var cacheKey = PlayerHeroesCachePrefix + accountId;
+        var cached = _cache.Get<List<PlayerHeroStat>>(cacheKey);
+        if (cached is { Count: > 0 })
+        {
+            return cached;
+        }
+
+        try
+        {
+            var dtos = await Http
+                .GetFromJsonAsync<List<PlayerHeroStatDto>>(
+                    $"api/players/{accountId}/heroes",
+                    HttpCall.JsonOptions,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            var heroes = await _heroService.GetHeroesAsync(cancellationToken).ConfigureAwait(false);
+            var heroMap = heroes.ToDictionary(h => h.Id);
+
+            var list = (dtos ?? [])
+                .Select(d =>
+                {
+                    heroMap.TryGetValue(d.HeroId, out var hero);
+                    return new PlayerHeroStat
+                    {
+                        HeroId = d.HeroId,
+                        HeroName = hero?.DisplayName ?? $"#{d.HeroId}",
+                        HeroIconUrl = HeroAssetHelper.GetIconUrl(hero?.Name),
+                        Games = d.Games,
+                        Wins = d.Wins
+                    };
+                })
+                .OrderByDescending(s => s.Games)
+                .ThenByDescending(s => s.WinRate)
+                .Take(10)
+                .ToList();
+
+            if (list.Count > 0)
+            {
+                _cache.Set(cacheKey, list, PlayerHeroesCacheTtl);
+            }
+
+            return list;
+        }
+        catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "拉取英雄胜率榜失败 AccountId={AccountId}", accountId);
+            return _cache.GetStale<List<PlayerHeroStat>>(cacheKey) ?? [];
+        }
+    }
+
     private static RecentMatchItem MapMatch(
         RecentMatchDto dto,
         IReadOnlyDictionary<int, HeroStat> heroMap)
@@ -191,6 +265,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             HeroInternalName = hero?.Name ?? string.Empty,
             IconUrl = HeroAssetHelper.GetIconUrl(hero?.Name),
             IsWin = isWin,
+            GameMode = dto.GameMode,
             Kills = dto.Kills,
             Deaths = dto.Deaths,
             Assists = dto.Assists,
@@ -301,6 +376,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             .ToArray();
         var buildings = CollectBuildings(dto, heroByNpc, heroNameBySlot, out var mapEvents);
         mapEvents.AddRange(CollectKillEvents(dto, heroByNpc));
+        mapEvents.AddRange(CollectTeamfightEvents(dto));
         mapEvents.Sort((a, b) => a.Time.CompareTo(b.Time));
 
         return new MatchDetail
@@ -530,6 +606,31 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         return events;
     }
 
+    /// <summary>团战事件：一场团战一个刻度（起始时刻），收益方按经济净变化判定。</summary>
+    private static List<MatchMapEvent> CollectTeamfightEvents(MatchDetailDto dto)
+    {
+        var events = new List<MatchMapEvent>();
+        foreach (var tf in dto.Teamfights ?? [])
+        {
+            // 过滤无伤亡的空聚合（解析器可能给出 start==end 且 deaths=0 的条目）
+            if (tf.Deaths <= 0)
+            {
+                continue;
+            }
+
+            var goldDelta = tf.RadiantGoldAdvDelta ?? 0;
+            events.Add(new MatchMapEvent
+            {
+                Time = tf.Start,
+                Kind = MatchMapEventKind.TeamFight,
+                IsRadiant = goldDelta >= 0,
+                Label = $"团战 · {tf.Deaths} 次阵亡 · 天辉经济{(goldDelta >= 0 ? "+" : string.Empty)}{goldDelta}"
+            });
+        }
+
+        return events;
+    }
+
     /// <summary>lane_pos 聚合为单侧活动热区（"x,y" → 出现次数）。</summary>
     private static Dictionary<string, int> CollectHeatmap(MatchDetailDto dto, bool isRadiant)
     {
@@ -681,6 +782,21 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
 
         /// <summary>Ban/Pick 序列（队长模式 2 / 队长征召 16；team 0=天辉 1=夜魇）。</summary>
         [JsonPropertyName("picks_bans")] public List<MatchPickBanDto>? PicksBans { get; set; }
+
+        /// <summary>团战聚合（仅已解析比赛有）。</summary>
+        [JsonPropertyName("teamfights")] public List<MatchTeamfightDto>? Teamfights { get; set; }
+    }
+
+    internal sealed class MatchTeamfightDto
+    {
+        [JsonPropertyName("start")] public int Start { get; set; }
+
+        [JsonPropertyName("end")] public int End { get; set; }
+
+        [JsonPropertyName("deaths")] public int Deaths { get; set; }
+
+        /// <summary>团战期间天辉经济净变化（正=天辉赚）。</summary>
+        [JsonPropertyName("radiant_gold_adv_delta")] public int? RadiantGoldAdvDelta { get; set; }
     }
 
     internal sealed class MatchPickBanDto

@@ -185,6 +185,11 @@ public class MatchMapTests
             {"is_pick":true,"hero_id":33,"team":1,"order":2},
             {"is_pick":true,"hero_id":1,"team":0,"order":3}
           ],
+          "teamfights": [
+            {"start":1800,"end":1830,"deaths":6,"radiant_gold_adv_delta":1500},
+            {"start":2400,"end":2440,"deaths":4,"radiant_gold_adv_delta":-800},
+            {"start":2600,"end":2600,"deaths":0}
+          ],
           "players": [
             {
               "player_slot": 0,
@@ -243,5 +248,22 @@ public class MatchMapTests
         Assert.True(pick1.IsPick);
         Assert.False(pick1.IsRadiant); // team=1 = 夜魇
         Assert.False(string.IsNullOrEmpty(pick1.HeroIconUrl));
+    }
+
+    [Fact]
+    public void Teamfights_EmptyAggregatesFiltered_AttributionByGoldDelta()
+    {
+        var detail = MapMode();
+
+        var tfs = detail.MapEvents.Where(e => e.Kind == MatchMapEventKind.TeamFight).ToList();
+        Assert.Equal(2, tfs.Count); // deaths=0 的空聚合被过滤
+
+        var first = tfs[0];
+        Assert.Equal(1800, first.Time);
+        Assert.True(first.IsRadiant); // 天辉经济 +1500 → 天辉受益
+        Assert.Contains("6 次阵亡", first.Label);
+        Assert.Contains("+1500", first.Label);
+
+        Assert.False(tfs[1].IsRadiant); // 天辉 -800 → 夜魇受益
     }
 }

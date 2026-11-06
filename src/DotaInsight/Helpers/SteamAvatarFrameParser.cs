@@ -10,8 +10,9 @@ public static class SteamAvatarFrameParser
 {
     /// <summary>
     /// 从资料页 HTML 提取头像框图片地址；无框 / 标记不可信时返回 null。
-    /// 框图一律经 economy CDN 下发，因此要求 src 含 economy/image，
-    /// 防止把页面里紧邻的其他图片（头像、表情）误认成框。
+    /// 框图 CDN 随 Steam 迁移变化（曾为 community.*/economy/image，现为
+    /// shared.cdn.queniuqe.com/community_assets/...），因此只校验"是 http 图片"，
+    /// 不锁定 CDN 域名；结构特异性由「frame div 内第一个 img」保证。
     /// </summary>
     public static string? ExtractFrameUrl(string? html)
     {
@@ -63,9 +64,13 @@ public static class SteamAvatarFrameParser
             url = "https:" + url;
         }
 
-        return url.Contains("economy/image", StringComparison.OrdinalIgnoreCase)
-            && url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                ? url
-                : null;
+        // 排除头像本尊等非框图（框图在 community_assets / economy 等 CDN 路径下）
+        var isImage = url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            && !url.Contains("avatars.steamstatic.com", StringComparison.OrdinalIgnoreCase)
+            && (url.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                || url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                || url.Contains("economy/image", StringComparison.OrdinalIgnoreCase)
+                || url.Contains("community_assets", StringComparison.OrdinalIgnoreCase));
+        return isImage ? url : null;
     }
 }

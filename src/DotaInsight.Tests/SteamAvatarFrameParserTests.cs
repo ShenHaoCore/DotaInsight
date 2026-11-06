@@ -39,6 +39,42 @@ public class SteamAvatarFrameParserTests
     }
 
     [Fact]
+    public void Extracts_QueniuqeCdn_Url_InsidePicture()
+    {
+        // 2026-11 真实抓包：框图迁移到 shared.cdn.queniuqe.com（community_assets 路径），
+        // 且包在 <picture> 里带 prefers-reduced-motion 的 source
+        const string html = """
+            <div class="playerAvatarAutoSizeInner">
+                <div class="profile_avatar_frame">
+                    <picture>
+                        <source media="(prefers-reduced-motion: reduce)" srcset="https://shared.cdn.queniuqe.com/community_assets/images/items/570/cbd274867889e08f71c57e42004e2369a991463d.png"></source>
+                        <source srcset="https://shared.cdn.queniuqe.com/community_assets/images/items/570/c6a479fae8979bc9c1a02378e488e3ce06b52cb1.png"></source>
+                        <img src="https://shared.cdn.queniuqe.com/community_assets/images/items/570/c6a479fae8979bc9c1a02378e488e3ce06b52cb1.png">
+                    </picture>
+                </div>
+            </div>
+            """;
+
+        var url = SteamAvatarFrameParser.ExtractFrameUrl(html);
+
+        Assert.Equal(
+            "https://shared.cdn.queniuqe.com/community_assets/images/items/570/c6a479fae8979bc9c1a02378e488e3ce06b52cb1.png",
+            url);
+    }
+
+    [Fact]
+    public void Rejects_AvatarImage_AsFrame()
+    {
+        // 头像本尊（avatars CDN）不是框
+        const string html = """
+            <div class="profile_avatar_frame"></div>
+            <img src="https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg">
+            """;
+
+        Assert.Null(SteamAvatarFrameParser.ExtractFrameUrl(html));
+    }
+
+    [Fact]
     public void Returns_Null_WhenNoFrame()
     {
         const string html = """

@@ -215,6 +215,29 @@ public partial class HeroGalleryViewModel : ObservableObject
 
         UpdateStatusMessage();
         OnPropertyChanged(nameof(HasNoResults));
+        WarmUpHeroImages();
+    }
+
+    /// <summary>
+    /// 图鉴全量预热：后台下载全部英雄渲染图，落盘后在 UI 线程重新生成图块绑定。
+    /// HeroImageCache 冷未命中在 UI 线程返回空位（绝不同步等网络），靠这一步补图。
+    /// </summary>
+    private void WarmUpHeroImages()
+    {
+        var urls = _allHeroes
+            .Select(h => h.IconUrl)
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (urls.Count == 0)
+        {
+            return;
+        }
+
+        _ = Helpers.HeroImageCache.WarmUpAsync(urls, decodeWidth: 160).ContinueWith(
+            _ => Helpers.UiDispatcher.OnUiAsync(() => OnPropertyChanged(nameof(HeroGroups))),
+            TaskScheduler.Default);
     }
 
     private void UpdateStatusMessage()

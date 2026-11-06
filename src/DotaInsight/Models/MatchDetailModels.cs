@@ -203,6 +203,8 @@ public enum MatchMapEventKind
 
     FirstBlood,
 
+    TeamFight,
+
     Kill
 }
 

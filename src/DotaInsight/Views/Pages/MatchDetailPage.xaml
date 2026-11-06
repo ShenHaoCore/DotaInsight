@@ -814,6 +814,7 @@
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="{DynamicResource DiAdvantageBrush}" />
+                                                        <Setter Property="BorderThickness" Value="0" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsRadiant}" Value="False">
                                                                 <Setter Property="Background" Value="{DynamicResource DiDisadvantageBrush}" />
@@ -826,6 +827,12 @@
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Kind}" Value="FirstBlood">
                                                                 <Setter Property="Background" Value="{DynamicResource DiPrimaryTextBrush}" />
+                                                            </DataTrigger>
+                                                            <!-- 团战：白描边空心条，与实心的胜负刻度区分 -->
+                                                            <DataTrigger Binding="{Binding Kind}" Value="TeamFight">
+                                                                <Setter Property="Background" Value="Transparent" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource DiPrimaryTextBrush}" />
+                                                                <Setter Property="BorderThickness" Value="1.5" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -892,7 +899,7 @@
                         </DockPanel>
                     </StackPanel>
 
-                    <TextBlock Text="图例：金点=观察守卫 · 蓝点=岗哨守卫 · 描边绿=天辉 红=夜魇 · 建筑绿/红=立起 灰=已倒 · 刻度：绿/红=推塔 金=肉山 白=一血，点按跳转"
+                    <TextBlock Text="图例：金点=观察守卫 · 蓝点=岗哨守卫 · 描边绿=天辉 红=夜魇 · 建筑绿/红=立起 灰=已倒 · 刻度：实心=推塔 金=肉山 白=一血 空心=团战，点按跳转"
                                Margin="2,8,0,0" FontSize="10" TextWrapping="Wrap"
                                Foreground="{DynamicResource DiMutedTextBrush}" />
                 </StackPanel>

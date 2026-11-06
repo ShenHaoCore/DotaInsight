@@ -95,6 +95,9 @@ public sealed class RecentMatchItem
 
     public string SideText => IsRadiant ? "天辉" : "夜魇";
 
+    /// <summary>游戏模式枚举（22=天梯全阵营 23=加速 3=随机征召 18=技能征召…），0=未知。</summary>
+    public int GameMode { get; init; }
+
     public string StartTimeText => StartTimeLocal.ToString("MM-dd HH:mm");
 }
 
@@ -193,6 +196,41 @@ public sealed class RecentHeroSummary
 }
 
 /// <summary>OpenDota recentMatches DTO。</summary>
+/// <summary>
+/// 玩家生涯英雄胜率条目（/players/{id}/heroes，按场次排序后截取）。
+/// </summary>
+public sealed class PlayerHeroStat
+{
+    public int HeroId { get; init; }
+
+    public string HeroName { get; init; } = string.Empty;
+
+    public string HeroIconUrl { get; init; } = string.Empty;
+
+    public int Games { get; init; }
+
+    public int Wins { get; init; }
+
+    public double WinRate => Games > 0 ? Wins * 100.0 / Games : 0;
+
+    public string WinRateText => $"{WinRate:F1}%";
+
+    public string GamesText => $"{Games} 场";
+}
+
+/// <summary>/players/{id}/heroes 条目。</summary>
+internal sealed class PlayerHeroStatDto
+{
+    [JsonPropertyName("hero_id")]
+    public int HeroId { get; set; }
+
+    [JsonPropertyName("games")]
+    public int Games { get; set; }
+
+    [JsonPropertyName("win")]
+    public int Wins { get; set; }
+}
+
 internal sealed class RecentMatchDto
 {
     [JsonPropertyName("match_id")]
@@ -212,6 +250,9 @@ internal sealed class RecentMatchDto
 
     [JsonPropertyName("start_time")]
     public long StartTime { get; set; }
+
+    [JsonPropertyName("game_mode")]
+    public int GameMode { get; set; }
 
     [JsonPropertyName("kills")]
     public int Kills { get; set; }

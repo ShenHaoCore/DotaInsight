@@ -79,14 +79,36 @@ public static class HeroImageCache
             TryDeleteCorruptedFile(localPath);
         }
 
-        // 远程图先不进磁盘路径：失败重试时还能重新拉取；落盘成功后由下次 Get 走文件路径。
-        // WPF 网络栈的直载位图同样进内存缓存 —— 首屏多个控件绑同一 URL 时复用同一
-        // BitmapImage 实例（WPF 内部按 Uri 去重下载），不重复分配解码对象。
+        // 冷路径（内存与磁盘都没有）：
+        // 先后台排队下载落盘；UI 线程上绝不返回 WPF 懒下载位图——那会在首次渲染时
+        // 同步走网络，弱网下每张冷图都是一次界面冻结。UI 线程直接返回 null 占位，
+        // 由调用方的预热/重新求值补图；非 UI 线程（IsAsync 绑定、预热流程）短暂
+        // 等待落盘后走磁盘同步解码，首次就能出图。
         QueueDownload(url, localPath, storeWidth);
-        var direct = LoadFromUri(url, decodeWidth);
-        MemoryCache[memoryKey] = direct;
-        return direct;
+
+        if (IsOnUiThread())
+        {
+            return null;
+        }
+
+        // 非 UI 线程：等待后台下载落盘（上限约 3 秒），拿到文件即同步解码
+        for (var i = 0; i < 30 && !File.Exists(localPath); i++)
+        {
+            Thread.Sleep(100);
+        }
+
+        if (TryLoadFromDisk(localPath, decodeWidth, out var downloaded) && downloaded is not null)
+        {
+            MemoryCache[memoryKey] = downloaded;
+            return downloaded;
+        }
+
+        return null;
     }
+
+    /// <summary>当前是否在 UI（Dispatcher）线程上。</summary>
+    private static bool IsOnUiThread()
+        => Application.Current?.Dispatcher.CheckAccess() ?? true;
 
     /// <summary>
     /// 后台预下载缺失图片到本地，完成后预热内存缓存。
@@ -549,18 +571,6 @@ public static class HeroImageCache
         {
             // ignore：被占用时删不掉，下次 Get 再试
         }
-    }
-
-    private static ImageSource LoadFromUri(string url, int decodeWidth)
-    {
-        var bitmap = new BitmapImage();
-        bitmap.BeginInit();
-        bitmap.UriSource = new Uri(url, UriKind.Absolute);
-        bitmap.DecodePixelWidth = decodeWidth;
-        bitmap.CreateOptions = BitmapCreateOptions.DelayCreation;
-        bitmap.CacheOption = BitmapCacheOption.OnDemand;
-        bitmap.EndInit();
-        return bitmap;
     }
 
     private static string GetLocalPath(string url, int storeWidth = 0)

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.IO;
 using System.Net.Http;
 using DotaInsight.Helpers;
 using Serilog;
@@ -50,7 +49,7 @@ public sealed class SteamAvatarFrameService : ISteamAvatarFrameService
     }
 
     /// <summary>v2：解析器演进时换版本号，避免旧键的错误结果（如确认无框）长期压住新解析。</summary>
-    private static string CacheKey(long accountId) => $"steam:frame:v3:{accountId}";
+    private static string CacheKey(long accountId) => $"steam:frame:v4:{accountId}";
 
     /// <summary>资料页响应分类（纯函数，可测）。</summary>
     internal enum SteamProfileHtmlKind

@@ -161,6 +161,39 @@
         <Setter Property="Template" Value="{StaticResource DiProgressBarTemplate}" />
     </Style>
 
+    <!-- 筛选小芯片：checked = 抬表面 + 主文字色，不用强调红（红留给页签/当前账号） -->
+    <Style x:Key="DiChipRadio" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bd"
+                            Background="Transparent"
+                            BorderBrush="{DynamicResource DiStrokeBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="10,3">
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DiTileHoverBorderBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ================= 卡片 ================= -->
     <Style x:Key="DiPanelCardStyle" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource DiPanelBrush}" />

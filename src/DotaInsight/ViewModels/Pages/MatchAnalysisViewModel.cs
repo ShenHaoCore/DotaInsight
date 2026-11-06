@@ -177,16 +177,16 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                     _ = LoadAvatarFrameAsync(accountId, frameEpoch, token);
                 }
 
-                Matches.Clear();
-                foreach (var match in result.Matches)
-                {
-                    Matches.Add(match);
-                }
+                _allMatches = result.Matches;
+                RebuildHeroFilterOptions();
+                ApplyMatchFilters();
 
                 RefreshRecentHeroes(result.Matches);
                 RefreshPlaystyle(result);
                 UpdateChart(result.Matches);
                 HasData = !result.IsEmpty;
+                WarmUpMatchImages(result.Matches);
+                _ = LoadHeroWinratesAsync(accountId, frameEpoch, token);
 
                 if (result.IsEmpty)
                 {
@@ -245,6 +245,167 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             // 含用户取消与网络失败：框是装饰，不值得任何打扰
             _logger.Debug(ex, "头像框加载跳过 AccountId={AccountId}", accountId);
         }
+    }
+
+    // ===== 比赛筛选 =====
+
+    private IReadOnlyList<RecentMatchItem> _allMatches = [];
+
+    /// <summary>胜负筛选：0 全部 / 1 胜 / 2 负。</summary>
+    [ObservableProperty]
+    private int resultFilter;
+
+    /// <summary>模式筛选：0 全部 / 1 常规 / 2 加速。</summary>
+    [ObservableProperty]
+    private int modeFilter;
+
+    /// <summary>英雄筛选（英雄名）。</summary>
+    [ObservableProperty]
+    private string? heroFilter = AllHeroesFilter;
+
+    /// <summary>英雄筛选下拉的候选。</summary>
+    public ObservableCollection<string> HeroFilterOptions { get; } = [AllHeroesFilter];
+
+    /// <summary>列表头计数：筛选后与总数不同时显示「N / M 场」。</summary>
+    [ObservableProperty]
+    private string matchCountText = string.Empty;
+
+    /// <summary>筛选后仍有对局可展示。</summary>
+    public bool HasVisibleMatches => Matches.Count > 0;
+
+    /// <summary>已查到数据但筛后为空：显示「没有符合筛选条件的对局」而不是「未查询」。</summary>
+    public bool HasFilteredEmpty => HasData && Matches.Count == 0;
+
+    /// <summary>英雄筛选的「不过滤」占位项。</summary>
+    public const string AllHeroesFilter = "全部英雄";
+
+    partial void OnResultFilterChanged(int value) => ApplyMatchFilters();
+
+    partial void OnModeFilterChanged(int value) => ApplyMatchFilters();
+
+    partial void OnHeroFilterChanged(string? value) => ApplyMatchFilters();
+
+    private void RebuildHeroFilterOptions()
+    {
+        HeroFilterOptions.Clear();
+        HeroFilterOptions.Add(AllHeroesFilter);
+        foreach (var name in _allMatches.Select(m => m.HeroName).Distinct())
+        {
+            HeroFilterOptions.Add(name);
+        }
+
+        HeroFilter = AllHeroesFilter;
+    }
+
+    /// <summary>按胜负 / 模式 / 英雄过滤比赛列表（纯客户端，不重新请求）。</summary>
+    private void ApplyMatchFilters()
+    {
+        IEnumerable<RecentMatchItem> query = _allMatches;
+
+        if (ResultFilter == 1)
+        {
+            query = query.Where(m => m.IsWin);
+        }
+        else if (ResultFilter == 2)
+        {
+            query = query.Where(m => !m.IsWin);
+        }
+
+        if (ModeFilter == 1)
+        {
+            query = query.Where(m => m.GameMode != 23);
+        }
+        else if (ModeFilter == 2)
+        {
+            query = query.Where(m => m.GameMode == 23);
+        }
+
+        if (!string.IsNullOrWhiteSpace(HeroFilter) && HeroFilter != AllHeroesFilter)
+        {
+            query = query.Where(m => m.HeroName == HeroFilter);
+        }
+
+        Matches.Clear();
+        foreach (var match in query)
+        {
+            Matches.Add(match);
+        }
+
+        MatchCountText = Matches.Count == _allMatches.Count
+            ? $"{_allMatches.Count} 场"
+            : $"{Matches.Count} / {_allMatches.Count} 场";
+        OnPropertyChanged(nameof(HasVisibleMatches));
+        OnPropertyChanged(nameof(HasFilteredEmpty));
+    }
+
+    /// <summary>
+    /// 比赛图标与头像后台预热，落盘后重放筛选让绑定重新求值——
+    /// HeroImageCache 冷未命中在 UI 线程返回空位，靠这一步补图。
+    /// </summary>
+    private void WarmUpMatchImages(IReadOnlyList<RecentMatchItem> matches)
+    {
+        var urls = matches
+            .Select(m => m.IconUrl)
+            .Concat([Profile?.AvatarUrl ?? string.Empty, AvatarFrameUrl])
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (urls.Count == 0)
+        {
+            return;
+        }
+
+        _ = Helpers.HeroImageCache.WarmUpAsync(urls, decodeWidth: 120).ContinueWith(
+            _ => Helpers.UiDispatcher.OnUiAsync(ApplyMatchFilters),
+            TaskScheduler.Default);
+    }
+
+    // ===== 英雄胜率榜 =====
+
+    /// <summary>生涯英雄胜率（按场次降序，最多 10 条）。</summary>
+    public ObservableCollection<PlayerHeroStat> HeroWinrates { get; } = new();
+
+    public bool HasHeroWinrates => HeroWinrates.Count > 0;
+
+    /// <summary>
+    /// 异步补拉生涯英雄胜率：独立于主查询（失败静默），迟到结果按轮次作废。
+    /// </summary>
+    private async Task LoadHeroWinratesAsync(long accountId, int epoch, CancellationToken token)
+    {
+        try
+        {
+            var stats = await _matchService.GetPlayerHeroStatsAsync(accountId, token).ConfigureAwait(true);
+            if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            HeroWinrates.Clear();
+            foreach (var stat in stats)
+            {
+                HeroWinrates.Add(stat);
+            }
+
+            OnPropertyChanged(nameof(HasHeroWinrates));
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "英雄胜率榜加载跳过 AccountId={AccountId}", accountId);
+        }
+    }
+
+    /// <summary>点击胜率榜条目：跳到该英雄的详情页。</summary>
+    [RelayCommand]
+    private void OpenHeroStat(PlayerHeroStat? stat)
+    {
+        if (stat is null || stat.HeroId <= 0)
+        {
+            return;
+        }
+
+        _shell.CurrentPageTitle = "英雄详情";
+        _navigation.NavigateTo(MainWindowViewModel.HeroDetailPageKey, stat.HeroId);
     }
 
     /// <summary>打开展示某场比赛的详情。</summary>

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DotaInsight.Helpers;
@@ -39,6 +40,11 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         EventTicks = new ObservableCollection<MapEventTick>();
         KillTicks = new ObservableCollection<MapEventTick>();
         AdvantageSeries = Array.Empty<ISeries>();
+        _mapRefreshTimer.Tick += (_, _) =>
+        {
+            _mapRefreshTimer.Stop();
+            ApplyMapState();
+        };
     }
 
     public ObservableCollection<MatchPlayerItem> Radiant { get; }
@@ -206,6 +212,15 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
         CurrentTime = Math.Max(0, tick.Time);
     }
+
+    /// <summary>
+    /// 时间轴拖动节流：拖动时 Value 每像素一变，眼位+建筑+摘要全量重建会卡顿——
+    /// 60ms 合并一次重建（文字类轻更新仍即时）。
+    /// </summary>
+    private readonly System.Windows.Threading.DispatcherTimer _mapRefreshTimer = new(DispatcherPriority.Background)
+    {
+        Interval = TimeSpan.FromMilliseconds(60)
+    };
 
     private async Task LoadAsync(long id)
     {
@@ -547,7 +562,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         var t = (int)CurrentTime;
         var scope = _allEvents.Where(e => t < 0 || e.Time <= t).ToList();
 
-        int towerR = 0, towerD = 0, raxR = 0, raxD = 0, roshR = 0, roshD = 0;
+        int towerR = 0, towerD = 0, raxR = 0, raxD = 0, roshR = 0, roshD = 0, tfR = 0, tfD = 0;
         var firstBlood = false;
         foreach (var e in scope)
         {
@@ -565,6 +580,10 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                     if (e.IsRadiant) roshR++;
                     else roshD++;
                     break;
+                case MatchMapEventKind.TeamFight:
+                    if (e.IsRadiant) tfR++;
+                    else tfD++;
+                    break;
                 case MatchMapEventKind.FirstBlood:
                     firstBlood = true;
                     break;
@@ -580,6 +599,11 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         if (roshR + roshD > 0)
         {
             parts.Add($"肉山 天{roshR} 夜{roshD}");
+        }
+
+        if (tfR + tfD > 0)
+        {
+            parts.Add($"团战 天{tfR} 夜{tfD}");
         }
 
         if (firstBlood)
@@ -605,7 +629,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
         if (_allWards.Count > 0 || _allBuildings.Count > 0 || _allEvents.Count > 0)
         {
-            ApplyMapState();
+            // 重建合并到 60ms 节流器：拖动结束后的最后一次状态必然被应用
+            _mapRefreshTimer.Stop();
+            _mapRefreshTimer.Start();
         }
     }
 
