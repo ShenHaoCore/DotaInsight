@@ -31,16 +31,37 @@ public static class ActivityCalendarRenderer
         Color.FromArgb(0xE6, 0x2F, 0xD5, 0x7F)
     ];
 
-    /// <summary>渲染日历位图；无周数据返回 null。</summary>
-    public static ImageSource? Render(IReadOnlyList<PlayerActivityWeek> weeks)
+    /// <summary>自适应格子的下限（px）：低于此值不再缩小，改为出滚动条。</summary>
+    public const double MinCellSize = 10;
+
+    /// <summary>自适应格子的上限（px）：窗口再宽也不无限放大，避免格子过于粗大。</summary>
+    public const double MaxCellSize = 18;
+
+    /// <summary>按可用宽度反推格子边长，钳制在 [MinCellSize, MaxCellSize]。</summary>
+    public static double ComputeCellSize(double availableWidth, int weekCount)
+    {
+        if (weekCount <= 0 || availableWidth <= 0)
+        {
+            return CellSize;
+        }
+
+        var stride = availableWidth / weekCount;
+        return Math.Clamp(Math.Floor(stride - GapSize), MinCellSize, MaxCellSize);
+    }
+
+    /// <summary>渲染日历位图；无周数据返回 null。格子尺寸可自适应容器宽度。</summary>
+    public static ImageSource? Render(
+        IReadOnlyList<PlayerActivityWeek> weeks,
+        double cellSize = CellSize,
+        double gapSize = GapSize)
     {
         if (weeks.Count == 0)
         {
             return null;
         }
 
-        var width = (int)(weeks.Count * (CellSize + GapSize));
-        var height = (int)(7 * (CellSize + GapSize));
+        var width = (int)(weeks.Count * (cellSize + gapSize));
+        var height = (int)(7 * (cellSize + gapSize));
 
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
@@ -61,10 +82,10 @@ public static class ActivityCalendarRenderer
                     brush.Freeze();
 
                     var rect = new Rect(
-                        w * (CellSize + GapSize) + GapSize / 2,
-                        d * (CellSize + GapSize) + GapSize / 2,
-                        CellSize,
-                        CellSize);
+                        w * (cellSize + gapSize) + gapSize / 2,
+                        d * (cellSize + gapSize) + gapSize / 2,
+                        cellSize,
+                        cellSize);
                     dc.DrawRectangle(brush, null, rect);
                 }
             }
@@ -77,5 +98,6 @@ public static class ActivityCalendarRenderer
     }
 
     /// <summary>位图总宽（供 Image 元素定宽）。</summary>
-    public static double WidthFor(int weekCount) => weekCount * (CellSize + GapSize);
+    public static double WidthFor(int weekCount, double cellSize = CellSize, double gapSize = GapSize)
+        => weekCount * (cellSize + gapSize);
 }

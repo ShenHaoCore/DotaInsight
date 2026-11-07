@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using DotaInsight.Models;
@@ -59,8 +60,8 @@ public partial class MatchAnalysisPage : Page
         var px = pos.X * source.Width / Math.Max(1, image.ActualWidth);
         var py = pos.Y * source.Height / Math.Max(1, image.ActualHeight);
 
-        const double cell = Helpers.ActivityCalendarRenderer.CellSize;
-        const double gap = Helpers.ActivityCalendarRenderer.GapSize;
+        var cell = _viewModel.ActivityCellSize;
+        var gap = Helpers.ActivityCalendarRenderer.GapSize;
         var stride = cell + gap;
 
         var col = (int)Math.Floor((px - gap / 2) / stride);
@@ -94,4 +95,8 @@ public partial class MatchAnalysisPage : Page
             image.ToolTip = null;
         }
     }
+
+    /// <summary>热力图容器宽度变化：格子自适应铺满可用宽度并重渲位图。</summary>
+    private void OnActivitySizeChanged(object sender, SizeChangedEventArgs e)
+        => _viewModel.RebuildActivityImage(e.NewSize.Width);
 }

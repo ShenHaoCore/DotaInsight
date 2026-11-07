@@ -204,9 +204,10 @@
                                        Foreground="{DynamicResource DiMutedTextBrush}" />
                         </DockPanel>
 
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                      SizeChanged="OnActivitySizeChanged">
                             <StackPanel>
-                                <!-- 月标签行：与位图列一一对应 -->
+                                <!-- 月标签行：与位图列一一对应（单元宽 = 格子步长） -->
                                 <ItemsControl ItemsSource="{Binding ActivityMonthLabels}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -215,7 +216,8 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Width="16" Height="14" FontSize="10"
+                                            <TextBlock Height="14" FontSize="10"
+                                                       Width="{Binding DataContext.ActivityMonthLabelWidth, RelativeSource={RelativeSource AncestorType=Page}}"
                                                        Text="{Binding}"
                                                        Foreground="{DynamicResource DiMutedTextBrush}" />
                                         </DataTemplate>
@@ -223,9 +225,10 @@
                                 </ItemsControl>
 
                                 <!-- 日历位图：单元素渲染（53×7 格），悬浮提示按坐标反查 -->
-                                <Image Source="{Binding ActivityImage}"
+                                <Image HorizontalAlignment="Left"
+                                       Source="{Binding ActivityImage}"
                                        Width="{Binding ActivityImageWidth}"
-                                       Height="84"
+                                       Height="{Binding ActivityImageHeight}"
                                        Stretch="None"
                                        MouseMove="OnActivityImageMouseMove"
                                        MouseLeave="OnActivityImageMouseLeave" />

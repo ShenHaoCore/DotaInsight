@@ -431,8 +431,22 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     private double activityImageWidth;
 
+    /// <summary>位图高度（格子自适应后随之变化）。</summary>
+    [ObservableProperty]
+    private double activityImageHeight = 84;
+
+    /// <summary>月标签单元宽度（= 格子步长，与位图列对齐）。</summary>
+    [ObservableProperty]
+    private double activityMonthLabelWidth = 12;
+
+    /// <summary>当前渲染使用的格子边长（悬浮命中反查与渲染保持一致）。</summary>
+    public double ActivityCellSize { get; private set; } = Helpers.ActivityCalendarRenderer.CellSize;
+
     /// <summary>扁平格清单（列优先），供悬浮提示按坐标反查。</summary>
     public IReadOnlyList<PlayerActivityDay> ActivityCells { get; private set; } = [];
+
+    /// <summary>最近一次构建的热力图数据，供格子自适应后重渲。</summary>
+    private PlayerActivityHeatmap? _activityHeatmap;
 
     /// <summary>月标签行（与位图列一一对应）。</summary>
     public IReadOnlyList<string?> ActivityMonthLabels { get; private set; } = [];
@@ -461,24 +475,64 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
             if (heatmap is null || heatmap.Weeks.Count == 0)
             {
+                _activityHeatmap = null;
                 ActivityImage = null;
                 ActivityCells = [];
                 ActivityMonthLabels = [];
+                OnPropertyChanged(nameof(ActivityMonthLabels));
                 OnPropertyChanged(nameof(HasActivity));
                 return;
             }
 
-            ActivityImage = Helpers.ActivityCalendarRenderer.Render(heatmap.Weeks);
-            ActivityImageWidth = Helpers.ActivityCalendarRenderer.WidthFor(heatmap.Weeks.Count);
+            _activityHeatmap = heatmap;
             ActivityCells = heatmap.Weeks.SelectMany(w => w.Days).ToList();
             ActivityMonthLabels = heatmap.Weeks.Select(w => w.MonthLabel).ToList();
             ActivitySummaryText = heatmap.SummaryText;
+            // 普通属性无自动通知：列表晚于绑定求值到达，必须手动通知 ItemsControl 刷新
+            OnPropertyChanged(nameof(ActivityMonthLabels));
+            RebuildActivityImage(null);
             OnPropertyChanged(nameof(HasActivity));
         }
         catch (Exception ex)
         {
             _logger.Debug(ex, "每日游玩热力图加载跳过 AccountId={AccountId}", accountId);
         }
+    }
+
+    /// <summary>最近一次容器可用宽度（SizeChanged 时记录），数据晚于布局到达时复用。</summary>
+    private double _activityAvailableWidth;
+
+    /// <summary>
+    /// 按可用宽度自适应重渲热力图：格子尽量放大铺满容器，钳制在 [10, 18]，
+    /// 低于下限保持 10（窄窗出滚动条）。availableWidth 为 null 时用最近记录的宽度。
+    /// </summary>
+    public void RebuildActivityImage(double? availableWidth)
+    {
+        if (_activityHeatmap is null || _activityHeatmap.Weeks.Count == 0)
+        {
+            return;
+        }
+
+        if (availableWidth is { } w && w > 0)
+        {
+            _activityAvailableWidth = w;
+        }
+
+        var gap = Helpers.ActivityCalendarRenderer.GapSize;
+        var source = availableWidth ?? (_activityAvailableWidth > 0 ? _activityAvailableWidth : null);
+        var cell = source is { } width
+            ? Helpers.ActivityCalendarRenderer.ComputeCellSize(width, _activityHeatmap.Weeks.Count)
+            : ActivityCellSize;
+        if (Math.Abs(cell - ActivityCellSize) < 0.5 && ActivityImage is not null)
+        {
+            return; // 尺寸未变，跳过重渲
+        }
+
+        ActivityCellSize = cell;
+        ActivityImage = Helpers.ActivityCalendarRenderer.Render(_activityHeatmap.Weeks, cell, gap);
+        ActivityImageWidth = Helpers.ActivityCalendarRenderer.WidthFor(_activityHeatmap.Weeks.Count, cell, gap);
+        ActivityImageHeight = 7 * (cell + gap);
+        ActivityMonthLabelWidth = cell + gap;
     }
 
     /// <summary>打开展示某场比赛的详情。</summary>
