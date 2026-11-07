@@ -36,7 +36,7 @@ public class MatchMapTests
                 {"time":588,"key":"npc_dota_hero_pangolier"},
                 {"time":600,"key":"npc_dota_hero_medusa"}
               ],
-              "lane_pos": {"76": {"76": 12}, "40": {"60": 3}}
+              "lane_pos": {"76": {"76": 12}, "90": {"110": 3}}
             },
             {
               "player_slot": 129,
@@ -44,7 +44,7 @@ public class MatchMapTests
               "kills_log": [
                 {"time":366,"key":"npc_dota_hero_medusa"}
               ],
-              "lane_pos": {"90": {"30": 8}}
+              "lane_pos": {"154": {"140": 8}}
             }
           ]
         }
@@ -166,10 +166,11 @@ public class MatchMapTests
     {
         var detail = Map();
 
+        // 键入库前先换算到 UV 空间（官方 gameCoordToUV：u=x-64，v=191-y）
         Assert.Equal(2, detail.RadiantHeatmap.Count);
-        Assert.Equal(12, detail.RadiantHeatmap["76,76"]);
-        Assert.Equal(3, detail.RadiantHeatmap["40,60"]);
-        Assert.Equal(8, detail.DireHeatmap["90,30"]);
+        Assert.Equal(12, detail.RadiantHeatmap["12,115"]);
+        Assert.Equal(3, detail.RadiantHeatmap["26,81"]);
+        Assert.Equal(8, detail.DireHeatmap["90,51"]);
     }
 
     /// <summary>OMG（模式 18）+ 队长模式的模式专属字段 fixture。</summary>
