@@ -409,16 +409,22 @@
                             <!-- 属性：官网式单面板 -->
                             <Border Style="{StaticResource DiPanelCardStyle}" Padding="16"
                                     Visibility="{Binding HasHero, Converter={StaticResource BoolVisibility}}">
-                                <StackPanel>
-                                    <StackPanel Style="{StaticResource DiCardTitleRow}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Style="{StaticResource DiCardTitleRow}">
                                         <TextBlock Text="属性" Style="{StaticResource DiSectionTitleStyle}" />
                                     </StackPanel>
 
-                                    <Border CornerRadius="4" Padding="14,12"
+                                    <Border Grid.Row="1" CornerRadius="4" Padding="14,12"
                                             Background="{DynamicResource DiRowBrush}"
                                             BorderBrush="{DynamicResource DiStrokeBrush}"
                                             BorderThickness="1">
-                                        <StackPanel>
+                                        <StackPanel VerticalAlignment="Center">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
@@ -627,7 +633,7 @@
                                             </Grid>
                                         </StackPanel>
                                     </Border>
-                                </StackPanel>
+                                </Grid>
 
                             <!-- 右栏：定位 + 背景故事 -->
                             </Border>
