@@ -437,7 +437,7 @@
                                 Margin="0,0,0,12"
                                 Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVisibilityConverter}}">
                             <StackPanel>
-                                <DockPanel Margin="2,0,2,8">
+                                <DockPanel Margin="2,0,2,8" LastChildFill="False">
                                     <TextBlock Text="我的账号" Style="{StaticResource DiSectionTitleStyle}" />
                                     <TextBlock DockPanel.Dock="Right"
                                                Text="{Binding Accounts.Count, StringFormat={}· {0}}"
@@ -537,7 +537,7 @@
                                 Margin="0,0,0,12"
                                 Visibility="{Binding HasRecentHeroes, Converter={StaticResource BoolToVisibilityConverter}}">
                             <StackPanel>
-                                <DockPanel Margin="2,0,2,8">
+                                <DockPanel Margin="2,0,2,8" LastChildFill="False">
                                     <TextBlock Text="近期常用英雄" Style="{StaticResource DiSectionTitleStyle}" />
                                     <TextBlock DockPanel.Dock="Right"
                                                Text="{Binding RecentHeroes.Count, StringFormat={}· {0}}"
@@ -549,6 +549,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Button Margin="0,0,0,4"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                                     Cursor="Hand"
                                                     Focusable="False"
                                                     Command="{Binding DataContext.OpenRecentHeroCommand,
@@ -558,9 +559,7 @@
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
                                                         <Border x:Name="Card"
-                                                                Background="Transparent"
-                                                                BorderBrush="{DynamicResource DiStrokeBrush}"
-                                                                BorderThickness="1"
+                                                                Background="{DynamicResource DiRowBrush}"
                                                                 CornerRadius="4"
                                                                 Padding="10,8">
                                                             <ContentPresenter />
@@ -569,8 +568,6 @@
                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter TargetName="Card" Property="Background"
                                                                         Value="{DynamicResource DiRowHoverBrush}" />
-                                                                <Setter TargetName="Card" Property="BorderBrush"
-                                                                        Value="{DynamicResource DiTileHoverBorderBrush}" />
                                                             </Trigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
@@ -620,7 +617,7 @@
                                 Padding="12,10"
                                 Visibility="{Binding HasHeroWinrates, Converter={StaticResource BoolToVisibilityConverter}}">
                             <StackPanel>
-                                <DockPanel Margin="2,0,2,8">
+                                <DockPanel Margin="2,0,2,8" LastChildFill="False">
                                     <TextBlock Text="英雄胜率榜" Style="{StaticResource DiSectionTitleStyle}" />
                                     <TextBlock DockPanel.Dock="Right"
                                                Text="生涯 · 按场次"
