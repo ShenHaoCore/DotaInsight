@@ -11,6 +11,14 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:IndexPlusOneConverter x:Key="IndexPlusOneConverter" />
         <converters:BracketSparklineConverter x:Key="BracketSparkline" />
+        <LinearGradientBrush x:Key="SparkWinFill" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#592FD57F" Offset="0" />
+            <GradientStop Color="#0D2FD57F" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="SparkPickFill" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#594FC3F7" Offset="0" />
+            <GradientStop Color="#0D4FC3F7" Offset="1" />
+        </LinearGradientBrush>
 
         <!-- 功能入口：横向一行，图标 + 名称 + 说明 + 箭头，悬停抬表面 -->
         <Style x:Key="HomeFeatureButtonStyle" TargetType="Button">
@@ -55,6 +63,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Style="{StaticResource DiRankNumberStyle}"
                                Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter},
@@ -71,9 +80,13 @@
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
                     <Grid Grid.Column="3" Width="76" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
                           ToolTip="{Binding BracketWinTooltip}">
-                        <Polyline Points="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}}"
-                                  Stroke="{DynamicResource DiSecondaryTextBrush}" StrokeThickness="1.4"
-                                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}, ConverterParameter=fill}"
+                              Fill="{StaticResource SparkWinFill}" />
+                        <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}}"
+                              Stroke="{DynamicResource DiAdvantageBrush}" StrokeThickness="1.5"
+                              StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}, ConverterParameter=dot}"
+                              Fill="{DynamicResource DiAdvantageBrush}" />
                     </Grid>
                     <TextBlock Grid.Column="4" Text="{Binding WinRateText}" FontSize="14" FontWeight="Medium"
                                VerticalAlignment="Center"
@@ -89,6 +102,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Style="{StaticResource DiRankNumberStyle}"
@@ -106,9 +120,13 @@
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
                     <Grid Grid.Column="3" Width="76" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
                           ToolTip="{Binding BracketPickTooltip}">
-                        <Polyline Points="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}}"
-                                  Stroke="{DynamicResource DiSecondaryTextBrush}" StrokeThickness="1.4"
-                                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        <Path Data="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}, ConverterParameter=fill}"
+                              Fill="{StaticResource SparkPickFill}" />
+                        <Path Data="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}}"
+                              Stroke="{DynamicResource DiShardBrush}" StrokeThickness="1.5"
+                              StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        <Path Data="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}, ConverterParameter=dot}"
+                              Fill="{DynamicResource DiShardBrush}" />
                     </Grid>
                     <TextBlock Grid.Column="4" Text="{Binding PickRateText}" FontSize="14" FontWeight="Medium"
                                VerticalAlignment="Center"

@@ -6,9 +6,10 @@ using System.Windows.Media;
 namespace DotaInsight.Converters;
 
 /// <summary>
-/// 分段序列 → 迷你折线图的顶点集合（Polyline.Points）。
+/// 分段序列 → GitHub 风格迷你图几何体（平滑曲线 + 曲线下渐变填充区 + 端点圆点）。
 /// 值 = IReadOnlyList&lt;double&gt;（百分比序列）；纵轴按序列自身的最小/最大值归一化，
 /// 全序列持平（极差 &lt; 2 个点）时画在垂直居中位置。序列不足两个点返回 null（不绘制）。
+/// ConverterParameter："fill" = 曲线下填充区（闭合），"dot" = 末点圆点，缺省 = 曲线本体。
 /// </summary>
 public sealed class BracketSparklineConverter : IValueConverter
 {
@@ -20,6 +21,9 @@ public sealed class BracketSparklineConverter : IValueConverter
 
     /// <summary>极差小于该值（百分比点）时视为持平，画在居中位置。</summary>
     private const double FlatSpan = 2.0;
+
+    /// <summary>末点圆点半径（px）。</summary>
+    private const double DotRadius = 2.4;
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
@@ -36,13 +40,76 @@ public sealed class BracketSparklineConverter : IValueConverter
         var stepX = ViewportWidth / (rates.Count - 1);
         var points = rates.Select((r, i) => new Point(
             i * stepX,
-            ViewportHeight / 2 - (r - mid) / span * (ViewportHeight / 2)));
+            ViewportHeight / 2 - (r - mid) / span * (ViewportHeight / 2))).ToList();
 
-        var collection = new PointCollection(points);
-        collection.Freeze();
-        return collection;
+        return parameter as string switch
+        {
+            "fill" => BuildArea(points),
+            "dot" => BuildDot(points),
+            _ => BuildLine(points)
+        };
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
+
+    /// <summary>平滑曲线：Catmull-Rom 转三次贝塞尔，过点平滑无锯齿。</summary>
+    private static Geometry BuildLine(IReadOnlyList<Point> p)
+    {
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure(p[0], false, false);
+            AppendSpline(ctx, p);
+        }
+
+        geo.Freeze();
+        return geo;
+    }
+
+    /// <summary>曲线下填充区：曲线 + 两端落底 + 闭合。</summary>
+    private static Geometry BuildArea(IReadOnlyList<Point> p)
+    {
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure(new Point(p[0].X, ViewportHeight), true, true);
+            ctx.LineTo(p[0], true, true);
+            AppendSpline(ctx, p);
+            ctx.LineTo(new Point(p[^1].X, ViewportHeight), true, true);
+        }
+
+        geo.Freeze();
+        return geo;
+    }
+
+    /// <summary>末点圆点：标注最新值。</summary>
+    private static Geometry BuildDot(IReadOnlyList<Point> p)
+    {
+        var geo = new EllipseGeometry(p[^1], DotRadius, DotRadius);
+        geo.Freeze();
+        return geo;
+    }
+
+    /// <summary>过点样条：每段由相邻点推算控制点（Catmull-Rom → Bezier，张力 1/6）。</summary>
+    private static void AppendSpline(StreamGeometryContext ctx, IReadOnlyList<Point> p)
+    {
+        if (p.Count == 2)
+        {
+            ctx.LineTo(p[1], true, true);
+            return;
+        }
+
+        for (var i = 0; i < p.Count - 1; i++)
+        {
+            var p0 = i > 0 ? p[i - 1] : p[i];
+            var p1 = p[i];
+            var p2 = p[i + 1];
+            var p3 = i + 2 < p.Count ? p[i + 2] : p2;
+
+            var c1 = new Point(p1.X + (p2.X - p0.X) / 6, p1.Y + (p2.Y - p0.Y) / 6);
+            var c2 = new Point(p2.X - (p3.X - p1.X) / 6, p2.Y - (p3.Y - p1.Y) / 6);
+            ctx.BezierTo(c1, c2, p2, true, true);
+        }
+    }
 }
