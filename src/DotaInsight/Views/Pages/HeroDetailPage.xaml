@@ -684,7 +684,6 @@
                                         <TextBlock Text="背景故事" Style="{StaticResource DiSectionTitleStyle}" />
                                     </StackPanel>
                                     <TextBlock Grid.Row="1" Text="{Binding Profile.Bio}"
-                                               VerticalAlignment="Center"
                                                FontSize="13" TextWrapping="Wrap" LineHeight="22"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </Grid>
