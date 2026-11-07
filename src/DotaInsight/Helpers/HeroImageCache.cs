@@ -111,6 +111,32 @@ public static class HeroImageCache
         => Application.Current?.Dispatcher.CheckAccess() ?? true;
 
     /// <summary>
+    /// 确保 URL 的原始文件已落盘并返回本地路径（供 APNG 等需要原始字节的场景）。
+    /// 已存在直接返回；否则排队下载并等待落盘（上限约 3 秒），失败返回 null。
+    /// </summary>
+    public static string? EnsureDownloaded(string url, int storeWidth = 0)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        var localPath = GetLocalPath(url, storeWidth);
+        if (File.Exists(localPath))
+        {
+            return localPath;
+        }
+
+        QueueDownload(url, localPath, storeWidth);
+        for (var i = 0; i < 30 && !File.Exists(localPath); i++)
+        {
+            Thread.Sleep(100);
+        }
+
+        return File.Exists(localPath) ? localPath : null;
+    }
+
+    /// <summary>
     /// 后台预下载缺失图片到本地，完成后预热内存缓存。
     /// </summary>
     public static void WarmUp(IEnumerable<string> urls, int decodeWidth = 160, int storeWidth = 0)

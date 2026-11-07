@@ -4,6 +4,7 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
       xmlns:converters="clr-namespace:DotaInsight.Converters"
+      xmlns:helpers="clr-namespace:DotaInsight.Helpers"
       Title="战绩分析"
       Background="Transparent">
     <Page.Resources>
@@ -146,7 +147,7 @@
                                 </Grid>
                             </Border>
                             <Image Width="78" Height="78"
-                                   Source="{Binding AvatarFrameUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=160}"
+                                   helpers:ApngAnimator.AnimateSource="{Binding AvatarFrameUrl}"
                                    Stretch="Uniform"
                                    IsHitTestVisible="False"
                                    Visibility="{Binding HasAvatarFrame, Converter={StaticResource BoolToVisibilityConverter}}"
