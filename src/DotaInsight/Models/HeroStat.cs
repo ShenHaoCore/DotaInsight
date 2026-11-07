@@ -136,6 +136,42 @@ public sealed class HeroStat
     [JsonPropertyName("brackets")]
     public List<HeroBracketStat> Brackets { get; set; } = [];
 
+    /// <summary>各分段胜率序列（低→高，仅含有对局样本的分段）；不足两个分段为空。</summary>
+    [JsonIgnore]
+    public IReadOnlyList<double> BracketWinRates
+        => Brackets.Where(b => b.Picks > 0).Select(b => b.Wins * 100.0 / b.Picks).ToList();
+
+    /// <summary>各分段选取占比（该英雄自己对局在各分段的分布，%，合计 100）；无样本为空。</summary>
+    [JsonIgnore]
+    public IReadOnlyList<double> BracketPickShares
+    {
+        get
+        {
+            var total = Brackets.Sum(b => b.Picks);
+            return total > 0 ? Brackets.Select(b => b.Picks * 100.0 / total).ToList() : [];
+        }
+    }
+
+    /// <summary>分段胜率悬浮文案：分段胜率 先锋 46% · 守望 48% · …</summary>
+    [JsonIgnore]
+    public string BracketWinTooltip
+        => "分段胜率 " + string.Join(" · ",
+            Brackets.Where(b => b.Picks > 0).Select(b => $"{b.Name} {b.Wins * 100.0 / b.Picks:F1}%"));
+
+    /// <summary>分段选取悬浮文案：分段选取 先锋 12% · 守望 10% · …</summary>
+    [JsonIgnore]
+    public string BracketPickTooltip
+    {
+        get
+        {
+            var total = Brackets.Sum(b => b.Picks);
+            var parts = total > 0
+                ? Brackets.Where(b => b.Picks > 0).Select(b => $"{b.Name} {b.Picks * 100.0 / total:F1}%")
+                : Enumerable.Empty<string>();
+            return "分段选取 " + string.Join(" · ", parts);
+        }
+    }
+
     /// <summary>全分段选取场次（由各段位聚合或职业数据）。</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int Matches { get; set; }

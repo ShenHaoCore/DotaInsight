@@ -10,6 +10,7 @@
     <Page.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:IndexPlusOneConverter x:Key="IndexPlusOneConverter" />
+        <converters:BracketSparklineConverter x:Key="BracketSparkline" />
 
         <!-- 功能入口：横向一行，图标 + 名称 + 说明 + 箭头，悬停抬表面 -->
         <Style x:Key="HomeFeatureButtonStyle" TargetType="Button">
@@ -68,7 +69,13 @@
                     <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="Medium"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <TextBlock Grid.Column="3" Text="{Binding WinRateText}" FontSize="14" FontWeight="Medium"
+                    <Grid Grid.Column="3" Width="76" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
+                          ToolTip="{Binding BracketWinTooltip}">
+                        <Polyline Points="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}}"
+                                  Stroke="{DynamicResource DiSecondaryTextBrush}" StrokeThickness="1.4"
+                                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                    </Grid>
+                    <TextBlock Grid.Column="4" Text="{Binding WinRateText}" FontSize="14" FontWeight="Medium"
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource DiAdvantageBrush}" />
                 </Grid>
@@ -97,7 +104,13 @@
                     <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="13" FontWeight="Medium"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                    <TextBlock Grid.Column="3" Text="{Binding PickRateText}" FontSize="14" FontWeight="Medium"
+                    <Grid Grid.Column="3" Width="76" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
+                          ToolTip="{Binding BracketPickTooltip}">
+                        <Polyline Points="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}}"
+                                  Stroke="{DynamicResource DiSecondaryTextBrush}" StrokeThickness="1.4"
+                                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                    </Grid>
+                    <TextBlock Grid.Column="4" Text="{Binding PickRateText}" FontSize="14" FontWeight="Medium"
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
                 </Grid>
