@@ -89,10 +89,10 @@ public sealed class ThemeService : IThemeService, IDisposable
             ApplicationThemeManager.Apply(root);
         }
 
-        // 固定品牌赤红为 WPF UI 强调色（深色亮红 / 浅色深红），必须在主题与窗口资源
+        // 固定 GitHub 主按钮绿为 WPF UI 强调色（浅色 #1f883d / 深色 #238636），必须在主题与窗口资源
         // 应用之后再覆盖，否则深色下 Accent* 画刷会被窗口级主题资源重置回系统蓝
         ApplicationAccentColorManager.Apply(
-            isDark ? Color.FromRgb(0xF0, 0x3D, 0x2E) : Color.FromRgb(0xD6, 0x3A, 0x2C),
+            isDark ? Color.FromRgb(0x23, 0x86, 0x36) : Color.FromRgb(0x1F, 0x88, 0x3D),
             appTheme);
     }
 

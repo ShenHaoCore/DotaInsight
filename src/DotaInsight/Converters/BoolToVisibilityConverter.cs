@@ -162,8 +162,8 @@ public sealed class AdvantageBrushConverter : IValueConverter
         return advantage ? FallbackAdvantageBrush : FallbackDisadvantageBrush;
     }
 
-    private static readonly Brush FallbackAdvantageBrush = FrozenBrush(0x2F, 0xD5, 0x7F);
-    private static readonly Brush FallbackDisadvantageBrush = FrozenBrush(0xF0, 0x56, 0x4A);
+    private static readonly Brush FallbackAdvantageBrush = FrozenBrush(0x1A, 0x7F, 0x37);
+    private static readonly Brush FallbackDisadvantageBrush = FrozenBrush(0xCF, 0x22, 0x2E);
 
     private static Brush FrozenBrush(byte r, byte g, byte b)
     {

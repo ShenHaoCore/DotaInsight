@@ -239,10 +239,10 @@
                                     <TextBlock Text="少" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                     <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="{DynamicResource DiRowBrush}" />
-                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#402FD57F" />
-                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#732FD57F" />
-                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#A62FD57F" />
-                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#E62FD57F" />
+                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#402DA44E" />
+                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#732DA44E" />
+                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#A62DA44E" />
+                                    <Border Width="10" Height="10" CornerRadius="2" Margin="1" Background="#E62DA44E" />
                                     <TextBlock Text="多" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </StackPanel>

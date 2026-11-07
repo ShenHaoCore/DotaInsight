@@ -22,13 +22,13 @@ public static class ActivityCalendarRenderer
     /// <summary>无活动格：中性半透明灰，明暗主题下都轻于卡片底色。</summary>
     private static readonly Color EmptyColor = Color.FromArgb(0x1A, 0x80, 0x8A, 0x98);
 
-    /// <summary>活跃等级的绿色阶（与胜负语义绿一致，透明度递增）。</summary>
+    /// <summary>活跃等级的绿色阶（GitHub 贡献图绿 #2DA44E，透明度递增）。</summary>
     private static readonly Color[] LevelColors =
     [
-        Color.FromArgb(0x40, 0x2F, 0xD5, 0x7F),
-        Color.FromArgb(0x73, 0x2F, 0xD5, 0x7F),
-        Color.FromArgb(0xA6, 0x2F, 0xD5, 0x7F),
-        Color.FromArgb(0xE6, 0x2F, 0xD5, 0x7F)
+        Color.FromArgb(0x40, 0x2D, 0xA4, 0x4E),
+        Color.FromArgb(0x73, 0x2D, 0xA4, 0x4E),
+        Color.FromArgb(0xA6, 0x2D, 0xA4, 0x4E),
+        Color.FromArgb(0xE6, 0x2D, 0xA4, 0x4E)
     ];
 
     /// <summary>自适应格子的下限（px）：低于此值不再缩小，改为出滚动条。</summary>

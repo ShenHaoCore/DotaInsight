@@ -693,7 +693,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 Name = "胜负",
                 Values = values,
                 MaxBarWidth = 18,
-                Fill = new SolidColorPaint(SKColor.Parse("#2FD57F"))
+                Fill = new SolidColorPaint(SKColor.Parse("#2DA44E"))
             }
         ];
 

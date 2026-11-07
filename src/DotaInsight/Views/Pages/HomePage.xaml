@@ -12,8 +12,8 @@
         <converters:IndexPlusOneConverter x:Key="IndexPlusOneConverter" />
         <converters:BracketSparklineConverter x:Key="BracketSparkline" />
         <LinearGradientBrush x:Key="SparkWinFill" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#592FD57F" Offset="0" />
-            <GradientStop Color="#0D2FD57F" Offset="1" />
+            <GradientStop Color="#592DA44E" Offset="0" />
+            <GradientStop Color="#0D2DA44E" Offset="1" />
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="SparkPickFill" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#594FC3F7" Offset="0" />
