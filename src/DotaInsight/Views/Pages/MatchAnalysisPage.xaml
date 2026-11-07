@@ -95,6 +95,16 @@
                                Padding="16,8"
                                VerticalAlignment="Center" />
 
+                    <ui:Button Grid.Column="3"
+                               ToolTip="忽略缓存，重新拉取该账号全部数据"
+                               Appearance="Secondary"
+                               Icon="{ui:SymbolIcon ArrowSync24}"
+                               Command="{Binding RefreshDataCommand}"
+                               Margin="6,0,0,0"
+                               Padding="10,8"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+
                     <ui:ProgressRing Grid.Column="3"
                                      Width="26"
                                      Height="26"

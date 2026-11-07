@@ -130,7 +130,13 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     private Axis[] yAxes;
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private async Task SearchAsync() => await RunSearchAsync(forceRefresh: false);
+
+    /// <summary>强制刷新：忽略缓存重新拉取该账号的全部数据。</summary>
+    [RelayCommand]
+    private async Task RefreshDataAsync() => await RunSearchAsync(forceRefresh: true);
+
+    private async Task RunSearchAsync(bool forceRefresh)
     {
         if (!_matchService.TryParseAccountId(AccountInput, out var accountId))
         {
@@ -154,7 +160,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             StatusMessage = $"正在查询账号 {accountId}...";
             _logger.Information("开始战绩分析 AccountId={AccountId}", accountId);
 
-            var result = await _matchService.AnalyzeAsync(accountId, token).ConfigureAwait(true);
+            var result = await _matchService.AnalyzeAsync(accountId, forceRefresh, token).ConfigureAwait(true);
             if (token.IsCancellationRequested)
             {
                 return;
@@ -188,8 +194,8 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 UpdateChart(result.Matches);
                 HasData = !result.IsEmpty;
                 WarmUpMatchImages(result.Matches);
-                _ = LoadHeroWinratesAsync(accountId, frameEpoch, token);
-                _ = LoadPlayerActivityAsync(accountId, frameEpoch, token);
+                _ = LoadHeroWinratesAsync(accountId, forceRefresh, frameEpoch, token);
+                _ = LoadPlayerActivityAsync(accountId, forceRefresh, frameEpoch, token);
 
                 if (result.IsEmpty)
                 {
@@ -204,7 +210,9 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                         ? "离线模式：已展示本地缓存"
                         : result.FromCache
                             ? "已加载缓存战绩"
-                            : "分析完成";
+                            : forceRefresh
+                                ? "已强制刷新"
+                                : "分析完成";
                 }
             });
         }
@@ -375,12 +383,12 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     /// 异步补拉生涯英雄胜率：独立于主查询（失败静默），迟到结果按轮次作废。
     /// 装饰性数据延到首帧之后（250ms）再拉，避免与首屏渲染争抢 UI 线程。
     /// </summary>
-    private async Task LoadHeroWinratesAsync(long accountId, int epoch, CancellationToken token)
+    private async Task LoadHeroWinratesAsync(long accountId, bool forceRefresh, int epoch, CancellationToken token)
     {
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(true);
-            var stats = await _matchService.GetPlayerHeroStatsAsync(accountId, token).ConfigureAwait(true);
+            var stats = await _matchService.GetPlayerHeroStatsAsync(accountId, forceRefresh, token).ConfigureAwait(true);
             if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
             {
                 return;
@@ -439,13 +447,13 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     /// 异步补拉每日游玩热力图：独立于主查询（失败静默），迟到结果按轮次作废。
     /// 装饰性数据延到首帧之后（Background 优先级）再拉，避免与首屏渲染争抢 UI 线程。
     /// </summary>
-    private async Task LoadPlayerActivityAsync(long accountId, int epoch, CancellationToken token)
+    private async Task LoadPlayerActivityAsync(long accountId, bool forceRefresh, int epoch, CancellationToken token)
     {
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(true);
 
-            var heatmap = await _matchService.GetPlayerActivityAsync(accountId, token).ConfigureAwait(true);
+            var heatmap = await _matchService.GetPlayerActivityAsync(accountId, forceRefresh, token).ConfigureAwait(true);
             if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
             {
                 return;

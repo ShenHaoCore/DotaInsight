@@ -20,7 +20,7 @@ public interface IMatchAnalysisService
     /// <summary>
     /// 获取玩家资料与近期战绩。
     /// </summary>
-    Task<MatchAnalysisResult> AnalyzeAsync(long accountId, CancellationToken cancellationToken = default);
+    Task<MatchAnalysisResult> AnalyzeAsync(long accountId, bool forceRefresh = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取单场比赛详情（双方阵容与逐人数据）。
@@ -31,12 +31,12 @@ public interface IMatchAnalysisService
     /// <summary>
     /// 玩家生涯英雄胜率榜（按场次降序，最多 10 条）。失败/无数据返回空列表。
     /// </summary>
-    Task<IReadOnlyList<PlayerHeroStat>> GetPlayerHeroStatsAsync(long accountId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PlayerHeroStat>> GetPlayerHeroStatsAsync(long accountId, bool forceRefresh = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 每日游玩热力图（近 12 个月，按本地日期聚合）。失败/无数据返回 null。
     /// </summary>
-    Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(long accountId, CancellationToken cancellationToken = default);
+    Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(long accountId, bool forceRefresh = false, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -84,10 +84,11 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
 
     public async Task<MatchAnalysisResult> AnalyzeAsync(
         long accountId,
+        bool forceRefresh = false,
         CancellationToken cancellationToken = default)
     {
         var cacheKey = CachePrefix + accountId;
-        var cached = _cache.Get<MatchAnalysisResult>(cacheKey);
+        var cached = forceRefresh ? null : _cache.Get<MatchAnalysisResult>(cacheKey);
         if (cached?.Profile is not null)
         {
             _logger.Information("战绩缓存命中 AccountId={AccountId}", accountId);
@@ -192,6 +193,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     /// <inheritdoc />
     public async Task<IReadOnlyList<PlayerHeroStat>> GetPlayerHeroStatsAsync(
         long accountId,
+        bool forceRefresh = false,
         CancellationToken cancellationToken = default)
     {
         if (accountId <= 0)
@@ -200,7 +202,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
 
         var cacheKey = PlayerHeroesCachePrefix + accountId;
-        var cached = _cache.Get<List<PlayerHeroStat>>(cacheKey);
+        var cached = forceRefresh ? null : _cache.Get<List<PlayerHeroStat>>(cacheKey);
         if (cached is { Count: > 0 })
         {
             return cached;
@@ -261,6 +263,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     /// <inheritdoc />
     public async Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(
         long accountId,
+        bool forceRefresh = false,
         CancellationToken cancellationToken = default)
     {
         if (accountId <= 0)
@@ -269,7 +272,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
 
         var cacheKey = PlayerActivityCachePrefix + accountId;
-        var cached = _cache.Get<PlayerActivityHeatmap>(cacheKey);
+        var cached = forceRefresh ? null : _cache.Get<PlayerActivityHeatmap>(cacheKey);
         if (cached is not null)
         {
             return cached;
