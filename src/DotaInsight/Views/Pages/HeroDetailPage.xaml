@@ -344,7 +344,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Width="48" Height="48" CornerRadius="4" ClipToBounds="True"
-                                                        BorderThickness="1" BorderBrush="{DynamicResource DiDisadvantageBrush}"
+                                                        BorderThickness="1" BorderBrush="{DynamicResource DiAdvantageBrush}"
                                                         Background="{DynamicResource DiChromeBrush}" Margin="0,0,6,0"
                                                         ToolTip="{Binding HeroName, StringFormat=我方克制 {0} {WinRateDiffText}}">
                                                     <!-- 英雄名旁的小头像同款（icons/ 59×33）：方框内完整显示，不裁切不压缩 -->
