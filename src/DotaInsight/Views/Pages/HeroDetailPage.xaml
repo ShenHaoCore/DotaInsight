@@ -405,7 +405,7 @@
                                 <ColumnDefinition Width="400" />
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0">
+                            <Grid Grid.Column="0">
                             <!-- 属性：官网式单面板 -->
                             <Border Style="{StaticResource DiPanelCardStyle}" Padding="16"
                                     Visibility="{Binding HasHero, Converter={StaticResource BoolVisibility}}">
@@ -631,11 +631,15 @@
 
                             <!-- 右栏：定位 + 背景故事 -->
                             </Border>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2"
-                                        Visibility="{Binding HasHero, Converter={StaticResource BoolVisibility}}">
+                            </Grid>
+                            <Grid Grid.Column="2"
+                                  Visibility="{Binding HasHero, Converter={StaticResource BoolVisibility}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
 
-                                <Border Style="{StaticResource DiPanelCardStyle}" Padding="16"
+                                <Border Grid.Row="0" Style="{StaticResource DiPanelCardStyle}" Padding="16"
                                         Visibility="{Binding Hero.HasRoles, Converter={StaticResource BoolVisibility}}">
                                     <StackPanel>
                                         <StackPanel Style="{StaticResource DiCardTitleRow}">
@@ -664,7 +668,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,14,0,0"
+                                <Border Grid.Row="1" Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,14,0,0"
                                         Visibility="{Binding HasBio, Converter={StaticResource BoolVisibility}}">
                                     <StackPanel>
                                         <StackPanel Style="{StaticResource DiCardTitleRow}">
@@ -675,7 +679,7 @@
                                                    Foreground="{DynamicResource DiMutedTextBrush}" />
                                     </StackPanel>
                                 </Border>
-                            </StackPanel>
+                            </Grid>
 
                             <!-- 无资料兜底 -->
                             <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
