@@ -123,12 +123,14 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- 头像 + Steam 头像框：框图按 Steam 官方规则 scale(1.225) 居中放大 -->
-                        <Grid Width="56" Height="56" Margin="0,0,14,0">
-                            <Border Width="68"
-                                    Height="68"
-                                    CornerRadius="28"
+                        <!-- 头像 + Steam 头像框：按 Steam 官方规则，框图元素尺寸 = 头像 × 1.225 居中外扩，
+                             框环正好落在头像边缘外圈；头像为小圆角方块，避免大圆角裁掉头像内容 -->
+                        <Grid Width="78" Height="78" Margin="0,0,10,0">
+                            <Border Width="64"
+                                    Height="64"
+                                    CornerRadius="6"
                                     ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                     BorderBrush="{DynamicResource DiStrokeBrush}"
                                     BorderThickness="1"
                                     Background="{DynamicResource DiChromeBrush}">
@@ -143,7 +145,7 @@
                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                 </Grid>
                             </Border>
-                            <Image Width="70" Height="70"
+                            <Image Width="78" Height="78"
                                    Source="{Binding AvatarFrameUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=160}"
                                    Stretch="Uniform"
                                    IsHitTestVisible="False"
