@@ -85,7 +85,7 @@
 
         <!-- ============ 对位行：整行可点，跳到该英雄的克制分析 ============ -->
         <DataTemplate x:Key="MatchupRow" DataType="{x:Type models:HeroCounterItem}">
-            <Button Cursor="Hand"
+            <Button Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                     ToolTip="查看该英雄的克制分析"
                     Command="{Binding DataContext.OpenCounterForHeroCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                     CommandParameter="{Binding}">
@@ -1025,14 +1025,13 @@
                                 <!-- 页签 0：对位克制 -->
                                 <StackPanel Visibility="{Binding MatchupTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=0}">
 
-                            <!-- 状态 + 刷新 -->
+                            <!-- 状态 + 刷新（页签名已表明语境，不再重复标题） -->
                             <Grid Margin="0,0,0,12">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="对位克制" Style="{StaticResource DiSectionTitleStyle}" />
-                                    <TextBlock Text="{Binding MatchupStatus}" FontSize="12" Margin="10,0,0,0"
+                                    <TextBlock Text="{Binding MatchupStatus}" FontSize="12"
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
-                                    <ui:ProgressRing Width="18" Height="18" IsIndeterminate="True" Margin="10,0,0,0"
+                                    <ui:ProgressRing Width="16" Height="16" IsIndeterminate="True" Margin="10,0,0,0"
                                                      Visibility="{Binding IsLoadingMatchups, Converter={StaticResource BoolVisibility}}" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -1059,7 +1058,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Background="{DynamicResource DiRowBrush}"
+                                <Border Grid.Column="0" Background="Transparent"
                                         BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
                                         CornerRadius="4" ClipToBounds="True">
                                     <DockPanel>
@@ -1088,7 +1087,7 @@
                                     </DockPanel>
                                 </Border>
 
-                                <Border Grid.Column="2" Background="{DynamicResource DiRowBrush}"
+                                <Border Grid.Column="2" Background="Transparent"
                                         BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
                                         CornerRadius="4" ClipToBounds="True">
                                     <DockPanel>
@@ -1155,10 +1154,6 @@
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </StackPanel>
                             </Border>
-
-                            <TextBlock Text="点击任意一行可直达该英雄的克制分析"
-                                       Margin="2,12,0,0" FontSize="11"
-                                       Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </StackPanel>
 
                                 <!-- 页签 1：天梯分段 -->
@@ -1194,7 +1189,7 @@
                                         <TextBlock Grid.Column="1" Text="选取场次" FontSize="11"
                                                    HorizontalAlignment="Right"
                                                    Foreground="{DynamicResource DiMutedTextBrush}" />
-                                        <TextBlock Grid.Column="2" Text="胜率（40–60% 区间展开，中线 50%）"
+                                        <TextBlock Grid.Column="2" Text="胜率分布（40–60%，中线 50%）"
                                                    Margin="14,0" FontSize="11"
                                                    Foreground="{DynamicResource DiMutedTextBrush}" />
                                         <TextBlock Grid.Column="3" Text="胜率" FontSize="11"
@@ -1232,8 +1227,9 @@
                                                                      Height="8"
                                                                      Value="{Binding WinRate, Mode=OneWay, Converter={StaticResource BracketWinRateProgress}}"
                                                                      Foreground="{Binding WinRate, Converter={StaticResource BracketWinRateBrush}}" />
-                                                        <Rectangle Width="1" Height="16"
-                                                                   Fill="{DynamicResource DiStrokeBrush}"
+                                                        <Rectangle Width="1.5" Height="16"
+                                                                   Fill="{DynamicResource DiSecondaryTextBrush}"
+                                                                   Opacity="0.65"
                                                                    HorizontalAlignment="Center"
                                                                    IsHitTestVisible="False" />
                                                     </Grid>
@@ -1266,7 +1262,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="数据来源：OpenDota 天梯分段统计，段位由低到高排列；胜率条以 50% 为中线，绿色表示高于 50%"
+                            <TextBlock Text="段位由低到高 · 胜率条以 50% 为中线，绿色表示高于 50%"
                                        Margin="2,12,0,0" FontSize="11"
                                        Foreground="{DynamicResource DiMutedTextBrush}" />
                             </StackPanel>

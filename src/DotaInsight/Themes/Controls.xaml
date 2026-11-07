@@ -111,14 +111,6 @@
         <Setter Property="Background" Value="Transparent" />
     </Style>
 
-    <Style x:Key="AdvantageProgressStyle" TargetType="ProgressBar">
-        <Setter Property="Height" Value="4" />
-        <Setter Property="Minimum" Value="0" />
-        <Setter Property="Maximum" Value="100" />
-        <Setter Property="Background" Value="{DynamicResource DiProgressTrackBrush}" />
-        <Setter Property="BorderThickness" Value="0" />
-    </Style>
-
     <!-- 极简进度条模板：ScaleX 精确控制填充，100% 必满、0% 无填充。
          两端固定 3px 圆角：4px 细条呈胶囊形、6px 弹窗条为圆角矩形，一套模板够用 -->
     <ControlTemplate x:Key="DiProgressBarTemplate" TargetType="ProgressBar">
@@ -142,6 +134,16 @@
             </Border>
         </Border>
     </ControlTemplate>
+
+    <!-- 对位行优势条：依赖上方 DiProgressBarTemplate，须定义在其后（StaticResource 不支持前向引用） -->
+    <Style x:Key="AdvantageProgressStyle" TargetType="ProgressBar">
+        <Setter Property="Height" Value="4" />
+        <Setter Property="Minimum" Value="0" />
+        <Setter Property="Maximum" Value="100" />
+        <Setter Property="Background" Value="{DynamicResource DiProgressTrackBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template" Value="{StaticResource DiProgressBarTemplate}" />
+    </Style>
 
     <Style x:Key="DiThinProgressStyle" TargetType="ProgressBar">
         <Setter Property="Height" Value="4" />
