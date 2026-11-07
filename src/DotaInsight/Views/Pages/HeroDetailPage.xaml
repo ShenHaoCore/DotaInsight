@@ -691,7 +691,6 @@
                             <StackPanel>
                                 <Border Padding="2" HorizontalAlignment="Left"
                                         Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
-                                        BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
                                         Margin="0,0,0,14">
                                     <StackPanel Orientation="Horizontal">
                                         <RadioButton Content="技能" Style="{StaticResource DiSegmentedItem}"
@@ -1002,7 +1001,6 @@
                             <StackPanel>
                                 <Border Padding="2" HorizontalAlignment="Left"
                                         Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
-                                        BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
                                         Margin="0,0,0,14">
                                     <StackPanel Orientation="Horizontal">
                                         <RadioButton Content="对位克制" Style="{StaticResource DiSegmentedItem}"

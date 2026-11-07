@@ -515,8 +515,7 @@
 
         <!-- ===== 页签：阵容 / 经济曲线 / 小地图 ===== -->
         <Border Grid.Row="3" Padding="2" HorizontalAlignment="Left"
-                Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
-                BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1">
+                Background="{DynamicResource DiChromeBrush}" CornerRadius="6">
             <StackPanel Orientation="Horizontal">
                 <RadioButton Content="阵容" Style="{StaticResource DiSegmentedItem}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />

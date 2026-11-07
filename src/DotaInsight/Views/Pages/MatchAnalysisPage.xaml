@@ -667,8 +667,7 @@
                     </Grid.RowDefinitions>
 
                     <Border Grid.Row="0" Padding="2" HorizontalAlignment="Left"
-                            Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
-                            BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1">
+                            Background="{DynamicResource DiChromeBrush}" CornerRadius="6">
                         <StackPanel Orientation="Horizontal">
                             <RadioButton Content="胜负走势" Style="{StaticResource DiSegmentedItem}"
                                          IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
