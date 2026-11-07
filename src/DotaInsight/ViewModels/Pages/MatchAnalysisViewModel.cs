@@ -66,8 +66,21 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             {
                 _ = SearchCommand.ExecuteAsync(null);
             }
+
+            return;
         }
-        // 无参数重复进入：保留上次结果，不重复请求
+
+        // 无参数进入：已有结果（或正在加载）则保留，不重复请求；
+        // 首次进入且没有内容时，默认加载当前选中的账号，避免「选中了卡片却一片空白」
+        if (Profile is null && !IsLoading && Accounts.Count > 0)
+        {
+            var current = Accounts.FirstOrDefault(a => a.IsCurrent) ?? Accounts[0];
+            AccountInput = current.AccountId.ToString();
+            if (SearchCommand.CanExecute(null))
+            {
+                _ = SearchCommand.ExecuteAsync(null);
+            }
+        }
     }
 
     public ObservableCollection<RecentMatchItem> Matches { get; }
