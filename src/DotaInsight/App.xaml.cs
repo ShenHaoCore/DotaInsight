@@ -53,8 +53,8 @@ public partial class App : Application
         _serviceProvider = services.BuildServiceProvider();
 
         var theme = _serviceProvider.GetRequiredService<IThemeService>();
-        theme.ApplyFollowSystem();
-        Log.Information("启动主题：{Theme}（追随系统）", theme.IsDark ? "暗黑" : "明亮");
+        theme.ApplyStartupTheme();
+        Log.Information("启动主题：{Theme}", theme.IsDark ? "暗黑" : "明亮");
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();

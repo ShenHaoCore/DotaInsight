@@ -11,11 +11,14 @@ public static class CacheKeys
     /// <summary>旧版战绩页查询历史（纯 ID 列表，仅用于一次性迁移到账户卡片）。</summary>
     public const string LegacyMatchHistoryIds = "match_history_ids";
 
+    /// <summary>用户的主题选择（light / dark）。缺省 = 追随系统。</summary>
+    public const string AppTheme = "app:theme";
+
     /// <summary>
     /// 属于「用户资产」的键前缀：这些数据是用户攒下来的，清缓存时必须保留。
     /// 可再生的数据缓存（战绩、英雄资料等）不在此列。
     /// </summary>
-    private static readonly string[] UserAssetPrefixes = [SavedAccounts];
+    private static readonly string[] UserAssetPrefixes = [SavedAccounts, AppTheme];
 
     public static bool IsUserAsset(string key)
         => UserAssetPrefixes.Any(prefix => key.StartsWith(prefix, StringComparison.Ordinal));

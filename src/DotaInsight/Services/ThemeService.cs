@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using DotaInsight.Helpers;
 using Microsoft.Win32;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -18,8 +19,8 @@ public interface IThemeService
 
     void ApplyTheme(bool isDark);
 
-    /// <summary>按系统主题应用。</summary>
-    void ApplyFollowSystem();
+    /// <summary>应用启动主题：用户存过选择就用它，否则追随系统。</summary>
+    void ApplyStartupTheme();
 
     void Toggle();
 }
@@ -28,10 +29,15 @@ public sealed class ThemeService : IThemeService, IDisposable
 {
     private const string DarkThemeUri = "Themes/Dark.xaml";
     private const string LightThemeUri = "Themes/Light.xaml";
+    private readonly ILiteDbCacheService _cache;
     private bool _disposed;
 
-    public ThemeService()
+    /// <summary>主题偏好的持久化 TTL：与账号等用户资产一致，等于长期保存。</summary>
+    private static readonly TimeSpan ThemeTtl = TimeSpan.FromDays(3650);
+
+    public ThemeService(ILiteDbCacheService cache)
     {
+        _cache = cache;
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
     }
 
@@ -39,7 +45,36 @@ public sealed class ThemeService : IThemeService, IDisposable
 
     public bool IsSystemDark => ReadSystemPrefersDark();
 
-    public void ApplyFollowSystem() => ApplyTheme(IsSystemDark);
+    public void ApplyStartupTheme()
+    {
+        var stored = ReadStoredTheme();
+        ApplyTheme(stored is not null ? stored == "dark" : IsSystemDark);
+    }
+
+    /// <summary>读取用户的主题选择；未手动选过返回 null（追随系统）。</summary>
+    private string? ReadStoredTheme()
+    {
+        try
+        {
+            return _cache.Get<string>(CacheKeys.AppTheme) is { Length: > 0 } value ? value : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void PersistTheme(bool isDark)
+    {
+        try
+        {
+            _cache.Set(CacheKeys.AppTheme, isDark ? "dark" : "light", ThemeTtl);
+        }
+        catch
+        {
+            // 偏好写不进去不影响本次生效
+        }
+    }
 
     public void ApplyTheme(bool isDark)
     {
@@ -61,7 +96,11 @@ public sealed class ThemeService : IThemeService, IDisposable
             appTheme);
     }
 
-    public void Toggle() => ApplyTheme(!IsDark);
+    public void Toggle()
+    {
+        ApplyTheme(!IsDark);
+        PersistTheme(IsDark);
+    }
 
     public void Dispose()
     {
@@ -94,7 +133,13 @@ public sealed class ThemeService : IThemeService, IDisposable
                 return;
             }
 
-            ApplyFollowSystem();
+            // 用户手动选过主题后，系统变化不再覆盖
+            if (ReadStoredTheme() is not null)
+            {
+                return;
+            }
+
+            ApplyTheme(IsSystemDark);
         });
     }
 

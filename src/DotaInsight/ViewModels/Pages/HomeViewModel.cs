@@ -46,8 +46,13 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     private string accountInput = string.Empty;
 
+    /// <summary>版本数据加载中且榜单还没有数据（卡内显示占位，避免首次启动白板）。</summary>
+    public bool MetaLoading => IsLoading && TopWinRateHeroes.Count == 0;
+
     [ObservableProperty]
     private bool isLoading;
+
+    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(MetaLoading));
 
     [ObservableProperty]
     private string metaStatus = "加载版本数据...";
