@@ -99,18 +99,4 @@ public partial class MatchAnalysisPage : Page
     /// <summary>热力图容器宽度变化：格子自适应铺满可用宽度并重渲位图。</summary>
     private void OnActivitySizeChanged(object sender, SizeChangedEventArgs e)
         => _viewModel.RebuildActivityImage(e.NewSize.Width);
-
-    /// <summary>侧栏滚动变化：按滚动位置开关上下渐隐遮罩（切到边缘处时隐藏，不洗掉静止内容）。</summary>
-    private void OnSidebarScrollChanged(object sender, ScrollChangedEventArgs e)
-        => UpdateSidebarFades();
-
-    private void UpdateSidebarFades()
-    {
-        var sv = SidebarScroll;
-        SidebarTopFade.Visibility = sv.VerticalOffset > 1 ? Visibility.Visible : Visibility.Collapsed;
-        SidebarBottomFade.Visibility =
-            sv.VerticalOffset + sv.ViewportHeight < sv.ExtentHeight - 1
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-    }
 }

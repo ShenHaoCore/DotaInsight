@@ -426,18 +426,17 @@
                     </DockPanel>
                 </Border>
 
-                <!-- 侧栏：账号 / 近期常用英雄 / 英雄胜率榜（独立滚动）。
-                     右留 14px 滚动条槽：悬浮滚动条不再压住卡片边框；
-                     上下渐隐遮罩在滚动时显示，切片过渡自然 -->
+                <!-- 侧栏：账号 / 近期常用英雄 / 英雄胜率榜。
+                     三卡各自独立滚动：账号与常用英雄限高内滚，胜率榜占满剩余高度；
+                     内层 ScrollViewer 右留 10px 槽，悬浮滚动条不压内容 -->
                 <Grid Grid.Column="2">
-                    <ScrollViewer x:Name="SidebarScroll"
-                                  Margin="0,0,14,0"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  ScrollChanged="OnSidebarScrollChanged">
-                        <StackPanel>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
                         <!-- 我的账号：点击切换并查询 -->
-                        <Border Style="{StaticResource DiPanelCardStyle}"
+                        <Border Grid.Row="0" Style="{StaticResource DiPanelCardStyle}"
                                 Padding="12,10"
                                 Margin="0,0,0,12"
                                 Visibility="{Binding HasAccounts, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -450,6 +449,9 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </DockPanel>
+                                <ScrollViewer MaxHeight="240" Margin="0,0,10,0"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding Accounts}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -530,6 +532,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </ScrollViewer>
                                 <TextBlock Text="点击卡片切换 · × 移除"
                                            FontSize="10" Margin="2,2,0,0"
                                            Foreground="{DynamicResource DiMutedTextBrush}" />
@@ -537,7 +540,7 @@
                         </Border>
 
                         <!-- 近期常用英雄 -->
-                        <Border Style="{StaticResource DiPanelCardStyle}"
+                        <Border Grid.Row="1" Style="{StaticResource DiPanelCardStyle}"
                                 Padding="12,10"
                                 Margin="0,0,0,12"
                                 Visibility="{Binding HasRecentHeroes, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -550,6 +553,9 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </DockPanel>
+                                <ScrollViewer MaxHeight="252" Margin="0,0,10,0"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding RecentHeroes}" Margin="0,0,0,2">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -614,15 +620,16 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </ScrollViewer>
                             </StackPanel>
                         </Border>
 
-                        <!-- 英雄胜率榜：生涯数据，按场次排序 -->
-                        <Border Style="{StaticResource DiPanelCardStyle}"
+                        <!-- 英雄胜率榜：生涯数据，按场次排序（占满剩余高度，独立滚动） -->
+                        <Border Grid.Row="2" Style="{StaticResource DiPanelCardStyle}"
                                 Padding="12,10"
                                 Visibility="{Binding HasHeroWinrates, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel>
-                                <DockPanel Margin="2,0,2,8" LastChildFill="False">
+                            <DockPanel>
+                                <DockPanel DockPanel.Dock="Top" Margin="2,0,2,8" LastChildFill="False">
                                     <TextBlock Text="英雄胜率榜" Style="{StaticResource DiSectionTitleStyle}" />
                                     <TextBlock DockPanel.Dock="Right"
                                                Text="生涯 · 按场次"
@@ -630,6 +637,9 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </DockPanel>
+                                <ScrollViewer Margin="0,0,10,0"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding HeroWinrates}" Margin="0,0,0,2">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -661,31 +671,10 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                            </StackPanel>
+                                </ScrollViewer>
+                            </DockPanel>
                         </Border>
-                    </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- 滚动渐隐遮罩：仅在对应方向仍有内容时显示，遮住平切边缘 -->
-                    <Border x:Name="SidebarTopFade" Height="14" VerticalAlignment="Top"
-                            Margin="0,0,14,0" IsHitTestVisible="False" Visibility="Collapsed">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                <GradientStop Color="{DynamicResource DiCanvasColor}" Offset="0" />
-                                <GradientStop Color="#00FFFFFF" Offset="1" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                    </Border>
-                    <Border x:Name="SidebarBottomFade" Height="14" VerticalAlignment="Bottom"
-                            Margin="0,0,14,0" IsHitTestVisible="False" Visibility="Collapsed">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
-                                <GradientStop Color="{DynamicResource DiCanvasColor}" Offset="0" />
-                                <GradientStop Color="#00FFFFFF" Offset="1" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                    </Border>
-                </Grid>
+                    </Grid>
             </Grid>
 
             <!-- 底部区：胜负走势 / 打法建议 页签 -->
