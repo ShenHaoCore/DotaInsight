@@ -106,7 +106,7 @@
                     BorderThickness="1"
                     ClipToBounds="True">
                 <Image Source="{Binding Converter={StaticResource CachedImageConverter}, ConverterParameter=64}"
-                       Stretch="UniformToFill"
+                       Stretch="Uniform"
                        RenderOptions.BitmapScalingMode="HighQuality" />
             </Border>
         </DataTemplate>
@@ -247,7 +247,7 @@
                                     ClipToBounds="True"
                                     ToolTip="中立物品">
                                 <Image Source="{Binding NeutralItemIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=64}"
-                                       Stretch="UniformToFill"
+                                       Stretch="Uniform"
                                        RenderOptions.BitmapScalingMode="HighQuality" />
                             </Border>
                         </StackPanel>
