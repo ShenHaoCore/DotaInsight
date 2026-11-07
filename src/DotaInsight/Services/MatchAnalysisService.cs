@@ -103,7 +103,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         try
         {
             _logger.Information("拉取战绩 AccountId={AccountId}", accountId);
-            var heroes = await _heroService.GetHeroesAsync(cancellationToken).ConfigureAwait(false);
+            var heroes = await _heroService.GetHeroesAsync(false, cancellationToken).ConfigureAwait(false);
             var heroMap = heroes.ToDictionary(h => h.Id);
             var http = Http;
 
@@ -217,7 +217,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            var heroes = await _heroService.GetHeroesAsync(cancellationToken).ConfigureAwait(false);
+            var heroes = await _heroService.GetHeroesAsync(false, cancellationToken).ConfigureAwait(false);
             var heroMap = heroes.ToDictionary(h => h.Id);
 
             var list = (dtos ?? [])
@@ -370,7 +370,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                 return null;
             }
 
-            var heroes = await _heroService.GetHeroesAsync(cancellationToken).ConfigureAwait(false);
+            var heroes = await _heroService.GetHeroesAsync(false, cancellationToken).ConfigureAwait(false);
             var heroMap = heroes.ToDictionary(h => h.Id);
             var itemIcons = await _itemCatalog.GetItemIconsAsync(cancellationToken).ConfigureAwait(false);
 

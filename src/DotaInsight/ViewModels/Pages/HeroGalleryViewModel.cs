@@ -79,13 +79,19 @@ public partial class HeroGalleryViewModel : ObservableObject
     public bool HasNoResults => !IsLoading && HeroCount > 0 && VisibleCount == 0;
 
     [RelayCommand]
-    private async Task InitializeAsync()
+    private async Task InitializeAsync() => await LoadGalleryAsync(forceRefresh: false);
+
+    /// <summary>手动更新图鉴数据：绕过缓存直连 OpenDota 重新拉取 heroStats。</summary>
+    [RelayCommand]
+    private async Task UpdateDataAsync() => await LoadGalleryAsync(forceRefresh: true);
+
+    private async Task LoadGalleryAsync(bool forceRefresh)
     {
         try
         {
             IsLoading = true;
-            StatusMessage = "正在加载英雄列表...";
-            var heroes = await _heroService.GetHeroesAsync().ConfigureAwait(true);
+            StatusMessage = forceRefresh ? "正在从 OpenDota 更新英雄数据..." : "正在加载英雄列表...";
+            var heroes = await _heroService.GetHeroesAsync(forceRefresh).ConfigureAwait(true);
             _allHeroes = heroes;
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -102,11 +108,15 @@ public partial class HeroGalleryViewModel : ObservableObject
                     heroes.Select(h => h.IconUrl),
                     decodeWidth: 160);
             });
+
+            StatusMessage = forceRefresh
+                ? $"已更新 {heroes.Count} 名英雄 · {DateTime.Now:HH:mm}"
+                : $"已载入 {heroes.Count} 名英雄";
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "加载图鉴失败");
-            StatusMessage = "加载失败，请稍后刷新";
+            StatusMessage = forceRefresh ? "更新失败，请检查网络后重试" : "加载失败，请稍后刷新";
         }
         finally
         {

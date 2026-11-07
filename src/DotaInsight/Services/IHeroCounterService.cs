@@ -8,7 +8,7 @@ namespace DotaInsight.Services;
 public interface IHeroCounterService
 {
     /// <summary>获取全部英雄列表（优先缓存）。</summary>
-    Task<IReadOnlyList<HeroStat>> GetHeroesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<HeroStat>> GetHeroesAsync(bool forceRefresh = false, CancellationToken cancellationToken = default);
 
     /// <summary>根据己方英雄计算被克制 / 克制列表。</summary>
     Task<HeroCounterResult> GetCounterRelationsAsync(

@@ -49,9 +49,9 @@ public sealed class HeroCounterService : IHeroCounterService
 
     private HttpClient Http => _httpClientFactory.CreateClient(HttpClientName);
 
-    public async Task<IReadOnlyList<HeroStat>> GetHeroesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<HeroStat>> GetHeroesAsync(bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
-        var memory = _heroesMemory;
+        var memory = forceRefresh ? null : _heroesMemory;
         if (memory is not null)
         {
             return memory;
@@ -60,7 +60,7 @@ public sealed class HeroCounterService : IHeroCounterService
         await _heroesGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_heroesMemory is not null)
+            if (!forceRefresh && _heroesMemory is not null)
             {
                 return _heroesMemory;
             }
@@ -69,7 +69,7 @@ public sealed class HeroCounterService : IHeroCounterService
                 .GetChineseNamesByIdAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            var cached = _cache.Get<List<HeroStat>>(HeroStatsCacheKey);
+            var cached = forceRefresh ? null : _cache.Get<List<HeroStat>>(HeroStatsCacheKey);
             if (cached is { Count: > 0 })
             {
                 ApplyChineseNames(cached, chineseNames);
@@ -135,7 +135,7 @@ public sealed class HeroCounterService : IHeroCounterService
         int heroId,
         CancellationToken cancellationToken = default)
     {
-        var heroes = await GetHeroesAsync(cancellationToken).ConfigureAwait(false);
+        var heroes = await GetHeroesAsync(false, cancellationToken).ConfigureAwait(false);
         var selected = heroes.FirstOrDefault(h => h.Id == heroId);
         if (selected is null)
         {

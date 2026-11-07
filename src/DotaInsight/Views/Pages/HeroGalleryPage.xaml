@@ -122,6 +122,12 @@
             <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
                 <ui:ProgressRing Width="22" Height="22" IsIndeterminate="True" Margin="0,0,8,0"
                                  Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+                <ui:Button Appearance="Secondary"
+                           Content="更新数据"
+                           ToolTip="绕过缓存，从 OpenDota 重新拉取英雄数据"
+                           Icon="{ui:SymbolIcon ArrowDownload24}"
+                           Command="{Binding UpdateDataCommand}"
+                           Margin="0,0,8,0" />
                 <ui:Button Appearance="Transparent"
                            ToolTip="刷新"
                            Icon="{ui:SymbolIcon ArrowSync24}"

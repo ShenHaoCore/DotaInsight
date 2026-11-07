@@ -259,7 +259,7 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
             // 详情资料（技能/背景/头图）首次需要联网，不能让它挡住整页。
             // 两个请求并行发出：串行的话详情资料要等英雄列表返回后才开始，
             // 首次访问某英雄会白等一个往返——转身速率就在资料里，会跟着一起迟到。
-            var heroesTask = _heroService.GetHeroesAsync(token);
+            var heroesTask = _heroService.GetHeroesAsync(false, token);
             var profileTask = _profileService.GetProfileAsync(heroId, token);
             ObserveSilently(profileTask);
 
