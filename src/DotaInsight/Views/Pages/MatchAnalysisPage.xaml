@@ -257,7 +257,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="344" />
                 </Grid.ColumnDefinitions>
 
                 <!-- 主列：比赛列表（内滚动 + 虚拟化） -->
@@ -649,7 +649,7 @@
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" Width="36" Height="20" CornerRadius="3" ClipToBounds="True"
+                                                <Border Grid.Column="0" Width="44" Height="24" CornerRadius="4" ClipToBounds="True"
                                                         Background="{DynamicResource DiChromeBrush}" Margin="0,0,8,0">
                                                     <Image Source="{Binding HeroIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
                                                            Stretch="UniformToFill" HorizontalAlignment="Right"
