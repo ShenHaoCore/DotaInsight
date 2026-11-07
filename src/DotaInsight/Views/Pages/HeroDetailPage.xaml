@@ -997,8 +997,23 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- ===================== 克制（原独立克制页并入） ===================== -->
-                        <StackPanel Margin="0,0,0,20">
+                        <!-- ===================== 对位与分段（页签卡：对位克制 / 天梯分段） ===================== -->
+                        <Border Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,0,0,20">
+                            <StackPanel>
+                                <Border Padding="2" HorizontalAlignment="Left"
+                                        Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
+                                        BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                        Margin="0,0,0,14">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="对位克制" Style="{StaticResource DiSegmentedItem}"
+                                                     IsChecked="{Binding MatchupTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
+                                        <RadioButton Content="天梯分段" Style="{StaticResource DiSegmentedItem}"
+                                                     IsChecked="{Binding MatchupTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 页签 0：对位克制 -->
+                                <StackPanel Visibility="{Binding MatchupTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=0}">
 
                             <!-- 状态 + 刷新 -->
                             <Grid Margin="0,0,0,12">
@@ -1034,7 +1049,9 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Style="{StaticResource DiPanelCardStyle}" ClipToBounds="True">
+                                <Border Grid.Column="0" Background="{DynamicResource DiRowBrush}"
+                                        BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                        CornerRadius="4" ClipToBounds="True">
                                     <DockPanel>
                                         <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                                             <DockPanel>
@@ -1061,7 +1078,9 @@
                                     </DockPanel>
                                 </Border>
 
-                                <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" ClipToBounds="True">
+                                <Border Grid.Column="2" Background="{DynamicResource DiRowBrush}"
+                                        BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                        CornerRadius="4" ClipToBounds="True">
                                     <DockPanel>
                                         <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                                             <DockPanel>
@@ -1090,8 +1109,9 @@
                             </Grid>
 
                             <!-- 对位优势分布 -->
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="14,10"
-                                    Margin="0,12,0,0"
+                            <Border Background="{DynamicResource DiRowBrush}"
+                                    BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="14,10" Margin="0,12,0,0"
                                     Visibility="{Binding MatchupHasData, Converter={StaticResource BoolVisibility}}">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -1112,7 +1132,9 @@
                             </Border>
 
                             <!-- 空态 -->
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
+                            <Border Background="{DynamicResource DiRowBrush}"
+                                    BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="32"
                                     Visibility="{Binding HasMatchupPreview, Converter={StaticResource BoolVisibility}, ConverterParameter=Invert}">
                                 <StackPanel>
                                     <TextBlock Text="对位数据尚未就绪"
@@ -1127,10 +1149,10 @@
                             <TextBlock Text="点击任意一行可直达该英雄的克制分析"
                                        Margin="2,12,0,0" FontSize="11"
                                        Foreground="{DynamicResource DiMutedTextBrush}" />
-                        </StackPanel>
+                                </StackPanel>
 
-                        <!-- ===================== 分段 ===================== -->
-                        <StackPanel Margin="0,0,0,20">
+                                <!-- 页签 1：天梯分段 -->
+                                <StackPanel Visibility="{Binding MatchupTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=1}">
 
                             <Grid Margin="0,0,0,12">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -1145,7 +1167,9 @@
                                            Foreground="{DynamicResource DiMutedTextBrush}" />
                             </Grid>
 
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="18,14"
+                            <Border Background="{DynamicResource DiRowBrush}"
+                                    BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="18,14"
                                     Visibility="{Binding HasBrackets, Converter={StaticResource BoolVisibility}}">
                                 <StackPanel>
                                     <Grid Margin="0,0,0,7">
@@ -1218,7 +1242,9 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
+                            <Border Background="{DynamicResource DiRowBrush}"
+                                    BorderBrush="{DynamicResource DiStrokeBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="32"
                                     Visibility="{Binding HasBrackets, Converter={StaticResource BoolVisibility}, ConverterParameter=Invert}">
                                 <StackPanel>
                                     <TextBlock Text="暂无分段数据"
@@ -1233,7 +1259,9 @@
                             <TextBlock Text="数据来源：OpenDota 天梯分段统计，段位由低到高排列；胜率条以 50% 为中线，绿色表示高于 50%"
                                        Margin="2,12,0,0" FontSize="11"
                                        Foreground="{DynamicResource DiMutedTextBrush}" />
-                        </StackPanel>
+                            </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>

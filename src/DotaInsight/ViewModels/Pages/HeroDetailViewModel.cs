@@ -77,6 +77,10 @@ public partial class HeroDetailViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     private int skillTabIndex;
 
+    /// <summary>对位与分段页签：0 对位克制 / 1 天梯分段。</summary>
+    [ObservableProperty]
+    private int matchupTabIndex;
+
     /// <summary>分布图有数据可画。</summary>
     public bool MatchupHasData => MatchupSeries.Length > 0;
 

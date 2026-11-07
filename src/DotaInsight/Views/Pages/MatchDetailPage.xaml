@@ -531,7 +531,8 @@
         <Grid Grid.Row="5"
               Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=0}">
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
+            <!-- 阵容内滚动上限：比分 + 页签 + 阵容尽量收进一屏，长阵容列表内滚动 -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="620"
                           Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
 
