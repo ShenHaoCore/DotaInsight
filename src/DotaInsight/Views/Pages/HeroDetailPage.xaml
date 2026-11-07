@@ -185,7 +185,7 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           ScrollChanged="OnDetailScrollChanged">
-                <StackPanel Margin="0,0,14,12">
+                <StackPanel Margin="0,0,4,12">
 
                     <!-- ===== 英雄 banner（常驻：加载中显示等高占位，换英雄时卡片不塌陷） ===== -->
                     <Border x:Name="HeroBanner"

@@ -449,7 +449,7 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </DockPanel>
-                                <ScrollViewer MaxHeight="240" Margin="0,0,10,0"
+                                <ScrollViewer MaxHeight="240"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding Accounts}">
@@ -553,7 +553,7 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </DockPanel>
-                                <ScrollViewer MaxHeight="252" Margin="0,0,10,0"
+                                <ScrollViewer MaxHeight="252"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding RecentHeroes}" Margin="0,0,0,2">
@@ -637,7 +637,7 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource DiMutedTextBrush}" />
                                 </DockPanel>
-                                <ScrollViewer Margin="0,0,10,0"
+                                <ScrollViewer Margin="0,0,0,0"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding HeroWinrates}" Margin="0,0,0,2">
