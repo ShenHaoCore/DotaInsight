@@ -55,15 +55,15 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="700" />
+                <RowDefinition Height="560" />
                 <RowDefinition Height="12" />
-                <RowDefinition Height="280" />
+                <RowDefinition Height="240" />
             </Grid.RowDefinitions>
 
             <!-- 查询栏 -->
             <Border Grid.Row="0"
                     Style="{StaticResource DiPanelCardStyle}"
-                    Padding="20,16"
+                    Padding="16,12"
                     Margin="0,0,0,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -129,10 +129,10 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- 头像 + Steam 头像框：框图按 Steam 官方规则 scale(1.225) 居中放大 -->
-                        <Grid Width="68" Height="68" Margin="0,0,16,0">
+                        <Grid Width="56" Height="56" Margin="0,0,14,0">
                             <Border Width="68"
                                     Height="68"
-                                    CornerRadius="34"
+                                    CornerRadius="28"
                                     ClipToBounds="True"
                                     BorderBrush="{DynamicResource DiStrokeBrush}"
                                     BorderThickness="1"
@@ -148,8 +148,8 @@
                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                 </Grid>
                             </Border>
-                            <Image Width="84" Height="84"
-                                   Source="{Binding AvatarFrameUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=192}"
+                            <Image Width="70" Height="70"
+                                   Source="{Binding AvatarFrameUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=160}"
                                    Stretch="Uniform"
                                    IsHitTestVisible="False"
                                    Visibility="{Binding HasAvatarFrame, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -227,7 +227,7 @@
                                 <!-- 日历位图：单元素渲染（53×7 格），悬浮提示按坐标反查 -->
                                 <Image Source="{Binding ActivityImage}"
                                        Width="{Binding ActivityImageWidth}"
-                                       Height="98"
+                                       Height="84"
                                        Stretch="None"
                                        MouseMove="OnActivityImageMouseMove"
                                        MouseLeave="OnActivityImageMouseLeave" />

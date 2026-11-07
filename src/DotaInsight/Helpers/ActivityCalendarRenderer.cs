@@ -14,7 +14,7 @@ namespace DotaInsight.Helpers;
 public static class ActivityCalendarRenderer
 {
     /// <summary>单元格边长（px）。</summary>
-    public const double CellSize = 12;
+    public const double CellSize = 10;
 
     /// <summary>单元格间距（px，两侧各一半）。</summary>
     public const double GapSize = 2;
