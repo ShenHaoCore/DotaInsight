@@ -56,7 +56,8 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="560" />
+                <!-- 两栏区高度由内容决定（写死会把侧栏胜率榜压到只剩两行） -->
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="12" />
                 <RowDefinition Height="240" />
             </Grid.RowDefinitions>

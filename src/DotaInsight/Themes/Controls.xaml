@@ -204,9 +204,7 @@
          （近期比赛的时间列、对位行尾等）。统一给内容右侧留 10px 槽：
          悬浮条永远落在槽里，任何模块的滚动条都不再与内容重叠。
          注意：隐式样式会进入 ListBox 等控件模板内部的 ScrollViewer，全局生效 -->
-    <Style TargetType="ScrollViewer">
-        <Setter Property="Padding" Value="0,0,10,0" />
-    </Style>
+
 
     <!-- ================= 卡片 ================= -->
     <Style x:Key="DiPanelCardStyle" TargetType="Border">
