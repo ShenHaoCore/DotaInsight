@@ -107,7 +107,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
     /// <summary>热区默认关：信息密度大，作为分析工具按需打开。</summary>
     [ObservableProperty]
-    private bool showHeatmap;
+    private bool showHeatmap = true;
 
     /// <summary>英雄头像层开关（常驻位置）。</summary>
     [ObservableProperty]
@@ -369,7 +369,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     }
 
     /// <summary>比赛详情页小地图画布边长（px）。眼位/建筑/刻度的像素都按此换算。</summary>
-    private const double MapCanvasSize = 480;
+    private const double MapCanvasSize = 420;
 
     private const double MapGridSize = 127.0;
 
@@ -524,7 +524,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             {
                 Left = spot.UvX * scale - 14,
                 Top = spot.UvY * scale - 8,
-                HeroIconUrl = spot.HeroIconUrl,
+                SmallIconUrl = spot.SmallIconUrl,
                 HeroName = spot.HeroName,
                 IsRadiant = spot.IsRadiant,
                 Tooltip = $"{spot.PersonaName} · {spot.HeroName} · 常驻位置"
@@ -736,7 +736,7 @@ public sealed class MatchPlayerSpotDot
 
     public double Top { get; init; }
 
-    public string HeroIconUrl { get; init; } = string.Empty;
+    public string SmallIconUrl { get; init; } = string.Empty;
 
     public string HeroName { get; init; } = string.Empty;
 

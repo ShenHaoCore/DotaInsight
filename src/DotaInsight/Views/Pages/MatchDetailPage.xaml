@@ -758,7 +758,7 @@
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <Image Source="{Binding HeroIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
+                                            <Image Source="{Binding SmallIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
                                                    Stretch="UniformToFill"
                                                    RenderOptions.BitmapScalingMode="HighQuality" />
                                         </Border>

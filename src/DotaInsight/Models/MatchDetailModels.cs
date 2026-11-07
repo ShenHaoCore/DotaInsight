@@ -220,7 +220,7 @@ public sealed class MatchPlayerSpot
 
     public double UvY { get; init; }
 
-    public string HeroIconUrl { get; init; } = string.Empty;
+    public string SmallIconUrl { get; init; } = string.Empty;
 
     public string HeroName { get; init; } = string.Empty;
 
