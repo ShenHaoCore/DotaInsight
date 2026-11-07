@@ -49,7 +49,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     // v2：RecentMatchItem 扩展打法字段（GPM/伤害/分路等），旧 v1 缓存缺字段会污染打法分析
     private const string CachePrefix = "opendota:matchAnalysis:v2:";
     // v2：MatchDetail 扩展优势曲线与眼位数据，旧 v1 缓存缺字段会让新页签永远显示空
-    private const string DetailCachePrefix = "opendota:matchDetail:v3:";
+    private const string DetailCachePrefix = "opendota:matchDetail:v4:";
 
     /// <summary>已解析的比赛内容不会再变，可以放心长期缓存。</summary>
     private static readonly TimeSpan DetailCacheTtl = TimeSpan.FromDays(30);
@@ -456,6 +456,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             MapEvents = mapEvents,
             RadiantHeatmap = CollectHeatmap(dto, isRadiant: true),
             DireHeatmap = CollectHeatmap(dto, isRadiant: false),
+            Spots = CollectPlayerSpots(dto, heroMap),
             DraftSteps = CollectDraftSteps(dto, heroMap)
         };
     }
@@ -687,6 +688,70 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         return events;
     }
 
+    /// <summary>
+    /// 玩家常驻位置：lane_pos 里出现次数最高的格，按官方 gameCoordToUV 换算成 UV。
+    /// </summary>
+    private static List<MatchPlayerSpot> CollectPlayerSpots(
+        MatchDetailDto dto,
+        IReadOnlyDictionary<int, HeroStat> heroMap)
+    {
+        var spots = new List<MatchPlayerSpot>();
+        foreach (var player in dto.Players ?? [])
+        {
+            if (player.LanePos is null || player.LanePos.Count == 0)
+            {
+                continue;
+            }
+
+            string? bestKey = null;
+            var bestCount = 0;
+            foreach (var (x, ys) in player.LanePos)
+            {
+                foreach (var (y, count) in ys)
+                {
+                    if (count > bestCount)
+                    {
+                        bestCount = count;
+                        bestKey = $"{x},{y}";
+                    }
+                }
+            }
+
+            if (bestKey is null)
+            {
+                continue;
+            }
+
+            var parts = bestKey.Split(',');
+            if (parts.Length != 2
+                || !int.TryParse(parts[0], out var gx)
+                || !int.TryParse(parts[1], out var gy))
+            {
+                continue;
+            }
+
+            var uvX = gx - 64;
+            var uvY = 191 - gy;
+            if (uvX < 0 || uvX > 127 || uvY < 0 || uvY > 127)
+            {
+                continue;
+            }
+
+            heroMap.TryGetValue(player.HeroId, out var hero);
+            spots.Add(new MatchPlayerSpot
+            {
+                UvX = uvX,
+                UvY = uvY,
+                HeroIconUrl = HeroAssetHelper.GetIconUrl(hero?.Name),
+                HeroName = hero?.DisplayName ?? $"#{player.HeroId}",
+                PersonaName = player.PersonaName ?? string.Empty,
+                IsRadiant = player.PlayerSlot < 128
+            });
+        }
+
+        return spots;
+    }
+
     /// <summary>lane_pos 聚合为单侧活动热区（"x,y" → 出现次数）。</summary>
     private static Dictionary<string, int> CollectHeatmap(MatchDetailDto dto, bool isRadiant)
     {
@@ -702,7 +767,21 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             {
                 foreach (var (y, count) in ys)
                 {
-                    var cellKey = $"{x},{y}";
+                    // 官方约定（gameCoordToUV）：u = x-64，v = 191-y（y 轴翻转）
+                    // 键自带 +64 偏移，直接入 128 网格会把热区整体画偏并丢掉越界格
+                    if (!int.TryParse(x, out var gx) || !int.TryParse(y, out var gy))
+                    {
+                        continue;
+                    }
+
+                    var uvX = gx - 64;
+                    var uvY = 191 - gy;
+                    if (uvX < 0 || uvX >= 128 || uvY < 0 || uvY >= 128)
+                    {
+                        continue;
+                    }
+
+                    var cellKey = $"{uvX},{uvY}";
                     cells[cellKey] = cells.GetValueOrDefault(cellKey) + count;
                 }
             }

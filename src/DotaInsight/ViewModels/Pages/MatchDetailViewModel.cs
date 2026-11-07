@@ -36,6 +36,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         Radiant = new ObservableCollection<MatchPlayerItem>();
         Dire = new ObservableCollection<MatchPlayerItem>();
         Wards = new ObservableCollection<MatchWardDot>();
+        HeroSpots = new ObservableCollection<MatchPlayerSpotDot>();
         Buildings = new ObservableCollection<MatchBuildingDot>();
         EventTicks = new ObservableCollection<MapEventTick>();
         KillTicks = new ObservableCollection<MapEventTick>();
@@ -55,6 +56,8 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     public ObservableCollection<MatchWardDot> Wards { get; }
 
     /// <summary>小地图建筑块（按当前时刻计算立起/倒塌）。</summary>
+    public ObservableCollection<MatchPlayerSpotDot> HeroSpots { get; }
+
     public ObservableCollection<MatchBuildingDot> Buildings { get; }
 
     /// <summary>时间轴事件刻度（推塔/兵营/肉山/一血），点按跳转。</summary>
@@ -105,6 +108,14 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     /// <summary>热区默认关：信息密度大，作为分析工具按需打开。</summary>
     [ObservableProperty]
     private bool showHeatmap;
+
+    /// <summary>英雄头像层开关（常驻位置）。</summary>
+    [ObservableProperty]
+    private bool showHeroes = true;
+
+    /// <summary>该比赛有英雄常驻位置数据。</summary>
+    [ObservableProperty]
+    private bool hasHeroSpots;
 
     /// <summary>当前时刻战况摘要（推塔/兵营/肉山/一血）。</summary>
     [ObservableProperty]
@@ -428,6 +439,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         _allEvents = [];
         Wards.Clear();
         Buildings.Clear();
+        HeroSpots.Clear();
         EventTicks.Clear();
         KillTicks.Clear();
         HeatmapImage = null;
@@ -446,6 +458,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
         HeatmapImage = HeatmapRenderer.Render(detail?.RadiantHeatmap, detail?.DireHeatmap);
         HasHeatmap = HeatmapImage is not null;
+        BuildHeroSpots(detail?.Spots ?? []);
 
         BuildEventTicks();
         ApplyMapState();
@@ -496,6 +509,28 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         ApplyBuildings();
         ApplyWardFilter();
         UpdateMapSummary();
+    }
+
+    /// <summary>英雄常驻位置层：整场静态，不随时间轴变化。</summary>
+    private void BuildHeroSpots(IReadOnlyList<MatchPlayerSpot> spots)
+    {
+        HeroSpots.Clear();
+        HasHeroSpots = spots.Count > 0;
+        var scale = MapCanvasSize / MapGridSize;
+
+        foreach (var spot in spots)
+        {
+            HeroSpots.Add(new MatchPlayerSpotDot
+            {
+                Left = spot.UvX * scale - 14,
+                Top = spot.UvY * scale - 8,
+                HeroIconUrl = spot.HeroIconUrl,
+                HeroName = spot.HeroName,
+                IsRadiant = spot.IsRadiant,
+                Tooltip = $"{spot.PersonaName} · {spot.HeroName} · 常驻位置"
+            });
+        }
+
     }
 
     private void ApplyBuildings()
@@ -692,4 +727,20 @@ public sealed class MapEventTick
     public string Label { get; init; } = string.Empty;
 
     public double Left { get; init; }
+}
+
+/// <summary>小地图英雄头像点：常驻位置的像素定位与展示元数据。</summary>
+public sealed class MatchPlayerSpotDot
+{
+    public double Left { get; init; }
+
+    public double Top { get; init; }
+
+    public string HeroIconUrl { get; init; } = string.Empty;
+
+    public string HeroName { get; init; } = string.Empty;
+
+    public bool IsRadiant { get; init; }
+
+    public string Tooltip { get; init; } = string.Empty;
 }

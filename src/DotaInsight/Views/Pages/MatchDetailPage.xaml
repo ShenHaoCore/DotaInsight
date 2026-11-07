@@ -707,6 +707,9 @@
                             <ToggleButton Content="位置" Style="{StaticResource MapLayerChip}"
                                           IsChecked="{Binding ShowHeatmap, Mode=TwoWay}"
                                           Visibility="{Binding HasHeatmap, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            <ToggleButton Content="英雄" Style="{StaticResource MapLayerChip}"
+                                          IsChecked="{Binding ShowHeroes, Mode=TwoWay}"
+                                          Visibility="{Binding HasHeroSpots, Converter={StaticResource BoolToVisibilityConverter}}" />
                         </StackPanel>
                     </DockPanel>
 
@@ -723,6 +726,46 @@
                                    RenderOptions.BitmapScalingMode="Linear"
                                    IsHitTestVisible="False"
                                    Visibility="{Binding ShowHeatmap, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            <!-- 英雄常驻位置：lane_pos 最高频格，整场静态 -->
+                            <ItemsControl ItemsSource="{Binding HeroSpots}"
+                                          Visibility="{Binding ShowHeroes, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas IsItemsHost="True" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                                        <Setter Property="Canvas.Top" Value="{Binding Top}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="28" Height="16"
+                                                CornerRadius="3"
+                                                ClipToBounds="True"
+                                                Background="#E60D1117"
+                                                BorderThickness="1.5"
+                                                ToolTip="{Binding Tooltip}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource DiAdvantageBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRadiant}" Value="False">
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource DiDisadvantageBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Image Source="{Binding HeroIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
+                                                   Stretch="UniformToFill"
+                                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
                             <!-- 建筑层：按当前时刻立起/倒塌 -->
                             <ItemsControl ItemsSource="{Binding Buildings}"
                                           Visibility="{Binding ShowBuildings, Converter={StaticResource BoolToVisibilityConverter}}">

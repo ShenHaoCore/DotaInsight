@@ -54,6 +54,9 @@ public sealed class MatchDetail
     /// <summary>时间轴事件（推塔/兵营/肉山/一血/击杀）。无数据为空。</summary>
     public IReadOnlyList<MatchMapEvent> MapEvents { get; init; } = [];
 
+    /// <summary>玩家常驻位置（lane_pos 最高频格），供小地图英雄头像层使用。</summary>
+    public IReadOnlyList<MatchPlayerSpot> Spots { get; init; } = [];
+
     /// <summary>天辉活动热区（lane_pos 聚合，"x,y" → 出现次数）。无数据为空。</summary>
     public IReadOnlyDictionary<string, int> RadiantHeatmap { get; init; } = new Dictionary<string, int>();
 
@@ -206,6 +209,24 @@ public enum MatchMapEventKind
     TeamFight,
 
     Kill
+}
+
+/// <summary>
+/// 玩家常驻位置点：UV 坐标（0-127，OpenDota gameCoordToUV 约定）+ 头像展示元数据。
+/// </summary>
+public sealed class MatchPlayerSpot
+{
+    public double UvX { get; init; }
+
+    public double UvY { get; init; }
+
+    public string HeroIconUrl { get; init; } = string.Empty;
+
+    public string HeroName { get; init; } = string.Empty;
+
+    public string PersonaName { get; init; } = string.Empty;
+
+    public bool IsRadiant { get; init; }
 }
 
 /// <summary>
