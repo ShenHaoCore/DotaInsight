@@ -406,8 +406,12 @@
                             </Grid.ColumnDefinitions>
 
                             <Grid Grid.Column="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                             <!-- 属性：官网式单面板 -->
-                            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16"
+                            <Border Grid.Row="0" Style="{StaticResource DiPanelCardStyle}" Padding="16"
                                     Visibility="{Binding HasHero, Converter={StaticResource BoolVisibility}}">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -635,18 +639,11 @@
                                     </Border>
                                 </Grid>
 
-                            <!-- 右栏：定位 + 背景故事 -->
                             </Border>
-                            </Grid>
-                            <Grid Grid.Column="2"
-                                  Visibility="{Binding HasHero, Converter={StaticResource BoolVisibility}}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0" Style="{StaticResource DiPanelCardStyle}" Padding="16"
-                                        Visibility="{Binding Hero.HasRoles, Converter={StaticResource BoolVisibility}}">
+                            <!-- 定位：置于属性卡下方 -->
+                            <Border Grid.Row="1" Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,14,0,0"
+                                    Visibility="{Binding Hero.HasRoles, Converter={StaticResource BoolVisibility}}">
                                     <StackPanel>
                                         <StackPanel Style="{StaticResource DiCardTitleRow}">
                                             <TextBlock Text="定位" Style="{StaticResource DiSectionTitleStyle}" />
@@ -673,19 +670,25 @@
                                         </ItemsControl>
                                     </StackPanel>
                                 </Border>
-
-                                <Border Grid.Row="1" Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,14,0,0"
-                                        Visibility="{Binding HasBio, Converter={StaticResource BoolVisibility}}">
-                                    <StackPanel>
-                                        <StackPanel Style="{StaticResource DiCardTitleRow}">
-                                            <TextBlock Text="背景故事" Style="{StaticResource DiSectionTitleStyle}" />
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Profile.Bio}"
-                                                   FontSize="13" TextWrapping="Wrap" LineHeight="22"
-                                                   Foreground="{DynamicResource DiMutedTextBrush}" />
-                                    </StackPanel>
-                                </Border>
                             </Grid>
+
+                            <!-- 右栏：背景故事（独占整列，短文本垂直居中避免卡内空白） -->
+                            <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" Padding="16"
+                                    Visibility="{Binding HasBio, Converter={StaticResource BoolVisibility}}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Style="{StaticResource DiCardTitleRow}">
+                                        <TextBlock Text="背景故事" Style="{StaticResource DiSectionTitleStyle}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" Text="{Binding Profile.Bio}"
+                                               VerticalAlignment="Center"
+                                               FontSize="13" TextWrapping="Wrap" LineHeight="22"
+                                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                                </Grid>
+                            </Border>
 
                             <!-- 无资料兜底 -->
                             <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
