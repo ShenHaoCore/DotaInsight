@@ -194,22 +194,24 @@
                             <TextBlock Text="高胜率英雄" Style="{StaticResource DiSectionTitleStyle}" />
                         </DockPanel>
                     </Border>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding TopWinRateHeroes}"
-                                      AlternationCount="20"
-                                      Margin="12,8,12,4"
-                                      ItemTemplate="{StaticResource MetaRankRowWin}" />
-                    </ScrollViewer>
+                    <Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding TopWinRateHeroes}"
+                                          AlternationCount="20"
+                                          Margin="12,8,12,4"
+                                          ItemTemplate="{StaticResource MetaRankRowWin}" />
+                        </ScrollViewer>
 
-                    <!-- 加载占位：数据未到时填充卡片，避免首启动白板 -->
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Visibility="{Binding MetaLoading, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <ui:ProgressRing Width="28" Height="28" IsIndeterminate="True" HorizontalAlignment="Center" />
-                        <TextBlock Text="正在加载版本数据…" FontSize="12" Margin="0,10,0,0"
-                                   HorizontalAlignment="Center"
-                                   Foreground="{DynamicResource DiMutedTextBrush}" />
-                    </StackPanel>
+                        <!-- 加载占位：覆盖在列表上层，数据到位即隐藏 -->
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding MetaLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ui:ProgressRing Width="28" Height="28" IsIndeterminate="True" HorizontalAlignment="Center" />
+                            <TextBlock Text="正在加载版本数据…" FontSize="12" Margin="0,10,0,0"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                        </StackPanel>
+                    </Grid>
                 </DockPanel>
             </Border>
 
@@ -218,22 +220,24 @@
                     <Border DockPanel.Dock="Top" Style="{StaticResource SectionHeaderStyle}">
                         <TextBlock Text="高选取英雄" Style="{StaticResource DiSectionTitleStyle}" />
                     </Border>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding TopPickRateHeroes}"
-                                      AlternationCount="20"
-                                      Margin="12,8,12,4"
-                                      ItemTemplate="{StaticResource MetaRankRowPick}" />
-                    </ScrollViewer>
+                    <Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding TopPickRateHeroes}"
+                                          AlternationCount="20"
+                                          Margin="12,8,12,4"
+                                          ItemTemplate="{StaticResource MetaRankRowPick}" />
+                        </ScrollViewer>
 
-                    <!-- 加载占位：数据未到时填充卡片，避免首启动白板 -->
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Visibility="{Binding MetaLoading, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <ui:ProgressRing Width="28" Height="28" IsIndeterminate="True" HorizontalAlignment="Center" />
-                        <TextBlock Text="正在加载版本数据…" FontSize="12" Margin="0,10,0,0"
-                                   HorizontalAlignment="Center"
-                                   Foreground="{DynamicResource DiMutedTextBrush}" />
-                    </StackPanel>
+                        <!-- 加载占位：覆盖在列表上层，数据到位即隐藏 -->
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding MetaLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ui:ProgressRing Width="28" Height="28" IsIndeterminate="True" HorizontalAlignment="Center" />
+                            <TextBlock Text="正在加载版本数据…" FontSize="12" Margin="0,10,0,0"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                        </StackPanel>
+                    </Grid>
                 </DockPanel>
             </Border>
         </Grid>

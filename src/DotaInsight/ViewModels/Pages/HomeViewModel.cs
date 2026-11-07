@@ -78,7 +78,7 @@ public partial class HomeViewModel : ObservableObject
                 foreach (var hero in heroes
                              .Where(h => h.Matches >= 200)
                              .OrderByDescending(h => h.WinRate)
-                             .Take(8))
+                             .Take(20))
                 {
                     TopWinRateHeroes.Add(hero);
                 }
@@ -86,7 +86,7 @@ public partial class HomeViewModel : ObservableObject
                 TopPickRateHeroes.Clear();
                 foreach (var hero in heroes
                              .OrderByDescending(h => h.PickRate)
-                             .Take(8))
+                             .Take(20))
                 {
                     TopPickRateHeroes.Add(hero);
                 }
