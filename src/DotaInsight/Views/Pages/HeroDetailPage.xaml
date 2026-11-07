@@ -96,8 +96,8 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="64" />
-                                    <ColumnDefinition Width="52" />
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="84" />
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" Width="56" Height="32" CornerRadius="4" ClipToBounds="True"
                                         Background="{DynamicResource DiChromeBrush}" Margin="0,0,10,0">
@@ -114,14 +114,16 @@
                                                  Foreground="{Binding IsCountering, Converter={StaticResource AdvantageBrush}}" />
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Text="{Binding WinRateDiffText}" FontSize="14" FontWeight="Medium"
-                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0"
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,10,0"
                                            Foreground="{Binding IsCountering, Converter={StaticResource AdvantageBrush}}" />
-                                <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                    <TextBlock Text="{Binding WinRateText}" FontSize="11" HorizontalAlignment="Right"
-                                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                                    <TextBlock Text="{Binding MatchesText}" FontSize="10" HorizontalAlignment="Right"
-                                               Foreground="{DynamicResource DiMutedTextBrush}" />
-                                </StackPanel>
+                                <!-- 胜率与场次同行展示，百分比不再换行 -->
+                                <TextBlock Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                           FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}">
+                                    <Run Text="{Binding WinRateText, Mode=OneWay}" FontWeight="Medium"
+                                         Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                    <Run Text=" · " />
+                                    <Run Text="{Binding MatchesText, Mode=OneWay}" />
+                                </TextBlock>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
