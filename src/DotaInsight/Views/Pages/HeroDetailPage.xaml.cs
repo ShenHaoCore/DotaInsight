@@ -27,7 +27,22 @@ public partial class HeroDetailPage : Page
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        viewModel.RequestScrollToMatchups += OnRequestScrollToMatchups;
         HeroVideoView.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    /// 头部「克制分析」按钮：切到对位克制页签并滚动到该卡片。
+    /// 延后到 Loaded 优先级执行，确保目标卡片已完成布局、偏移计算有效。
+    /// </summary>
+    private void OnRequestScrollToMatchups()
+    {
+        _viewModel.MatchupTabIndex = 0;
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            var offset = MatchupCard.TransformToVisual(DetailScroll).Transform(new Point(0, 0)).Y;
+            DetailScroll.ScrollToVerticalOffset(Math.Max(0, offset - 8));
+        }));
     }
 
     private (string? VideoUrl, string? PosterUrl) ResolveMedia() => (_viewModel.Profile?.VideoUrl, HeroDisplayHelper.FirstNonEmpty(_viewModel.Profile?.PosterUrl, _viewModel.Hero?.IconUrl));

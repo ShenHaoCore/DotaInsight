@@ -1011,7 +1011,7 @@
                         </Border>
 
                         <!-- ===================== 对位与分段（页签卡：对位克制 / 天梯分段） ===================== -->
-                        <Border Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,0,0,20">
+                        <Border x:Name="MatchupCard" Style="{StaticResource DiPanelCardStyle}" Padding="16" Margin="0,0,0,20">
                             <StackPanel>
                                 <Border Padding="2" HorizontalAlignment="Left"
                                         Background="{DynamicResource DiChromeBrush}" CornerRadius="6"
