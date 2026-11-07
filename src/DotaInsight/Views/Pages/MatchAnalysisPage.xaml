@@ -196,7 +196,8 @@
                     <StackPanel Margin="2,14,0,0"
                                 Visibility="{Binding HasActivity, Converter={StaticResource BoolToVisibilityConverter}}">
                         <Rectangle Height="1" Fill="{DynamicResource DiStrokeBrush}" />
-                        <DockPanel Margin="0,10,0,8">
+                        <!-- LastChildFill=False：否则摘要作为末子元素变填充、Dock=Right 失效顶贴标题 -->
+                        <DockPanel Margin="0,10,0,8" LastChildFill="False">
                             <TextBlock Text="每日游玩" Style="{StaticResource DiSectionTitleStyle}" />
                             <TextBlock DockPanel.Dock="Right"
                                        Text="{Binding ActivitySummaryText}"
