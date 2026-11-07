@@ -426,11 +426,16 @@
                     </DockPanel>
                 </Border>
 
-                <!-- 侧栏：账号 / 近期常用英雄 / 英雄胜率榜（独立滚动） -->
-                <ScrollViewer Grid.Column="2"
-                              VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel>
+                <!-- 侧栏：账号 / 近期常用英雄 / 英雄胜率榜（独立滚动）。
+                     右留 14px 滚动条槽：悬浮滚动条不再压住卡片边框；
+                     上下渐隐遮罩在滚动时显示，切片过渡自然 -->
+                <Grid Grid.Column="2">
+                    <ScrollViewer x:Name="SidebarScroll"
+                                  Margin="0,0,14,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  ScrollChanged="OnSidebarScrollChanged">
+                        <StackPanel>
                         <!-- 我的账号：点击切换并查询 -->
                         <Border Style="{StaticResource DiPanelCardStyle}"
                                 Padding="12,10"
@@ -659,7 +664,28 @@
                             </StackPanel>
                         </Border>
                     </StackPanel>
-                </ScrollViewer>
+                    </ScrollViewer>
+
+                    <!-- 滚动渐隐遮罩：仅在对应方向仍有内容时显示，遮住平切边缘 -->
+                    <Border x:Name="SidebarTopFade" Height="14" VerticalAlignment="Top"
+                            Margin="0,0,14,0" IsHitTestVisible="False" Visibility="Collapsed">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="{DynamicResource DiCanvasColor}" Offset="0" />
+                                <GradientStop Color="#00FFFFFF" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                    <Border x:Name="SidebarBottomFade" Height="14" VerticalAlignment="Bottom"
+                            Margin="0,0,14,0" IsHitTestVisible="False" Visibility="Collapsed">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,1" EndPoint="0,0">
+                                <GradientStop Color="{DynamicResource DiCanvasColor}" Offset="0" />
+                                <GradientStop Color="#00FFFFFF" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                </Grid>
             </Grid>
 
             <!-- 底部区：胜负走势 / 打法建议 页签 -->
