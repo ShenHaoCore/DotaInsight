@@ -333,6 +333,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? []).ToList();
             var itemUrls = players
                 .SelectMany(p => p.ItemIconUrls.Concat([p.NeutralItemIconUrl]))
+                .Concat((detail?.Spots ?? []).Select(s => s.SmallIconUrl))
                 .Where(u => !string.IsNullOrWhiteSpace(u))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -356,6 +357,8 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                 }
 
                 FillTeams(detail);
+                // 小地图头像图标此时已落盘，重建让绑定重新求值（冷路径首帧为空框）
+                BuildHeroSpots(detail?.Spots ?? []);
             }).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is OperationCanceledException && token.IsCancellationRequested)

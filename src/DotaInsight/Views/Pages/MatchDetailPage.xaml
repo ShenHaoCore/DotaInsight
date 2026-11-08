@@ -746,18 +746,7 @@
                                                 CornerRadius="3"
                                                 ClipToBounds="True"
                                                 Background="#E60D1117"
-                                                BorderThickness="1.5"
                                                 ToolTip="{Binding Tooltip}">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource DiAdvantageBrush}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsRadiant}" Value="False">
-                                                            <Setter Property="BorderBrush" Value="{DynamicResource DiDisadvantageBrush}" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
                                             <Image Source="{Binding SmallIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
                                                    Stretch="UniformToFill"
                                                    RenderOptions.BitmapScalingMode="HighQuality" />
