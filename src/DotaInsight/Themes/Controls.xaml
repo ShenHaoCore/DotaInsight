@@ -206,6 +206,14 @@
          注意：隐式样式会进入 ListBox 等控件模板内部的 ScrollViewer，全局生效 -->
 
 
+    <!-- ================= 全局滚动规则 ================= -->
+    <!-- WPF-UI 悬浮滚动条覆盖在视口右缘：统一给内容右侧留 10px 槽位，
+         滚动条永远落在槽里，不再压住文字/行尾（背景故事、比赛时间列等）。
+         只设 Padding 不换模板，滚动条样式仍走 WPF-UI 隐式 ScrollBar -->
+    <Style TargetType="ScrollViewer">
+        <Setter Property="Padding" Value="0,0,10,0" />
+    </Style>
+
     <!-- ================= 卡片 ================= -->
     <Style x:Key="DiPanelCardStyle" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource DiPanelBrush}" />
