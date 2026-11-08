@@ -747,7 +747,7 @@
                                                 ClipToBounds="True"
                                                 Background="#E60D1117"
                                                 ToolTip="{Binding Tooltip}">
-                                            <Image Source="{Binding SmallIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
+                                            <Image Source="{Binding HeroIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
                                                    Stretch="UniformToFill"
                                                    RenderOptions.BitmapScalingMode="HighQuality" />
                                         </Border>

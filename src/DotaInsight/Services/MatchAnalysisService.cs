@@ -742,7 +742,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             {
                 UvX = uvX,
                 UvY = uvY,
-                SmallIconUrl = HeroAssetHelper.GetSmallIconUrl(hero?.Name),
+                HeroIconUrl = HeroAssetHelper.GetIconUrl(hero?.Name),
                 HeroName = hero?.DisplayName ?? $"#{player.HeroId}",
                 PersonaName = player.PersonaName ?? string.Empty,
                 IsRadiant = player.PlayerSlot < 128

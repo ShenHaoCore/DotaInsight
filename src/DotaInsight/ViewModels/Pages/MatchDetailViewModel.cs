@@ -99,15 +99,16 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     private ImageSource? heatmapImage;
 
     // ===== 图层开关 =====
+    // 默认只开「英雄 + 建筑」：眼位上百个、热区全图铺开，默认全开会糊成一片；
+    // 噪声层作为分析工具按需打开
     [ObservableProperty]
-    private bool showWards = true;
+    private bool showWards;
 
     [ObservableProperty]
     private bool showBuildings = true;
 
-    /// <summary>热区默认关：信息密度大，作为分析工具按需打开。</summary>
     [ObservableProperty]
-    private bool showHeatmap = true;
+    private bool showHeatmap;
 
     /// <summary>英雄头像层开关（常驻位置）。</summary>
     [ObservableProperty]
@@ -333,7 +334,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? []).ToList();
             var itemUrls = players
                 .SelectMany(p => p.ItemIconUrls.Concat([p.NeutralItemIconUrl]))
-                .Concat((detail?.Spots ?? []).Select(s => s.SmallIconUrl))
+                .Concat((detail?.Spots ?? []).Select(s => s.HeroIconUrl))
                 .Where(u => !string.IsNullOrWhiteSpace(u))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -523,11 +524,14 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
         foreach (var spot in spots)
         {
+            // 钳制在画布内：贴边的头像若按中心定位会被 ClipToBounds 切一半
+            var left = Math.Clamp(spot.UvX * scale - 14, 0, MapCanvasSize - 28);
+            var top = Math.Clamp(spot.UvY * scale - 8, 0, MapCanvasSize - 16);
             HeroSpots.Add(new MatchPlayerSpotDot
             {
-                Left = spot.UvX * scale - 14,
-                Top = spot.UvY * scale - 8,
-                SmallIconUrl = spot.SmallIconUrl,
+                Left = left,
+                Top = top,
+                HeroIconUrl = spot.HeroIconUrl,
                 HeroName = spot.HeroName,
                 IsRadiant = spot.IsRadiant,
                 Tooltip = $"{spot.PersonaName} · {spot.HeroName} · 常驻位置"
@@ -739,7 +743,7 @@ public sealed class MatchPlayerSpotDot
 
     public double Top { get; init; }
 
-    public string SmallIconUrl { get; init; } = string.Empty;
+    public string HeroIconUrl { get; init; } = string.Empty;
 
     public string HeroName { get; init; } = string.Empty;
 
