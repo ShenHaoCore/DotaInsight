@@ -86,6 +86,8 @@
                         <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}}"
                               Stroke="{DynamicResource DiAdvantageBrush}" StrokeThickness="1.5"
                               StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}, ConverterParameter=points}"
+                              Fill="{DynamicResource DiAdvantageBrush}" />
                         <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}, ConverterParameter=dot}"
                               Fill="{DynamicResource DiAdvantageBrush}" />
                     </Grid>

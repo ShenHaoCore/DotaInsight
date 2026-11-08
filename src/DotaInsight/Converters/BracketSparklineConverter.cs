@@ -71,6 +71,7 @@ public sealed class BracketSparklineConverter : IValueConverter
         {
             "fill" => BuildArea(points),
             "dot" => BuildDot(points),
+            "points" => BuildPoints(points),
             _ => BuildLine(points)
         };
     }
@@ -78,18 +79,35 @@ public sealed class BracketSparklineConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
 
-    /// <summary>平滑曲线：Catmull-Rom 转三次贝塞尔，过点平滑无锯齿。</summary>
+    /// <summary>GitHub 风格折线：直线段连接（不做样条平滑），配数据点圆点。</summary>
     private static Geometry BuildLine(IReadOnlyList<Point> p)
     {
         var geo = new StreamGeometry();
         using (var ctx = geo.Open())
         {
             ctx.BeginFigure(p[0], false, false);
-            AppendSpline(ctx, p);
+            for (var i = 1; i < p.Count; i++)
+            {
+                ctx.LineTo(p[i], true, false);
+            }
         }
 
         geo.Freeze();
         return geo;
+    }
+
+    /// <summary>每个数据点一个小圆点（GitHub traffic 图语言）。</summary>
+    private static Geometry BuildPoints(IReadOnlyList<Point> p)
+    {
+        var group = new GeometryGroup();
+        foreach (var pt in p)
+        {
+            var ellipse = new EllipseGeometry(pt, 1.6, 1.6);
+            group.Children.Add(ellipse);
+        }
+
+        group.Freeze();
+        return group;
     }
 
     /// <summary>曲线下填充区：曲线 + 两端落底 + 闭合。</summary>
