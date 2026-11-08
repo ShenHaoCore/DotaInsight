@@ -141,6 +141,14 @@ public sealed class HeroStat
     public IReadOnlyList<double> BracketWinRates
         => Brackets.Where(b => b.Picks > 0).Select(b => b.Wins * 100.0 / b.Picks).ToList();
 
+    /// <summary>各分段选取率（该分段全局对局中该英雄上场率 %）；由服务层按全局分段对局数统一填充。</summary>
+    [JsonIgnore]
+    public IReadOnlyList<double>? BracketPickRates { get; set; }
+
+    /// <summary>分段选取率悬浮文案（服务层填充）。</summary>
+    [JsonIgnore]
+    public string BracketPickRateTooltip { get; set; } = string.Empty;
+
     /// <summary>各分段选取占比（该英雄自己对局在各分段的分布，%，合计 100）；无样本为空。</summary>
     [JsonIgnore]
     public IReadOnlyList<double> BracketPickShares

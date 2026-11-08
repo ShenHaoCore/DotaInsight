@@ -32,15 +32,40 @@ public sealed class BracketSparklineConverter : IValueConverter
             return null;
         }
 
-        var min = rates.Min();
-        var max = rates.Max();
-        var mid = (min + max) / 2;
-        var span = Math.Max(max - min, FlatSpan);
-
         var stepX = ViewportWidth / (rates.Count - 1);
-        var points = rates.Select((r, i) => new Point(
-            i * stepX,
-            ViewportHeight / 2 - (r - mid) / span * (ViewportHeight / 2))).ToList();
+        List<Point> points;
+
+        if (parameter as string is { } mode && mode.StartsWith("fixed"))
+        {
+            // 统一刻度（0-30%）：跨行可比——占各分段选取率跨英雄差异大，
+            // 若按每条线自身极值归一化，所有曲线会被拉成同一种形状
+            const double fixedMax = 30.0;
+            points = rates.Select((r, i) => new Point(
+                i * stepX,
+                ViewportHeight - Math.Min(1.0, r / fixedMax) * ViewportHeight)).ToList();
+        }
+        else
+        {
+            var min = rates.Min();
+            var max = rates.Max();
+            var mid = (min + max) / 2;
+            var span = Math.Max(max - min, FlatSpan);
+            points = rates.Select((r, i) => new Point(
+                i * stepX,
+                ViewportHeight / 2 - (r - mid) / span * (ViewportHeight / 2))).ToList();
+        }
+
+        var isFixed = (parameter as string)?.StartsWith("fixed") == true;
+        if (isFixed)
+        {
+            var kind = (parameter as string)![5..];
+            return kind switch
+            {
+                "Fill" => BuildArea(points),
+                "Dot" => BuildDot(points),
+                _ => BuildLine(points)
+            };
+        }
 
         return parameter as string switch
         {

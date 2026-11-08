@@ -119,13 +119,13 @@
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource DiPrimaryTextBrush}" />
                     <Grid Grid.Column="3" Width="76" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
-                          ToolTip="{Binding BracketPickTooltip}">
-                        <Path Data="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}, ConverterParameter=fill}"
+                          ToolTip="{Binding BracketPickRateTooltip}">
+                        <Path Data="{Binding BracketPickRates, Converter={StaticResource BracketSparkline}, ConverterParameter=fixedFill}"
                               Fill="{StaticResource SparkPickFill}" />
-                        <Path Data="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}}"
+                        <Path Data="{Binding BracketPickRates, Converter={StaticResource BracketSparkline}, ConverterParameter=fixed}"
                               Stroke="{DynamicResource DiShardBrush}" StrokeThickness="1.5"
                               StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                        <Path Data="{Binding BracketPickShares, Converter={StaticResource BracketSparkline}, ConverterParameter=dot}"
+                        <Path Data="{Binding BracketPickRates, Converter={StaticResource BracketSparkline}, ConverterParameter=fixedDot}"
                               Fill="{DynamicResource DiShardBrush}" />
                     </Grid>
                     <TextBlock Grid.Column="4" Text="{Binding PickRateText}" FontSize="14" FontWeight="Medium"

@@ -126,9 +126,74 @@ public sealed class HeroCounterService : IHeroCounterService
     /// <summary>把加载成功的英雄列表连同 Id 索引一起存入进程内缓存。</summary>
     private IReadOnlyList<HeroStat> StoreHeroes(List<HeroStat> heroes)
     {
+        ComputeBracketPickRates(heroes);
         _heroesMemory = heroes;
         _heroByIdMemory = heroes.ToDictionary(h => h.Id);
         return heroes;
+    }
+
+    /// <summary>
+    /// 各分段选取率：该分段全局对局（全体英雄 picks 之和）中该英雄的上场率。
+    /// 占比分布（shares）在所有英雄间几乎同形，归一化后折线全一样；
+    /// 选取率跨英雄差异巨大（热门英雄低分段可达 20%+，冷门不足 1%），且须用统一刻度绘制。
+    /// </summary>
+    private static void ComputeBracketPickRates(List<HeroStat> heroes)
+    {
+        if (heroes.Count == 0)
+        {
+            return;
+        }
+
+        var bracketCount = heroes.Max(h => h.Brackets?.Count ?? 0);
+        if (bracketCount == 0)
+        {
+            return;
+        }
+
+        var globalPicks = new double[bracketCount];
+        foreach (var hero in heroes)
+        {
+            var brackets = hero.Brackets;
+            if (brackets is null)
+            {
+                continue;
+            }
+
+            for (var k = 0; k < brackets.Count && k < bracketCount; k++)
+            {
+                globalPicks[k] += brackets[k].Picks;
+            }
+        }
+
+        foreach (var hero in heroes)
+        {
+            var brackets = hero.Brackets;
+            if (brackets is null || brackets.Count == 0)
+            {
+                hero.BracketPickRates = null;
+                hero.BracketPickRateTooltip = string.Empty;
+                continue;
+            }
+
+            var rates = new List<double>();
+            var tooltipParts = new List<string>();
+            for (var k = 0; k < brackets.Count && k < bracketCount; k++)
+            {
+                if (globalPicks[k] <= 0)
+                {
+                    continue;
+                }
+
+                var rate = brackets[k].Picks * 100.0 / globalPicks[k];
+                rates.Add(rate);
+                tooltipParts.Add($"{brackets[k].Name} {rate:F1}%");
+            }
+
+            hero.BracketPickRates = rates.Count >= 2 ? rates : null;
+            hero.BracketPickRateTooltip = rates.Count >= 2
+                ? "分段选取率 " + string.Join(" · ", tooltipParts)
+                : string.Empty;
+        }
     }
 
     public async Task<HeroCounterResult> GetCounterRelationsAsync(
