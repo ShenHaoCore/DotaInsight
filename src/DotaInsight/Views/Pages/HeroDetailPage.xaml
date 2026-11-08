@@ -407,7 +407,7 @@
                                 <ColumnDefinition Width="400" />
                             </Grid.ColumnDefinitions>
 
-                            <Grid Grid.Column="0">
+                            <Grid Grid.Column="0" x:Name="AttributeColumn">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
@@ -674,9 +674,11 @@
                                 </Border>
                             </Grid>
 
-                            <!-- 右栏：背景故事（独占整列，短文本垂直居中避免卡内空白） -->
+                            <!-- 右栏：背景故事。MaxHeight 绑左列实际高度：
+                                 长文不把整行撑高（不超出左边属性+定位的底部），改为卡内滚动 -->
                             <Border Grid.Column="2" Style="{StaticResource DiPanelCardStyle}" Padding="16"
-                                    Visibility="{Binding HasBio, Converter={StaticResource BoolVisibility}}">
+                                    MaxHeight="{Binding ActualHeight, ElementName=AttributeColumn}"
+                                    Visibility="{Binding HasBio, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -685,9 +687,12 @@
                                     <StackPanel Grid.Row="0" Style="{StaticResource DiCardTitleRow}">
                                         <TextBlock Text="背景故事" Style="{StaticResource DiSectionTitleStyle}" />
                                     </StackPanel>
-                                    <TextBlock Grid.Row="1" Text="{Binding Profile.Bio}"
-                                               FontSize="13" TextWrapping="Wrap" LineHeight="22"
-                                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <TextBlock Text="{Binding Profile.Bio}"
+                                                   FontSize="13" TextWrapping="Wrap" LineHeight="22"
+                                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                                    </ScrollViewer>
                                 </Grid>
                             </Border>
 
