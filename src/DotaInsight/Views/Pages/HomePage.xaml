@@ -12,10 +12,7 @@
         <converters:IndexPlusOneConverter x:Key="IndexPlusOneConverter" />
         <converters:BracketSparklineConverter x:Key="BracketSparkline" />
         <converters:RateToBarWidthConverter x:Key="RateToBarWidth" />
-        <LinearGradientBrush x:Key="SparkWinFill" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#592DA44E" Offset="0" />
-            <GradientStop Color="#0D2DA44E" Offset="1" />
-        </LinearGradientBrush>
+        <SolidColorBrush x:Key="SparkWinFill" Color="#382DA44E" />
         <LinearGradientBrush x:Key="SparkPickFill" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#594FC3F7" Offset="0" />
             <GradientStop Color="#0D4FC3F7" Offset="1" />
@@ -86,10 +83,7 @@
                         <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}}"
                               Stroke="{DynamicResource DiAdvantageBrush}" StrokeThickness="1.5"
                               StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                        <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}, ConverterParameter=points}"
-                              Fill="{DynamicResource DiAdvantageBrush}" />
-                        <Path Data="{Binding BracketWinRates, Converter={StaticResource BracketSparkline}, ConverterParameter=dot}"
-                              Fill="{DynamicResource DiAdvantageBrush}" />
+
                     </Grid>
                     <TextBlock Grid.Column="4" Text="{Binding WinRateText}" FontSize="14" FontWeight="Medium"
                                VerticalAlignment="Center"
