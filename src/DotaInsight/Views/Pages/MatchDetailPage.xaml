@@ -714,14 +714,14 @@
                     </DockPanel>
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                        <Grid Width="480" Height="480"
+                        <Grid Width="420" Height="420"
                               HorizontalAlignment="Center" VerticalAlignment="Center"
                               ClipToBounds="True">
                             <Image Source="pack://application:,,,/DotaInsight;component/Assets/Map/minimap.jpg"
                                    Stretch="Fill" />
                             <!-- 位置分布：lane_pos 聚合位图（稀疏指纹，每人 2-10 格），线性上采样成柔点 -->
                             <Image Source="{Binding HeatmapImage}"
-                                   Width="480" Height="480"
+                                   Width="420" Height="420"
                                    Stretch="Fill"
                                    RenderOptions.BitmapScalingMode="Linear"
                                    IsHitTestVisible="False"
@@ -822,8 +822,8 @@
                     </ScrollViewer>
 
                     <!-- 事件时间轴：事件带（塔/兵营/肉山/一血）+ 击杀细带 + 拖动条 -->
-                    <StackPanel Width="480" HorizontalAlignment="Center" Margin="0,10,0,0">
-                        <Canvas Width="480" Height="18"
+                    <StackPanel Width="420" HorizontalAlignment="Center" Margin="0,8,0,0">
+                        <Canvas Width="420" Height="18"
                                 Visibility="{Binding HasEventTicks, Converter={StaticResource BoolToVisibilityConverter}}">
                             <ItemsControl ItemsSource="{Binding EventTicks}">
                                 <ItemsControl.ItemsPanel>
@@ -876,7 +876,7 @@
                             </ItemsControl>
                         </Canvas>
 
-                        <Canvas Width="480" Height="8" Margin="0,2,0,0"
+                        <Canvas Width="420" Height="8" Margin="0,2,0,0"
                                 Visibility="{Binding HasKillTicks, Converter={StaticResource BoolToVisibilityConverter}}">
                             <ItemsControl ItemsSource="{Binding KillTicks}">
                                 <ItemsControl.ItemsPanel>
