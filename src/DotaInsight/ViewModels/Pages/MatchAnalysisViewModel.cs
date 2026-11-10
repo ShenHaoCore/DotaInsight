@@ -684,15 +684,8 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         // 时间正序：胜 +1（绿向上）/ 负 -1（红向下）——负场此前画 0 高度完全不可见
         var ordered = matches.OrderBy(m => m.StartTimeLocal).ToList();
 
-        // 智能标签：换日显示日期，同日对局显示时刻
-        string? lastDate = null;
-        var labels = ordered.Select(m =>
-        {
-            var date = m.StartTimeLocal.ToString("MM-dd");
-            var label = date == lastDate ? m.StartTimeLocal.ToString("HH:mm") : date;
-            lastDate = date;
-            return label;
-        }).ToArray();
+        // 标签带完整日期+时刻，45° 旋转避免相邻重叠
+        var labels = ordered.Select(m => m.StartTimeLocal.ToString("MM-dd HH:mm")).ToArray();
 
         var winValues = ordered.Select(m => m.IsWin ? 1d : (double?)null).ToArray();
         var lossValues = ordered.Select(m => m.IsWin ? (double?)null : -1d).ToArray();
@@ -743,7 +736,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             new Axis
             {
                 Labels = labels,
-                LabelsRotation = 20,
+                LabelsRotation = 45,
                 TextSize = 10,
                 LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
                 SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
