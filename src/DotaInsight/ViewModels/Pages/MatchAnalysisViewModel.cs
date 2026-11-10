@@ -683,9 +683,32 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
 
         // 时间正序：胜 +1（绿向上）/ 负 -1（红向下）——负场此前画 0 高度完全不可见
         var ordered = matches.OrderBy(m => m.StartTimeLocal).ToList();
-        var labels = ordered.Select(m => m.StartTimeLocal.ToString("MM-dd")).ToArray();
+
+        // 智能标签：换日显示日期，同日对局显示时刻
+        string? lastDate = null;
+        var labels = ordered.Select(m =>
+        {
+            var date = m.StartTimeLocal.ToString("MM-dd");
+            var label = date == lastDate ? m.StartTimeLocal.ToString("HH:mm") : date;
+            lastDate = date;
+            return label;
+        }).ToArray();
+
         var winValues = ordered.Select(m => m.IsWin ? 1d : (double?)null).ToArray();
         var lossValues = ordered.Select(m => m.IsWin ? (double?)null : -1d).ToArray();
+
+        // 累计胜率（%）：到这里为止的场次中获胜的比例，走势线
+        var cumulative = new List<double>();
+        var winsSoFar = 0;
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            if (ordered[i].IsWin)
+            {
+                winsSoFar++;
+            }
+
+            cumulative.Add(winsSoFar * 100.0 / (i + 1));
+        }
 
         Series =
         [
@@ -702,6 +725,16 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 Values = lossValues,
                 MaxBarWidth = 14,
                 Fill = new SolidColorPaint(SKColor.Parse("#CF222E"))
+            },
+            new LineSeries<double>
+            {
+                Name = "累计胜率",
+                Values = cumulative.ToArray(),
+                ScalesYAt = 1,
+                GeometrySize = 4,
+                LineSmoothness = 0.4,
+                Stroke = new SolidColorPaint(SKColor.Parse("#0969DA")) { StrokeThickness = 2 },
+                Fill = null
             }
         ];
 
@@ -725,6 +758,16 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 MaxLimit = 1.35,
                 TextSize = 10,
                 Labeler = value => Math.Abs(value) < 0.01 ? string.Empty : value > 0 ? "胜" : "负",
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
+            },
+            new Axis
+            {
+                Position = LiveChartsCore.Measure.AxisPosition.End,
+                MinLimit = 0,
+                MaxLimit = 100,
+                TextSize = 10,
+                Labeler = value => $"{value:F0}%",
                 LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
                 SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
             }
