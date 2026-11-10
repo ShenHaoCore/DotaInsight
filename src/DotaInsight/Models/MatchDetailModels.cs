@@ -8,60 +8,60 @@ namespace DotaInsight.Models;
 /// </summary>
 public sealed class MatchDetail
 {
-    public long MatchId { get; init; }
+    public long MatchId { get; set; }
 
-    public bool RadiantWin { get; init; }
+    public bool RadiantWin { get; set; }
 
-    public int DurationSeconds { get; init; }
+    public int DurationSeconds { get; set; }
 
-    public DateTime StartTimeLocal { get; init; }
+    public DateTime StartTimeLocal { get; set; }
 
-    public int GameMode { get; init; }
+    public int GameMode { get; set; }
 
-    public int LobbyType { get; init; }
+    public int LobbyType { get; set; }
 
-    public int RadiantScore { get; init; }
+    public int RadiantScore { get; set; }
 
-    public int DireScore { get; init; }
+    public int DireScore { get; set; }
 
     /// <summary>职业比赛队名，路人局为空。</summary>
-    public string? RadiantTeamName { get; init; }
+    public string? RadiantTeamName { get; set; }
 
-    public string? DireTeamName { get; init; }
+    public string? DireTeamName { get; set; }
 
-    public IReadOnlyList<MatchPlayerItem> Radiant { get; init; } = [];
+    public IReadOnlyList<MatchPlayerItem> Radiant { get; set; } = [];
 
-    public IReadOnlyList<MatchPlayerItem> Dire { get; init; } = [];
+    public IReadOnlyList<MatchPlayerItem> Dire { get; set; } = [];
 
     /// <summary>经济优势曲线（天辉 − 夜魇，逐分钟）。缺失/未解析为空。</summary>
-    public IReadOnlyList<int?>? GoldAdvantage { get; init; }
+    public IReadOnlyList<int?>? GoldAdvantage { get; set; }
 
     /// <summary>经验优势曲线（天辉 − 夜魇，逐分钟）。缺失为空。</summary>
-    public IReadOnlyList<int?>? XpAdvantage { get; init; }
+    public IReadOnlyList<int?>? XpAdvantage { get; set; }
 
     /// <summary>眼位布置（观察/岗哨，UV 已换算到 0-127 地图网格）。无记录为空。</summary>
-    public IReadOnlyList<MatchWardPlacement> Wards { get; init; } = [];
+    public IReadOnlyList<MatchWardPlacement> Wards { get; set; } = [];
 
     /// <summary>Ban/Pick 序列（队长模式 2 / 队长征召 16）。其他模式为空。</summary>
-    public IReadOnlyList<MatchDraftStep> DraftSteps { get; init; } = [];
+    public IReadOnlyList<MatchDraftStep> DraftSteps { get; set; } = [];
 
     /// <summary>是否技能征召（OMG，模式 18）。</summary>
     public bool IsAbilityDraft => GameMode == 18;
 
     /// <summary>建筑（塔/兵营/遗迹）与推倒时间线。无 objectives 数据为空。</summary>
-    public IReadOnlyList<MatchBuilding> Buildings { get; init; } = [];
+    public IReadOnlyList<MatchBuilding> Buildings { get; set; } = [];
 
     /// <summary>时间轴事件（推塔/兵营/肉山/一血/击杀）。无数据为空。</summary>
-    public IReadOnlyList<MatchMapEvent> MapEvents { get; init; } = [];
+    public IReadOnlyList<MatchMapEvent> MapEvents { get; set; } = [];
 
     /// <summary>玩家常驻位置（lane_pos 最高频格），供小地图英雄头像层使用。</summary>
-    public IReadOnlyList<MatchPlayerSpot> Spots { get; init; } = [];
+    public IReadOnlyList<MatchPlayerSpot> Spots { get; set; } = [];
 
     /// <summary>天辉活动热区（lane_pos 聚合，"x,y" → 出现次数）。无数据为空。</summary>
-    public IReadOnlyDictionary<string, int> RadiantHeatmap { get; init; } = new Dictionary<string, int>();
+    public IReadOnlyDictionary<string, int> RadiantHeatmap { get; set; } = new Dictionary<string, int>();
 
     /// <summary>夜魇活动热区。无数据为空。</summary>
-    public IReadOnlyDictionary<string, int> DireHeatmap { get; init; } = new Dictionary<string, int>();
+    public IReadOnlyDictionary<string, int> DireHeatmap { get; set; } = new Dictionary<string, int>();
 
     /// <summary>小地图有可看的分层数据（眼位或建筑事件）。</summary>
     public bool HasMapLayers => Wards.Count > 0 || Buildings.Count > 0;
@@ -137,18 +137,18 @@ public sealed class MatchDetail
 /// </summary>
 public sealed class MatchDraftStep
 {
-    public int Order { get; init; }
+    public int Order { get; set; }
 
-    public bool IsPick { get; init; }
+    public bool IsPick { get; set; }
 
     /// <summary>team=0 为天辉，1 为夜魇（Steam API 约定）。</summary>
-    public bool IsRadiant { get; init; }
+    public bool IsRadiant { get; set; }
 
-    public int HeroId { get; init; }
+    public int HeroId { get; set; }
 
-    public string HeroName { get; init; } = string.Empty;
+    public string HeroName { get; set; } = string.Empty;
 
-    public string HeroIconUrl { get; init; } = string.Empty;
+    public string HeroIconUrl { get; set; } = string.Empty;
 
     [JsonIgnore]
     public string Tooltip => $"{(IsPick ? "Pick" : "Ban")} · {HeroName} · 第 {Order + 1} 手";
@@ -216,17 +216,17 @@ public enum MatchMapEventKind
 /// </summary>
 public sealed class MatchPlayerSpot
 {
-    public double UvX { get; init; }
+    public double UvX { get; set; }
 
-    public double UvY { get; init; }
+    public double UvY { get; set; }
 
-    public string HeroIconUrl { get; init; } = string.Empty;
+    public string HeroIconUrl { get; set; } = string.Empty;
 
-    public string HeroName { get; init; } = string.Empty;
+    public string HeroName { get; set; } = string.Empty;
 
-    public string PersonaName { get; init; } = string.Empty;
+    public string PersonaName { get; set; } = string.Empty;
 
-    public bool IsRadiant { get; init; }
+    public bool IsRadiant { get; set; }
 }
 
 /// <summary>
@@ -234,13 +234,13 @@ public sealed class MatchPlayerSpot
 /// </summary>
 public sealed class MatchMapEvent
 {
-    public int Time { get; init; }
+    public int Time { get; set; }
 
-    public MatchMapEventKind Kind { get; init; }
+    public MatchMapEventKind Kind { get; set; }
 
-    public bool IsRadiant { get; init; }
+    public bool IsRadiant { get; set; }
 
-    public string Label { get; init; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -250,19 +250,19 @@ public sealed class MatchMapEvent
 /// </summary>
 public sealed class MatchWardPlacement
 {
-    public double UvX { get; init; }
+    public double UvX { get; set; }
 
-    public double UvY { get; init; }
+    public double UvY { get; set; }
 
     /// <summary>布置时刻（秒，负数为开局前）。</summary>
-    public int Time { get; init; }
+    public int Time { get; set; }
 
     /// <summary>消失时刻（秒，按 ehandle 配对消失日志）；无记录为 null（按满时长推算）。</summary>
-    public int? LeftTime { get; init; }
+    public int? LeftTime { get; set; }
 
-    public bool IsObserver { get; init; }
+    public bool IsObserver { get; set; }
 
-    public bool IsRadiant { get; init; }
+    public bool IsRadiant { get; set; }
 
     /// <summary>
     /// 该眼位在时刻 t（秒）是否可见。t &lt; 0 表示「全部时间」（恒可见）。
@@ -277,49 +277,49 @@ public sealed class MatchWardPlacement
 /// </summary>
 public sealed class MatchPlayerItem
 {
-    public long AccountId { get; init; }
+    public long AccountId { get; set; }
 
-    public int HeroId { get; init; }
+    public int HeroId { get; set; }
 
-    public string HeroName { get; init; } = string.Empty;
+    public string HeroName { get; set; } = string.Empty;
 
-    public string HeroIconUrl { get; init; } = string.Empty;
+    public string HeroIconUrl { get; set; } = string.Empty;
 
     /// <summary>玩家昵称，匿名或未公开时为空。</summary>
-    public string PersonaName { get; init; } = string.Empty;
+    public string PersonaName { get; set; } = string.Empty;
 
-    public int Level { get; init; }
+    public int Level { get; set; }
 
-    public int Kills { get; init; }
+    public int Kills { get; set; }
 
-    public int Deaths { get; init; }
+    public int Deaths { get; set; }
 
-    public int Assists { get; init; }
+    public int Assists { get; set; }
 
-    public int GoldPerMin { get; init; }
+    public int GoldPerMin { get; set; }
 
-    public int XpPerMin { get; init; }
+    public int XpPerMin { get; set; }
 
-    public int LastHits { get; init; }
+    public int LastHits { get; set; }
 
-    public int Denies { get; init; }
+    public int Denies { get; set; }
 
-    public int NetWorth { get; init; }
+    public int NetWorth { get; set; }
 
-    public int HeroDamage { get; init; }
+    public int HeroDamage { get; set; }
 
-    public int HeroHealing { get; init; }
+    public int HeroHealing { get; set; }
 
-    public int TowerDamage { get; init; }
+    public int TowerDamage { get; set; }
 
     /// <summary>6 个主物品槽的图标 URL，空槽位为空字符串（保持栏位对齐）。</summary>
-    public IReadOnlyList<string> ItemIconUrls { get; init; } = [];
+    public List<string> ItemIconUrls { get; set; } = [];
 
     /// <summary>中立物品图标 URL，未装备时为空。</summary>
-    public string NeutralItemIconUrl { get; init; } = string.Empty;
+    public string NeutralItemIconUrl { get; set; } = string.Empty;
 
     /// <summary>技能征召（OMG）选到的技能内部名，按槽位序；非 OMG 为空。</summary>
-    public IReadOnlyList<string> DraftedAbilities { get; init; } = [];
+    public List<string> DraftedAbilities { get; set; } = [];
 
     /// <summary>技能征召技能的图标 URL（与 DraftedAbilities 一一对应，不可解析的名为空串保持对齐）。</summary>
     [JsonIgnore]

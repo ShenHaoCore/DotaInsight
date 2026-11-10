@@ -10,58 +10,10 @@
         <converters:IntEqualityConverter x:Key="IntEquality" />
         <converters:IntEqualsToVisibilityConverter x:Key="IntEqualsVisibility" />
 
-        <!-- 眼位：填充按类型（观察=金 / 岗哨=蓝），描边按阵营（天辉=绿 / 夜魇=红） -->
-        <Style x:Key="WardDotStyle" TargetType="Ellipse">
-            <Setter Property="Width" Value="10" />
-            <Setter Property="Height" Value="10" />
-            <Setter Property="Fill" Value="{DynamicResource DiGoldBrush}" />
-            <Setter Property="Stroke" Value="#2DA44E" />
-            <Setter Property="StrokeThickness" Value="1.5" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsObserver}" Value="False">
-                    <Setter Property="Fill" Value="{DynamicResource DiShardBrush}" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding IsRadiant}" Value="False">
-                    <Setter Property="Stroke" Value="#F0564A" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
 
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:CachedImageConverter x:Key="CachedImageConverter" />
 
-        <!-- 小地图图层开关：checked = 抬表面 + 主文字色，不用红（红留给选中页签） -->
-        <Style x:Key="MapLayerChip" TargetType="ToggleButton">
-            <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Focusable" Value="False" />
-            <Setter Property="Margin" Value="0,0,6,0" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Bd"
-                                Background="Transparent"
-                                BorderBrush="{DynamicResource DiStrokeBrush}"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="10,3">
-                            <ContentPresenter VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource DiTileHoverBorderBrush}" />
-                                <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DiTileHoverBrush}" />
-                                <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <!-- 时间轴刻度按钮：透明壳，只留形状可点 -->
         <Style x:Key="MapTickButton" TargetType="Button">
@@ -521,7 +473,7 @@
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
                 <RadioButton Content="经济曲线" Style="{StaticResource DiSegmentedItem}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
-                <RadioButton Content="小地图" Style="{StaticResource DiSegmentedItem}"
+                <RadioButton Content="输出承伤" Style="{StaticResource DiSegmentedItem}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=2, Mode=TwoWay}" />
             </StackPanel>
         </Border>
@@ -687,261 +639,32 @@
             </Border>
         </Grid>
 
-        <!-- ===== 战况小地图（页签 2）：眼位 / 建筑 / 热区 / 事件时间轴 ===== -->
+        <!-- ===== 输出承伤（页签 2）：双方全员英雄伤害对比 ===== -->
         <Grid Grid.Row="5"
               Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=2}">
             <Border Style="{StaticResource DiPanelCardStyle}" Padding="16,12"
-                    Visibility="{Binding HasMapData, Converter={StaticResource BoolToVisibilityConverter}}">
+                    Visibility="{Binding HasDamageChart, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
                     <DockPanel Margin="2,0,2,8">
-                        <TextBlock Text="战况小地图" Style="{StaticResource DiSectionTitleStyle}" />
+                        <TextBlock Text="输出承伤" Style="{StaticResource DiSectionTitleStyle}" />
                         <TextBlock DockPanel.Dock="Right"
-                                   Text="{Binding VisibleWardCount, StringFormat=当前时刻 {0} 个眼位}"
+                                   Text="{Binding DamageSummaryText}"
                                    FontSize="11" VerticalAlignment="Center"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,12,0">
-                            <ToggleButton Content="眼位" Style="{StaticResource MapLayerChip}"
-                                          IsChecked="{Binding ShowWards, Mode=TwoWay}" />
-                            <ToggleButton Content="建筑" Style="{StaticResource MapLayerChip}"
-                                          IsChecked="{Binding ShowBuildings, Mode=TwoWay}" />
-                            <ToggleButton Content="位置" Style="{StaticResource MapLayerChip}"
-                                          IsChecked="{Binding ShowHeatmap, Mode=TwoWay}"
-                                          Visibility="{Binding HasHeatmap, Converter={StaticResource BoolToVisibilityConverter}}" />
-                            <ToggleButton Content="英雄" Style="{StaticResource MapLayerChip}"
-                                          IsChecked="{Binding ShowHeroes, Mode=TwoWay}"
-                                          Visibility="{Binding HasHeroSpots, Converter={StaticResource BoolToVisibilityConverter}}" />
-                        </StackPanel>
                     </DockPanel>
-
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                        <Grid Width="420" Height="420"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                              ClipToBounds="True">
-                            <Image Source="pack://application:,,,/DotaInsight;component/Assets/Map/minimap.jpg"
-                                   Stretch="Fill" />
-                            <!-- 位置分布：lane_pos 聚合位图（稀疏指纹，每人 2-10 格），线性上采样成柔点 -->
-                            <Image Source="{Binding HeatmapImage}"
-                                   Width="420" Height="420"
-                                   Stretch="Fill"
-                                   RenderOptions.BitmapScalingMode="Linear"
-                                   IsHitTestVisible="False"
-                                   Visibility="{Binding ShowHeatmap, Converter={StaticResource BoolToVisibilityConverter}}" />
-                            <!-- 英雄常驻位置：lane_pos 最高频格，整场静态 -->
-                            <ItemsControl ItemsSource="{Binding HeroSpots}"
-                                          Visibility="{Binding ShowHeroes, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas IsItemsHost="True" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
-                                        <Setter Property="Canvas.Top" Value="{Binding Top}" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Width="28" Height="16"
-                                                CornerRadius="3"
-                                                ClipToBounds="True"
-                                                Background="#E60D1117"
-                                                ToolTip="{Binding Tooltip}">
-                                            <Image Source="{Binding HeroIconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=96}"
-                                                   Stretch="UniformToFill"
-                                                   RenderOptions.BitmapScalingMode="HighQuality" />
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                            <!-- 建筑层：按当前时刻立起/倒塌 -->
-                            <ItemsControl ItemsSource="{Binding Buildings}"
-                                          Visibility="{Binding ShowBuildings, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas IsItemsHost="True" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
-                                        <Setter Property="Canvas.Top" Value="{Binding Top}" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Width="{Binding Size}"
-                                                Height="{Binding Size}"
-                                                CornerRadius="{Binding CornerRadius}"
-                                                BorderThickness="1"
-                                                ToolTip="{Binding Tooltip}">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="{DynamicResource DiAdvantageBrush}" />
-                                                    <Setter Property="BorderBrush" Value="#CC0B0D11" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsRadiant}" Value="False">
-                                                            <Setter Property="Background" Value="{DynamicResource DiDisadvantageBrush}" />
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding IsStanding}" Value="False">
-                                                            <Setter Property="Background" Value="{DynamicResource DiRowHoverBrush}" />
-                                                            <Setter Property="Opacity" Value="0.45" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <!-- 眼位层 -->
-                            <ItemsControl ItemsSource="{Binding Wards}"
-                                          Visibility="{Binding ShowWards, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas IsItemsHost="True" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <!-- Canvas 面板读取的是容器（ContentPresenter）的附加属性，
-                                     绑定必须挂在 ItemContainerStyle 上而非模板根元素 -->
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
-                                        <Setter Property="Canvas.Top" Value="{Binding Top}" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Ellipse Style="{StaticResource WardDotStyle}"
-                                                 ToolTip="{Binding Tooltip}" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Grid>
-                    </ScrollViewer>
-
-                    <!-- 事件时间轴：事件带（塔/兵营/肉山/一血）+ 击杀细带 + 拖动条 -->
-                    <StackPanel Width="420" HorizontalAlignment="Center" Margin="0,8,0,0">
-                        <Canvas Width="420" Height="18"
-                                Visibility="{Binding HasEventTicks, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <ItemsControl ItemsSource="{Binding EventTicks}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas IsItemsHost="True" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Style="{StaticResource MapTickButton}"
-                                                Command="{Binding DataContext.JumpToTimeCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip="{Binding Label}">
-                                            <Border Width="5" Height="17" CornerRadius="1">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="{DynamicResource DiAdvantageBrush}" />
-                                                        <Setter Property="BorderThickness" Value="0" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsRadiant}" Value="False">
-                                                                <Setter Property="Background" Value="{DynamicResource DiDisadvantageBrush}" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Kind}" Value="Roshan">
-                                                                <Setter Property="Background" Value="{DynamicResource DiGoldBrush}" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Kind}" Value="Aegis">
-                                                                <Setter Property="Background" Value="{DynamicResource DiGoldBrush}" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Kind}" Value="FirstBlood">
-                                                                <Setter Property="Background" Value="{DynamicResource DiPrimaryTextBrush}" />
-                                                            </DataTrigger>
-                                                            <!-- 团战：白描边空心条，与实心的胜负刻度区分 -->
-                                                            <DataTrigger Binding="{Binding Kind}" Value="TeamFight">
-                                                                <Setter Property="Background" Value="Transparent" />
-                                                                <Setter Property="BorderBrush" Value="{DynamicResource DiPrimaryTextBrush}" />
-                                                                <Setter Property="BorderThickness" Value="1.5" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                            </Border>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Canvas>
-
-                        <Canvas Width="420" Height="8" Margin="0,2,0,0"
-                                Visibility="{Binding HasKillTicks, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <ItemsControl ItemsSource="{Binding KillTicks}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas IsItemsHost="True" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Style="{StaticResource MapTickButton}"
-                                                Command="{Binding DataContext.JumpToTimeCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip="{Binding Label}"
-                                                Opacity="0.55">
-                                            <Border Width="2" Height="8">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="{DynamicResource DiAdvantageBrush}" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsRadiant}" Value="False">
-                                                                <Setter Property="Background" Value="{DynamicResource DiDisadvantageBrush}" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                            </Border>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Canvas>
-
-                        <Slider Minimum="-90"
-                                Maximum="{Binding Detail.DurationSeconds}"
-                                Value="{Binding CurrentTime}"
-                                IsMoveToPointEnabled="True"
-                                AutoToolTipPlacement="None"
-                                ToolTip="拖动回放战况；最左为全部时间" />
-                        <DockPanel Margin="0,2,0,0">
-                            <TextBlock Text="{Binding CurrentTimeText}"
-                                       FontSize="12" FontWeight="Medium"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
-                            <TextBlock Text="{Binding MapSummaryText}"
-                                       FontSize="11" HorizontalAlignment="Right"
-                                       TextTrimming="CharacterEllipsis"
-                                       Foreground="{DynamicResource DiMutedTextBrush}" />
-                        </DockPanel>
-                    </StackPanel>
-
-                    <TextBlock Text="图例：金点=观察守卫 · 蓝点=岗哨守卫 · 描边绿=天辉 红=夜魇 · 建筑绿/红=立起 灰=已倒 · 刻度：实心=推塔 金=肉山 白=一血 空心=团战，点按跳转"
-                               Margin="2,8,0,0" FontSize="10" TextWrapping="Wrap"
-                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                    <lvc:CartesianChart Height="430"
+                                        Series="{Binding DamageSeries}"
+                                        XAxes="{Binding DamageXAxes}"
+                                        YAxes="{Binding DamageYAxes}"
+                                        LegendPosition="Hidden" />
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
-                    Visibility="{Binding HasMapData, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                    Visibility="{Binding HasDamageChart, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <StackPanel>
-                    <TextBlock Text="该比赛暂无小地图数据"
+                    <TextBlock Text="该比赛暂无输出数据"
                                Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
-                    <TextBlock Text="这局尚未被 OpenDota 解析（通常在对局后数分钟至数日内完成），解析完成后重新打开即可查看。"
+                    <TextBlock Text="这局尚未被 OpenDota 解析，逐人伤害统计暂时缺失。"
                                Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
                                TextWrapping="Wrap" TextAlignment="Center"
                                Foreground="{DynamicResource DiMutedTextBrush}" />

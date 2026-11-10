@@ -35,50 +35,16 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         _logger = logger.ForContext<MatchDetailViewModel>();
         Radiant = new ObservableCollection<MatchPlayerItem>();
         Dire = new ObservableCollection<MatchPlayerItem>();
-        Wards = new ObservableCollection<MatchWardDot>();
-        HeroSpots = new ObservableCollection<MatchPlayerSpotDot>();
-        Buildings = new ObservableCollection<MatchBuildingDot>();
-        EventTicks = new ObservableCollection<MapEventTick>();
-        KillTicks = new ObservableCollection<MapEventTick>();
         AdvantageSeries = Array.Empty<ISeries>();
-        _mapRefreshTimer.Tick += (_, _) =>
-        {
-            _mapRefreshTimer.Stop();
-            ApplyMapState();
-        };
     }
 
     public ObservableCollection<MatchPlayerItem> Radiant { get; }
 
     public ObservableCollection<MatchPlayerItem> Dire { get; }
 
-    /// <summary>小地图眼位点（像素坐标已按 480 画布换算）。</summary>
-    public ObservableCollection<MatchWardDot> Wards { get; }
 
-    /// <summary>小地图建筑块（按当前时刻计算立起/倒塌）。</summary>
-    public ObservableCollection<MatchPlayerSpotDot> HeroSpots { get; }
-
-    public ObservableCollection<MatchBuildingDot> Buildings { get; }
-
-    /// <summary>时间轴事件刻度（推塔/兵营/肉山/一血），点按跳转。</summary>
-    public ObservableCollection<MapEventTick> EventTicks { get; }
-
-    /// <summary>时间轴击杀刻度（细带，只有节奏没有坐标）。</summary>
-    public ObservableCollection<MapEventTick> KillTicks { get; }
-
-    /// <summary>底部区页签：0 阵容 / 1 经济曲线 / 2 小地图。</summary>
     [ObservableProperty]
     private int bottomTabIndex;
-
-    /// <summary>回放时刻（秒）：-90 = 全部时间（与 OpenDota Vision 页同约定；建筑按终局状态展示）。</summary>
-    [ObservableProperty]
-    private double currentTime = -90;
-
-    [ObservableProperty]
-    private string currentTimeText = "全部时间";
-
-    /// <summary>当前时刻可见的眼位数。</summary>
-    public int VisibleWardCount => Wards.Count;
 
     /// <summary>经济/经验优势曲线（两条 LineSeries）。</summary>
     [ObservableProperty]
@@ -86,41 +52,6 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
     /// <summary>曲线有数据可画。</summary>
     public bool AdvantageHasData => AdvantageSeries.Length > 0;
-
-    /// <summary>该比赛有小地图分层数据（眼位或建筑事件）。</summary>
-    public bool HasMapData => Detail is { HasMapLayers: true };
-
-    /// <summary>该比赛有活动热区数据。</summary>
-    [ObservableProperty]
-    private bool hasHeatmap;
-
-    /// <summary>热区位图（lane_pos 聚合渲染）。</summary>
-    [ObservableProperty]
-    private ImageSource? heatmapImage;
-
-    // ===== 图层开关 =====
-    // 默认只开「英雄 + 建筑」：眼位上百个、热区全图铺开，默认全开会糊成一片；
-    // 噪声层作为分析工具按需打开
-    [ObservableProperty]
-    private bool showWards;
-
-    [ObservableProperty]
-    private bool showBuildings = true;
-
-    [ObservableProperty]
-    private bool showHeatmap;
-
-    /// <summary>英雄头像层开关（常驻位置）。</summary>
-    [ObservableProperty]
-    private bool showHeroes = true;
-
-    /// <summary>该比赛有英雄常驻位置数据。</summary>
-    [ObservableProperty]
-    private bool hasHeroSpots;
-
-    /// <summary>当前时刻战况摘要（推塔/兵营/肉山/一血）。</summary>
-    [ObservableProperty]
-    private string mapSummaryText = string.Empty;
 
     [ObservableProperty]
     private long matchId;
@@ -130,7 +61,6 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     [NotifyPropertyChangedFor(nameof(HasDetail))]
     [NotifyPropertyChangedFor(nameof(IsUnparsed))]
     [NotifyPropertyChangedFor(nameof(ShowNotice))]
-    [NotifyPropertyChangedFor(nameof(HasMapData))]
     [NotifyPropertyChangedFor(nameof(IsAbilityDraft))]
     [NotifyPropertyChangedFor(nameof(HasAbilityDraft))]
     [NotifyPropertyChangedFor(nameof(HasDraftSteps))]
@@ -213,27 +143,6 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             player.AccountId.ToString());
     }
 
-    /// <summary>点击时间轴刻度：跳到该事件时刻。</summary>
-    [RelayCommand]
-    private void JumpToTime(MapEventTick? tick)
-    {
-        if (tick is null)
-        {
-            return;
-        }
-
-        CurrentTime = Math.Max(0, tick.Time);
-    }
-
-    /// <summary>
-    /// 时间轴拖动节流：拖动时 Value 每像素一变，眼位+建筑+摘要全量重建会卡顿——
-    /// 60ms 合并一次重建（文字类轻更新仍即时）。
-    /// </summary>
-    private readonly System.Windows.Threading.DispatcherTimer _mapRefreshTimer = new(DispatcherPriority.Background)
-    {
-        Interval = TimeSpan.FromMilliseconds(60)
-    };
-
     private async Task LoadAsync(long id)
     {
         _cts?.Cancel();
@@ -248,9 +157,6 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
             // 先清空上一场，避免连续查看不同比赛时残留
             Detail = null;
-            Radiant.Clear();
-            Dire.Clear();
-            ResetMapState();
 
             var detail = await _matchService
                 .GetMatchDetailAsync(id, token)
@@ -312,12 +218,18 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         Dire.Clear();
         foreach (var player in detail?.Radiant ?? [])
         {
-            Radiant.Add(player);
+            if (player is not null)
+            {
+                Radiant.Add(player);
+            }
         }
 
         foreach (var player in detail?.Dire ?? [])
         {
-            Dire.Add(player);
+            if (player is not null)
+            {
+                Dire.Add(player);
+            }
         }
     }
 
@@ -334,7 +246,6 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? []).ToList();
             var itemUrls = players
                 .SelectMany(p => p.ItemIconUrls.Concat([p.NeutralItemIconUrl]))
-                .Concat((detail?.Spots ?? []).Select(s => s.HeroIconUrl))
                 .Where(u => !string.IsNullOrWhiteSpace(u))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -357,9 +268,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                     return;
                 }
 
-                FillTeams(detail);
-                // 小地图头像图标此时已落盘，重建让绑定重新求值（冷路径首帧为空框）
-                BuildHeroSpots(detail?.Spots ?? []);
+
             }).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is OperationCanceledException && token.IsCancellationRequested)
@@ -372,19 +281,90 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         }
     }
 
-    /// <summary>比赛详情页小地图画布边长（px）。眼位/建筑/刻度的像素都按此换算。</summary>
-    private const double MapCanvasSize = 420;
 
-    private const double MapGridSize = 127.0;
 
     /// <summary>
-    /// 优势曲线 + 小地图分层：与阵容同源（同一次 /matches 响应），纯客户端换算。
+    /// 优势曲线 + 输出承伤图：与阵容同源（同一次 /matches 响应），纯客户端换算。
     /// </summary>
     private void RefreshMatchExtras(MatchDetail? detail)
     {
-        CurrentTime = -90; // 换比赛重置为「全部时间」
         RefreshAdvantageSeries(detail);
-        RefreshMapLayers(detail);
+        BuildDamageChart(detail);
+    }
+
+    /// <summary>输出承伤对比图（双方全员按英雄伤害降序）。</summary>
+    [ObservableProperty]
+    private ISeries[] damageSeries = Array.Empty<ISeries>();
+
+    [ObservableProperty]
+    private Axis[] damageXAxes = [new() { Labels = [] }];
+
+    [ObservableProperty]
+    private Axis[] damageYAxes = [new() { Labels = [] }];
+
+    public bool HasDamageChart => DamageSeries.Length > 0;
+
+    /// <summary>图表右上角摘要。</summary>
+    [ObservableProperty]
+    private string damageSummaryText = string.Empty;
+
+    /// <summary>
+    /// 输出承伤图：双方全员按英雄伤害降序的横向条形。
+    /// 加速局/未解析对局也有逐人伤害数据，所有比赛都可用。
+    /// </summary>
+    private void BuildDamageChart(MatchDetail? detail)
+    {
+        var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? [])
+            .Where(p => p is not null && p.HeroDamage > 0)
+            .OrderBy(p => p.HeroDamage)
+            .ToList();
+        var radiantSet = new HashSet<MatchPlayerItem>(detail?.Radiant ?? []);
+
+        if (players.Count == 0)
+        {
+            DamageSeries = Array.Empty<ISeries>();
+            OnPropertyChanged(nameof(HasDamageChart));
+            return;
+        }
+
+        DamageSeries =
+        [
+            new RowSeries<double>
+            {
+                Name = "英雄伤害",
+                Values = players.Select(p => (double)p.HeroDamage).ToArray(),
+                MaxBarWidth = 22,
+                Fill = new SolidColorPaint(SKColor.Parse("#2F81F7")),
+                DataLabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                DataLabelsSize = 10,
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
+                DataLabelsFormatter = point => $"{point.Model / 1000.0:F1}k"
+            }
+        ];
+
+        DamageYAxes =
+        [
+            new Axis
+            {
+                Labels = players.Select(p => (radiantSet.Contains(p) ? "【天】" : "【夜】") + p.HeroName).ToArray(),
+                TextSize = 11,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
+            }
+        ];
+
+        DamageXAxes =
+        [
+            new Axis
+            {
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#384351"))
+            }
+        ];
+
+        DamageSummaryText = $"双方英雄伤害输出 · 最高 {players[^1].HeroName} {players[^1].HeroDamage / 1000.0:F1}k";
+        OnPropertyChanged(nameof(HasDamageChart));
     }
 
     private void RefreshAdvantageSeries(MatchDetail? detail)
@@ -425,337 +405,5 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         OnPropertyChanged(nameof(AdvantageHasData));
     }
 
-    // ===== 小地图分层 =====
-
-    /// <summary>全部眼位（时间轴过滤的数据源）。</summary>
-    private IReadOnlyList<MatchWardPlacement> _allWards = [];
-
-    private IReadOnlyList<MatchBuilding> _allBuildings = [];
-
-    private IReadOnlyList<MatchMapEvent> _allEvents = [];
-
-    private int _durationSeconds = 1;
-
-    private void ResetMapState()
-    {
-        _allWards = [];
-        _allBuildings = [];
-        _allEvents = [];
-        Wards.Clear();
-        Buildings.Clear();
-        HeroSpots.Clear();
-        EventTicks.Clear();
-        KillTicks.Clear();
-        HeatmapImage = null;
-        HasHeatmap = false;
-        MapSummaryText = string.Empty;
-        OnPropertyChanged(nameof(HasMapData));
-        OnPropertyChanged(nameof(VisibleWardCount));
-    }
-
-    private void RefreshMapLayers(MatchDetail? detail)
-    {
-        _allWards = detail?.Wards ?? [];
-        _allBuildings = detail?.Buildings ?? [];
-        _allEvents = detail?.MapEvents ?? [];
-        _durationSeconds = Math.Max(1, detail?.DurationSeconds ?? 1);
-
-        HeatmapImage = HeatmapRenderer.Render(detail?.RadiantHeatmap, detail?.DireHeatmap);
-        HasHeatmap = HeatmapImage is not null;
-        BuildHeroSpots(detail?.Spots ?? []);
-
-        BuildEventTicks();
-        ApplyMapState();
-        OnPropertyChanged(nameof(HasMapData));
-    }
-
-    /// <summary>时间轴上有建筑/肉山/一血刻度可显示。</summary>
-    public bool HasEventTicks => EventTicks.Count > 0;
-
-    /// <summary>时间轴上有击杀刻度可显示。</summary>
-    public bool HasKillTicks => KillTicks.Count > 0;
-
-    /// <summary>时间轴刻度：事件带（塔/兵营/肉山/一血）+ 击杀细带。</summary>
-    private void BuildEventTicks()
-    {
-        EventTicks.Clear();
-        KillTicks.Clear();
-
-        foreach (var e in _allEvents)
-        {
-            var tick = new MapEventTick
-            {
-                Time = e.Time,
-                Kind = e.Kind,
-                IsRadiant = e.IsRadiant,
-                Label = $"{FormatClock(e.Time)} · {e.Label}",
-                // 事件带 480 宽，按时间比例定位
-                Left = Math.Min(MapCanvasSize - 5, Math.Max(0, e.Time / (double)_durationSeconds * MapCanvasSize - 2.5))
-            };
-
-            if (e.Kind == MatchMapEventKind.Kill)
-            {
-                KillTicks.Add(tick);
-            }
-            else
-            {
-                EventTicks.Add(tick);
-            }
-        }
-
-        OnPropertyChanged(nameof(HasEventTicks));
-        OnPropertyChanged(nameof(HasKillTicks));
-    }
-
-    /// <summary>按当前时刻重建建筑状态与眼位，并刷新摘要。</summary>
-    private void ApplyMapState()
-    {
-        ApplyBuildings();
-        ApplyWardFilter();
-        UpdateMapSummary();
-    }
-
-    /// <summary>英雄常驻位置层：整场静态，不随时间轴变化。</summary>
-    private void BuildHeroSpots(IReadOnlyList<MatchPlayerSpot> spots)
-    {
-        HeroSpots.Clear();
-        HasHeroSpots = spots.Count > 0;
-        var scale = MapCanvasSize / MapGridSize;
-
-        foreach (var spot in spots)
-        {
-            // 钳制在画布内：贴边的头像若按中心定位会被 ClipToBounds 切一半
-            var left = Math.Clamp(spot.UvX * scale - 14, 0, MapCanvasSize - 28);
-            var top = Math.Clamp(spot.UvY * scale - 8, 0, MapCanvasSize - 16);
-            HeroSpots.Add(new MatchPlayerSpotDot
-            {
-                Left = left,
-                Top = top,
-                HeroIconUrl = spot.HeroIconUrl,
-                HeroName = spot.HeroName,
-                IsRadiant = spot.IsRadiant,
-                Tooltip = $"{spot.PersonaName} · {spot.HeroName} · 常驻位置"
-            });
-        }
-
-    }
-
-    private void ApplyBuildings()
-    {
-        Buildings.Clear();
-        var t = (int)CurrentTime;
-
-        foreach (var building in _allBuildings)
-        {
-            var standing = building.IsStandingAt(t);
-            var size = building.IsAncient ? 18 : building.IsTower ? 12 : 10;
-            Buildings.Add(new MatchBuildingDot
-            {
-                Left = building.LeftPct / 100.0 * MapCanvasSize - size / 2,
-                Top = building.TopPct / 100.0 * MapCanvasSize - size / 2,
-                Size = size,
-                IsRadiant = building.IsRadiant,
-                IsStanding = standing,
-                IsAncient = building.IsAncient,
-                IsBarracks = building.IsBarracks,
-                Tooltip = standing
-                    ? $"{building.DisplayName} · 仍立着"
-                    : $"{building.DisplayName} · {FormatClock(building.FallsAt ?? 0)} 被 {building.KilledBy ?? "小兵"} 摧毁"
-            });
-        }
-    }
-
-    /// <summary>按回放时刻过滤眼位并重建小地图点。</summary>
-    private void ApplyWardFilter()
-    {
-        Wards.Clear();
-        var scale = MapCanvasSize / MapGridSize;
-        var t = (int)CurrentTime;
-        // 同格多眼堆叠会糊成一个大圆：按格计数做确定性微偏移打散
-        var wardStack = new Dictionary<(int, int), int>();
-
-        foreach (var ward in _allWards)
-        {
-            if (!ward.IsVisibleAt(t))
-            {
-                continue;
-            }
-
-            var gridKey = ((int)Math.Round(ward.UvX), (int)Math.Round(ward.UvY));
-            wardStack.TryGetValue(gridKey, out var stackN);
-            wardStack[gridKey] = stackN + 1;
-            var jitterX = (stackN % 4) * 3 - 4.5;
-            var jitterY = (stackN / 4 % 3) * 3 - 3;
-
-            Wards.Add(new MatchWardDot
-            {
-                Left = ward.UvX * scale - 5 + jitterX,
-                Top = ward.UvY * scale - 5 + jitterY,
-                IsObserver = ward.IsObserver,
-                IsRadiant = ward.IsRadiant,
-                Tooltip = $"{FormatClock(Math.Max(0, ward.Time))} · {(ward.IsRadiant ? "天辉" : "夜魇")} · {(ward.IsObserver ? "观察守卫" : "岗哨守卫")}"
-            });
-        }
-
-        OnPropertyChanged(nameof(VisibleWardCount));
-    }
-
-    /// <summary>当前时刻战况摘要：推塔/兵营/肉山计数 + 一血。</summary>
-    private void UpdateMapSummary()
-    {
-        if (_allEvents.Count == 0)
-        {
-            MapSummaryText = string.Empty;
-            return;
-        }
-
-        var t = (int)CurrentTime;
-        var scope = _allEvents.Where(e => t < 0 || e.Time <= t).ToList();
-
-        int towerR = 0, towerD = 0, raxR = 0, raxD = 0, roshR = 0, roshD = 0, tfR = 0, tfD = 0;
-        var firstBlood = false;
-        foreach (var e in scope)
-        {
-            switch (e.Kind)
-            {
-                case MatchMapEventKind.Tower:
-                    if (e.IsRadiant) towerR++;
-                    else towerD++;
-                    break;
-                case MatchMapEventKind.Barracks:
-                    if (e.IsRadiant) raxR++;
-                    else raxD++;
-                    break;
-                case MatchMapEventKind.Roshan:
-                    if (e.IsRadiant) roshR++;
-                    else roshD++;
-                    break;
-                case MatchMapEventKind.TeamFight:
-                    if (e.IsRadiant) tfR++;
-                    else tfD++;
-                    break;
-                case MatchMapEventKind.FirstBlood:
-                    firstBlood = true;
-                    break;
-            }
-        }
-
-        var parts = new List<string> { $"推塔 天{towerR} 夜{towerD}" };
-        if (raxR + raxD > 0)
-        {
-            parts.Add($"兵营 天{raxR} 夜{raxD}");
-        }
-
-        if (roshR + roshD > 0)
-        {
-            parts.Add($"肉山 天{roshR} 夜{roshD}");
-        }
-
-        if (tfR + tfD > 0)
-        {
-            parts.Add($"团战 天{tfR} 夜{tfD}");
-        }
-
-        if (firstBlood)
-        {
-            parts.Add("一血已出");
-        }
-
-        MapSummaryText = (t < 0 ? "终局 · " : $"{FormatClock(t)} · ") + string.Join(" · ", parts);
-    }
-
-    private static string FormatClock(int seconds)
-        => seconds < 0
-            ? "开局前"
-            : $"{seconds / 60:00}:{seconds % 60:00}";
-
-    partial void OnCurrentTimeChanged(double value)
-    {
-        CurrentTimeText = value <= -90
-            ? "全部时间"
-            : value < 0
-                ? "开局阶段"
-                : $"{(int)value / 60:00}:{(int)value % 60:00}";
-
-        if (_allWards.Count > 0 || _allBuildings.Count > 0 || _allEvents.Count > 0)
-        {
-            // 重建合并到 60ms 节流器：拖动结束后的最后一次状态必然被应用
-            _mapRefreshTimer.Stop();
-            _mapRefreshTimer.Start();
-        }
-    }
-
-    partial void OnShowWardsChanged(bool value) => ApplyWardFilter();
-
-    partial void OnShowBuildingsChanged(bool value) => ApplyBuildings();
-
     private static Task OnUiThreadAsync(Action action) => UiDispatcher.OnUiAsync(action);
-}
-
-/// <summary>小地图眼位点：480 画布上的像素定位 + 展示元数据。</summary>
-public sealed class MatchWardDot
-{
-    public double Left { get; init; }
-
-    public double Top { get; init; }
-
-    public bool IsObserver { get; init; }
-
-    public bool IsRadiant { get; init; }
-
-    public string Tooltip { get; init; } = string.Empty;
-}
-
-/// <summary>小地图建筑块：按当前时刻的立起/倒塌状态渲染。</summary>
-public sealed class MatchBuildingDot
-{
-    public double Left { get; init; }
-
-    public double Top { get; init; }
-
-    /// <summary>边长：塔 12 / 兵营 10 / 遗迹 18。</summary>
-    public double Size { get; init; }
-
-    public bool IsRadiant { get; init; }
-
-    public bool IsStanding { get; init; }
-
-    public bool IsAncient { get; init; }
-
-    public bool IsBarracks { get; init; }
-
-    /// <summary>圆角：塔=2 / 兵营=5 / 遗迹=9（圆）。</summary>
-    public double CornerRadius => IsAncient ? 9 : IsBarracks ? 5 : 2;
-
-    public string Tooltip { get; init; } = string.Empty;
-}
-
-/// <summary>时间轴刻度：时间 + 种类 + 悬停文案 + 事件带上的像素位置。</summary>
-public sealed class MapEventTick
-{
-    public int Time { get; init; }
-
-    public MatchMapEventKind Kind { get; init; }
-
-    public bool IsRadiant { get; init; }
-
-    public string Label { get; init; } = string.Empty;
-
-    public double Left { get; init; }
-}
-
-/// <summary>小地图英雄头像点：常驻位置的像素定位与展示元数据。</summary>
-public sealed class MatchPlayerSpotDot
-{
-    public double Left { get; init; }
-
-    public double Top { get; init; }
-
-    public string HeroIconUrl { get; init; } = string.Empty;
-
-    public string HeroName { get; init; } = string.Empty;
-
-    public bool IsRadiant { get; init; }
-
-    public string Tooltip { get; init; } = string.Empty;
 }
