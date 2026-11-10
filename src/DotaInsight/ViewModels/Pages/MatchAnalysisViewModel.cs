@@ -681,19 +681,27 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             return;
         }
 
-        // 时间正序展示胜负走势（1=胜，0=负）
+        // 时间正序：胜 +1（绿向上）/ 负 -1（红向下）——负场此前画 0 高度完全不可见
         var ordered = matches.OrderBy(m => m.StartTimeLocal).ToList();
-        var values = ordered.Select(m => m.IsWin ? 1d : 0d).ToArray();
         var labels = ordered.Select(m => m.StartTimeLocal.ToString("MM-dd")).ToArray();
+        var winValues = ordered.Select(m => m.IsWin ? 1d : (double?)null).ToArray();
+        var lossValues = ordered.Select(m => m.IsWin ? (double?)null : -1d).ToArray();
 
         Series =
         [
-            new ColumnSeries<double>
+            new ColumnSeries<double?>
             {
-                Name = "胜负",
-                Values = values,
-                MaxBarWidth = 18,
+                Name = "胜",
+                Values = winValues,
+                MaxBarWidth = 14,
                 Fill = new SolidColorPaint(SKColor.Parse("#2DA44E"))
+            },
+            new ColumnSeries<double?>
+            {
+                Name = "负",
+                Values = lossValues,
+                MaxBarWidth = 14,
+                Fill = new SolidColorPaint(SKColor.Parse("#CF222E"))
             }
         ];
 
@@ -713,11 +721,12 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         [
             new Axis
             {
-                MinLimit = -0.1,
-                MaxLimit = 1.2,
+                MinLimit = -1.35,
+                MaxLimit = 1.35,
                 TextSize = 10,
+                Labeler = value => Math.Abs(value) < 0.01 ? string.Empty : value > 0 ? "胜" : "负",
                 LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
-                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#232A36"))
+                SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
             }
         ];
     }
