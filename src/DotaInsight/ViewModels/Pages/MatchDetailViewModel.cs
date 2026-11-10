@@ -290,6 +290,8 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     {
         RefreshAdvantageSeries(detail);
         BuildDamageChart(detail);
+        BuildItemGoldChart(detail);
+        BuildLastHitsChart(detail);
     }
 
     /// <summary>输出承伤对比图（双方全员按英雄伤害降序）。</summary>
@@ -404,6 +406,152 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         ];
         OnPropertyChanged(nameof(AdvantageHasData));
     }
+
+    /// <summary>装备投入对比（6 装备 + 中立物品购买总价，双方全员按投入升序）。</summary>
+    [ObservableProperty]
+    private ISeries[] itemGoldSeries = Array.Empty<ISeries>();
+
+    [ObservableProperty]
+    private Axis[] itemGoldXAxes = [new() { Labels = [] }];
+
+    [ObservableProperty]
+    private Axis[] itemGoldYAxes = [new() { Labels = [] }];
+
+    public bool HasItemGold => ItemGoldSeries.Length > 0;
+
+    [ObservableProperty]
+    private string itemGoldSummary = string.Empty;
+
+    /// <summary>补刀对比（双方全员按补刀数升序）。</summary>
+    [ObservableProperty]
+    private ISeries[] lastHitsSeries = Array.Empty<ISeries>();
+
+    [ObservableProperty]
+    private Axis[] lastHitsXAxes = [new() { Labels = [] }];
+
+    [ObservableProperty]
+    private Axis[] lastHitsYAxes = [new() { Labels = [] }];
+
+    public bool HasLastHits => LastHitsSeries.Length > 0;
+
+    [ObservableProperty]
+    private string lastHitsSummary = string.Empty;
+
+    /// <summary>装备投入：6 装备 + 中立物品购买总价（金币）。未解析对局为 0，整图空态。</summary>
+    private void BuildItemGoldChart(MatchDetail? detail)
+    {
+        var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? [])
+            .Where(p => p is not null && p.ItemGold > 0)
+            .OrderBy(p => p.ItemGold)
+            .ToList();
+
+        if (players.Count == 0)
+        {
+            ItemGoldSeries = Array.Empty<ISeries>();
+            OnPropertyChanged(nameof(HasItemGold));
+            return;
+        }
+
+        ItemGoldSeries =
+        [
+            new RowSeries<double>
+            {
+                Name = "装备投入",
+                Values = players.Select(p => (double)p.ItemGold).ToArray(),
+                MaxBarWidth = 22,
+                Fill = new SolidColorPaint(SKColor.Parse("#E3B341")),
+                DataLabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                DataLabelsSize = 10,
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
+                DataLabelsFormatter = point => $"{point.Model:N0} 金"
+            }
+        ];
+
+        ItemGoldYAxes =
+        [
+            new Axis
+            {
+                Labels = players.Select(TeamLabel).ToArray(),
+                TextSize = 11,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
+            }
+        ];
+
+        ItemGoldXAxes =
+        [
+            new Axis
+            {
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#384351"))
+            }
+        ];
+
+        var top = players[^1];
+        ItemGoldSummary = $"双方装备投入 · 最高 {top.HeroName} {top.ItemGold:N0} 金";
+        OnPropertyChanged(nameof(HasItemGold));
+    }
+
+    /// <summary>补刀对比：按补刀数升序（最大值画在顶部）。</summary>
+    private void BuildLastHitsChart(MatchDetail? detail)
+    {
+        var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? [])
+            .Where(p => p is not null)
+            .OrderBy(p => p.LastHits)
+            .ToList();
+
+        if (players.Count == 0)
+        {
+            LastHitsSeries = Array.Empty<ISeries>();
+            OnPropertyChanged(nameof(HasLastHits));
+            return;
+        }
+
+        LastHitsSeries =
+        [
+            new RowSeries<double>
+            {
+                Name = "补刀",
+                Values = players.Select(p => (double)p.LastHits).ToArray(),
+                MaxBarWidth = 22,
+                Fill = new SolidColorPaint(SKColor.Parse("#2DA44E")),
+                DataLabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                DataLabelsSize = 10,
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
+                DataLabelsFormatter = point => $"{point.Model:F0} 刀"
+            }
+        ];
+
+        LastHitsYAxes =
+        [
+            new Axis
+            {
+                Labels = players.Select(TeamLabel).ToArray(),
+                TextSize = 11,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
+            }
+        ];
+
+        LastHitsXAxes =
+        [
+            new Axis
+            {
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#384351"))
+            }
+        ];
+
+        var top = players[^1];
+        LastHitsSummary = $"双方补刀对比 · 最高 {top.HeroName} {top.LastHits} 刀";
+        OnPropertyChanged(nameof(HasLastHits));
+    }
+
+    /// <summary>玩家行标签：【天】/【夜】前缀 + 英雄名。</summary>
+    private static string TeamLabel(MatchPlayerItem p)
+        => (p.IsRadiant ? "【天】" : "【夜】") + p.HeroName;
 
     private static Task OnUiThreadAsync(Action action) => UiDispatcher.OnUiAsync(action);
 }

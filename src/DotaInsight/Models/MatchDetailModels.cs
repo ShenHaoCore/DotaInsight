@@ -279,6 +279,8 @@ public sealed class MatchPlayerItem
 {
     public long AccountId { get; set; }
 
+    public bool IsRadiant { get; set; }
+
     public int HeroId { get; set; }
 
     public string HeroName { get; set; } = string.Empty;
@@ -314,6 +316,12 @@ public sealed class MatchPlayerItem
 
     /// <summary>6 个主物品槽的图标 URL，空槽位为空字符串（保持栏位对齐）。</summary>
     public List<string> ItemIconUrls { get; set; } = [];
+
+    /// <summary>装备投入（6 装备 + 中立物品购买总价，金币）。未解析/无价格为 0。</summary>
+    public int ItemGold { get; set; }
+
+    /// <summary>装备物品 id 列表（6 主装备 + 中立，>0 的项），缓存命中后重算投入用。</summary>
+    public List<int> ItemIds { get; set; } = [];
 
     /// <summary>中立物品图标 URL，未装备时为空。</summary>
     public string NeutralItemIconUrl { get; set; } = string.Empty;

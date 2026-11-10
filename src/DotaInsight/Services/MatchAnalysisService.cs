@@ -49,7 +49,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     // v2：RecentMatchItem 扩展打法字段（GPM/伤害/分路等），旧 v1 缓存缺字段会污染打法分析
     private const string CachePrefix = "opendota:matchAnalysis:v2:";
     // v2：MatchDetail 扩展优势曲线与眼位数据，旧 v1 缓存缺字段会让新页签永远显示空
-    private const string DetailCachePrefix = "opendota:matchDetail:v4:";
+    private const string DetailCachePrefix = "opendota:matchDetail:v7:";
 
     /// <summary>已解析的比赛内容不会再变，可以放心长期缓存。</summary>
     private static readonly TimeSpan DetailCacheTtl = TimeSpan.FromDays(30);
@@ -354,7 +354,30 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         var cached = _cache.Get<MatchDetail>(cacheKey);
         if (cached is not null)
         {
-            _logger.Information("比赛详情缓存命中 MatchId={MatchId}", matchId);
+            // 旧缓存条目可能缺装备投入（字段后加）：解析过的对局就地补算，
+            // 成本表走进程内/LiteDB 缓存，命中时零网络请求
+            if (cached.HasPlayers)
+            {
+                var itemCosts = await _itemCatalog.GetItemCostsAsync(cancellationToken).ConfigureAwait(false);
+                if (itemCosts.Count > 0)
+                {
+                    foreach (var player in cached.Radiant.Concat(cached.Dire))
+                    {
+                        if (player.ItemGold > 0 || player.ItemIds.Count == 0)
+                        {
+                            continue;
+                        }
+
+                        player.ItemGold = player.ItemIds
+                            .Sum(id => itemCosts.TryGetValue(id, out var cost) ? cost : 0);
+                    }
+                }
+            }
+
+            _logger.Information(
+                "比赛详情缓存命中 MatchId={MatchId} Radiant={R} Dire={D} Dmg0={Dmg}",
+                matchId, cached.Radiant.Count, cached.Dire.Count,
+                cached.Radiant.FirstOrDefault()?.HeroDamage ?? -1);
             return cached;
         }
 
@@ -373,8 +396,9 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             var heroes = await _heroService.GetHeroesAsync(false, cancellationToken).ConfigureAwait(false);
             var heroMap = heroes.ToDictionary(h => h.Id);
             var itemIcons = await _itemCatalog.GetItemIconsAsync(cancellationToken).ConfigureAwait(false);
+            var itemCosts = await _itemCatalog.GetItemCostsAsync(cancellationToken).ConfigureAwait(false);
 
-            var detail = MapMatchDetail(dto, heroMap, itemIcons);
+            var detail = MapMatchDetail(dto, heroMap, itemIcons, itemCosts);
 
             // 无小地图数据的比赛只短暂缓存：这类对局往往尚未被 Valve 解析，
             // 解析完成后眼位/建筑事件就会补上——若按长 TTL 缓存，用户会一直看到空态
@@ -403,7 +427,8 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     internal static MatchDetail MapMatchDetail(
         MatchDetailDto dto,
         IReadOnlyDictionary<int, HeroStat> heroMap,
-        IReadOnlyDictionary<int, string> itemIcons)
+        IReadOnlyDictionary<int, string> itemIcons,
+        IReadOnlyDictionary<int, int>? itemCosts = null)
     {
         var radiant = new List<MatchPlayerItem>();
         var dire = new List<MatchPlayerItem>();
@@ -411,7 +436,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         foreach (var player in dto.Players ?? [])
         {
             // player_slot < 128 为天辉，>= 128 为夜魇（与 recentMatches 同一套判定）
-            var item = MapPlayer(player, heroMap, itemIcons);
+            var item = MapPlayer(player, heroMap, itemIcons, itemCosts);
             if (player.PlayerSlot < 128)
             {
                 radiant.Add(item);
@@ -850,7 +875,8 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     private static MatchPlayerItem MapPlayer(
         MatchPlayerDto dto,
         IReadOnlyDictionary<int, HeroStat> heroMap,
-        IReadOnlyDictionary<int, string> itemIcons)
+        IReadOnlyDictionary<int, string> itemIcons,
+        IReadOnlyDictionary<int, int>? itemCosts = null)
     {
         heroMap.TryGetValue(dto.HeroId, out var hero);
 
@@ -864,6 +890,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         return new MatchPlayerItem
         {
             AccountId = dto.AccountId ?? 0,
+            IsRadiant = dto.PlayerSlot < 128,
             HeroId = dto.HeroId,
             HeroName = hero?.DisplayName ?? $"#{dto.HeroId}",
             HeroIconUrl = HeroAssetHelper.GetIconUrl(hero?.Name),
@@ -881,6 +908,12 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             HeroHealing = dto.HeroHealing,
             TowerDamage = dto.TowerDamage,
             ItemIconUrls = itemUrls,
+            ItemIds = new[] { dto.Item0, dto.Item1, dto.Item2, dto.Item3, dto.Item4, dto.Item5, dto.ItemNeutral }
+                .Where(id => id > 0)
+                .ToList(),
+            ItemGold = itemCosts is null ? 0 : new[] { dto.Item0, dto.Item1, dto.Item2, dto.Item3, dto.Item4, dto.Item5, dto.ItemNeutral }
+                .Where(id => id > 0)
+                .Sum(id => itemCosts.TryGetValue(id, out var cost) ? cost : 0),
             NeutralItemIconUrl = itemIcons.TryGetValue(dto.ItemNeutral, out var neutral)
                 ? neutral
                 : string.Empty,

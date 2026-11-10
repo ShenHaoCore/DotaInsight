@@ -475,6 +475,10 @@
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
                 <RadioButton Content="输出承伤" Style="{StaticResource DiSegmentedItem}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=2, Mode=TwoWay}" />
+                <RadioButton Content="装备投入" Style="{StaticResource DiSegmentedItem}"
+                             IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=3, Mode=TwoWay}" />
+                <RadioButton Content="补刀对比" Style="{StaticResource DiSegmentedItem}"
+                             IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=4, Mode=TwoWay}" />
             </StackPanel>
         </Border>
 
@@ -667,6 +671,70 @@
                     <TextBlock Text="这局尚未被 OpenDota 解析，逐人伤害统计暂时缺失。"
                                Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
                                TextWrapping="Wrap" TextAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== 装备投入（页签 3）：双方全员购买总价 ===== -->
+        <Grid Grid.Row="5"
+              Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=3}">
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16,12"
+                    Visibility="{Binding HasItemGold, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <DockPanel Margin="2,0,2,8">
+                        <TextBlock Text="装备投入" Style="{StaticResource DiSectionTitleStyle}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding ItemGoldSummary}"
+                                   FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </DockPanel>
+                    <lvc:CartesianChart Height="430"
+                                        Series="{Binding ItemGoldSeries}"
+                                        XAxes="{Binding ItemGoldXAxes}"
+                                        YAxes="{Binding ItemGoldYAxes}"
+                                        LegendPosition="Hidden" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
+                    Visibility="{Binding HasItemGold, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <StackPanel>
+                    <TextBlock Text="该比赛暂无装备投入数据"
+                               Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
+                    <TextBlock Text="这局尚未被 OpenDota 解析，装备购买价格暂时缺失。"
+                               Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== 补刀对比（页签 4）：双方全员按补刀数 ===== -->
+        <Grid Grid.Row="5"
+              Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=4}">
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16,12"
+                    Visibility="{Binding HasLastHits, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <DockPanel Margin="2,0,2,8">
+                        <TextBlock Text="补刀对比" Style="{StaticResource DiSectionTitleStyle}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding LastHitsSummary}"
+                                   FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </DockPanel>
+                    <lvc:CartesianChart Height="430"
+                                        Series="{Binding LastHitsSeries}"
+                                        XAxes="{Binding LastHitsXAxes}"
+                                        YAxes="{Binding LastHitsYAxes}"
+                                        LegendPosition="Hidden" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
+                    Visibility="{Binding HasLastHits, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <StackPanel>
+                    <TextBlock Text="该比赛暂无补刀数据"
+                               Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
+                    <TextBlock Text="这局尚未被 OpenDota 解析，逐人补刀统计暂时缺失。"
+                               Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
                                Foreground="{DynamicResource DiMutedTextBrush}" />
                 </StackPanel>
             </Border>
