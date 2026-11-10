@@ -939,9 +939,9 @@
             <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
                     Visibility="{Binding HasMapData, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <StackPanel>
-                    <TextBlock Text="该比赛没有小地图数据"
+                    <TextBlock Text="该比赛暂无小地图数据"
                                Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
-                    <TextBlock Text="比赛未被解析，或数据源缺失眼位与事件记录。"
+                    <TextBlock Text="这局尚未被 OpenDota 解析（通常在对局后数分钟至数日内完成），解析完成后重新打开即可查看。"
                                Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
                                TextWrapping="Wrap" TextAlignment="Center"
                                Foreground="{DynamicResource DiMutedTextBrush}" />

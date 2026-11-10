@@ -376,11 +376,12 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
 
             var detail = MapMatchDetail(dto, heroMap, itemIcons);
 
-            // 未解析的比赛只短暂缓存：Valve 解析完成后就能补上逐人数据
+            // 无小地图数据的比赛只短暂缓存：这类对局往往尚未被 Valve 解析，
+            // 解析完成后眼位/建筑事件就会补上——若按长 TTL 缓存，用户会一直看到空态
             _cache.Set(
                 cacheKey,
                 detail,
-                detail.HasPlayers ? DetailCacheTtl : UnparsedDetailCacheTtl);
+                detail.HasMapLayers ? DetailCacheTtl : UnparsedDetailCacheTtl);
 
             _logger.Information(
                 "比赛详情已加载 MatchId={MatchId} Players={Count}",
