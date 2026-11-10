@@ -571,6 +571,8 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         Wards.Clear();
         var scale = MapCanvasSize / MapGridSize;
         var t = (int)CurrentTime;
+        // 同格多眼堆叠会糊成一个大圆：按格计数做确定性微偏移打散
+        var wardStack = new Dictionary<(int, int), int>();
 
         foreach (var ward in _allWards)
         {
@@ -579,10 +581,16 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                 continue;
             }
 
+            var gridKey = ((int)Math.Round(ward.UvX), (int)Math.Round(ward.UvY));
+            wardStack.TryGetValue(gridKey, out var stackN);
+            wardStack[gridKey] = stackN + 1;
+            var jitterX = (stackN % 4) * 3 - 4.5;
+            var jitterY = (stackN / 4 % 3) * 3 - 3;
+
             Wards.Add(new MatchWardDot
             {
-                Left = ward.UvX * scale - 5.5,
-                Top = ward.UvY * scale - 5.5,
+                Left = ward.UvX * scale - 5 + jitterX,
+                Top = ward.UvY * scale - 5 + jitterY,
                 IsObserver = ward.IsObserver,
                 IsRadiant = ward.IsRadiant,
                 Tooltip = $"{FormatClock(Math.Max(0, ward.Time))} · {(ward.IsRadiant ? "天辉" : "夜魇")} · {(ward.IsObserver ? "观察守卫" : "岗哨守卫")}"

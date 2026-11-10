@@ -12,8 +12,8 @@
 
         <!-- 眼位：填充按类型（观察=金 / 岗哨=蓝），描边按阵营（天辉=绿 / 夜魇=红） -->
         <Style x:Key="WardDotStyle" TargetType="Ellipse">
-            <Setter Property="Width" Value="11" />
-            <Setter Property="Height" Value="11" />
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
             <Setter Property="Fill" Value="{DynamicResource DiGoldBrush}" />
             <Setter Property="Stroke" Value="#2DA44E" />
             <Setter Property="StrokeThickness" Value="1.5" />
