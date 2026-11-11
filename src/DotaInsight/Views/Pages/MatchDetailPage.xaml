@@ -700,6 +700,51 @@
                                         XAxes="{Binding ItemGoldXAxes}"
                                         YAxes="{Binding ItemGoldYAxes}"
                                         LegendPosition="Hidden" />
+
+                    <!-- 装备购买时间线：每名玩家一行，图标按购买时刻定位（悬停看详情） -->
+                    <TextBlock Text="装备购买时间线" FontSize="11" Margin="2,12,0,4"
+                               Foreground="{DynamicResource DiMutedTextBrush}"
+                               Visibility="{Binding HasPurchases, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <ItemsControl ItemsSource="{Binding PurchaseRows}"
+                                  Visibility="{Binding HasPurchases, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="26" Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding PlayerLabel}" FontSize="12" FontWeight="Medium"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                    <Canvas Grid.Column="1" Width="740" Height="24" VerticalAlignment="Center">
+                                        <ItemsControl ItemsSource="{Binding Entries}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas IsItemsHost="True" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                                                    <Setter Property="Canvas.Top" Value="4" />
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Image Width="26" Height="17"
+                                                           Source="{Binding IconUrl, Converter={StaticResource CachedImageConverter}, ConverterParameter=64}"
+                                                           Stretch="UniformToFill"
+                                                           ToolTip="{Binding Tooltip}"
+                                                           RenderOptions.BitmapScalingMode="HighQuality" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Canvas>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
