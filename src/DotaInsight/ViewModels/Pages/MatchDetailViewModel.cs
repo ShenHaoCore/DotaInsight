@@ -337,7 +337,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                 Name = "英雄伤害",
                 Values = players.Select(p => (double)p.HeroDamage).ToArray(),
                 MaxBarWidth = 22,
-                Fill = new SolidColorPaint(SKColor.Parse("#2F81F7")),
+                Fill = new LinearGradientPaint(
+                    new SKColor[] { SKColor.Parse("#1565C0"), SKColor.Parse("#42A5F5") },
+                    new SKPoint(0, 0), new SKPoint(1, 0)),
                 DataLabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
                 DataLabelsSize = 10,
                 DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
@@ -391,7 +393,10 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                 Stroke = new SolidColorPaint(SKColor.Parse("#E3B341")) { StrokeThickness = 2 },
                 GeometryFill = new SolidColorPaint(SKColor.Parse("#E3B341")),
                 GeometryStroke = new SolidColorPaint(SKColor.Parse("#E3B341")),
-                GeometrySize = 2
+                GeometrySize = 2,
+                Fill = new LinearGradientPaint(
+                    new SKColor[] { new SKColor(0xE3, 0xB3, 0x41, 0x33), new SKColor(0xE3, 0xB3, 0x41, 0x00) },
+                    new SKPoint(0, 0), new SKPoint(0, 1))
             },
             new LineSeries<double?>
             {
@@ -460,7 +465,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                 Name = "装备投入",
                 Values = players.Select(p => (double)p.ItemGold).ToArray(),
                 MaxBarWidth = 22,
-                Fill = new SolidColorPaint(SKColor.Parse("#E3B341")),
+                Fill = new LinearGradientPaint(
+                    new SKColor[] { SKColor.Parse("#D9A120"), SKColor.Parse("#FFD54F") },
+                    new SKPoint(0, 0), new SKPoint(1, 0)),
                 DataLabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
                 DataLabelsSize = 10,
                 DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
@@ -516,7 +523,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                 Name = "补刀",
                 Values = players.Select(p => (double)p.LastHits).ToArray(),
                 MaxBarWidth = 22,
-                Fill = new SolidColorPaint(SKColor.Parse("#2DA44E")),
+                Fill = new LinearGradientPaint(
+                    new SKColor[] { SKColor.Parse("#1A7F37"), SKColor.Parse("#66BB6A") },
+                    new SKPoint(0, 0), new SKPoint(1, 0)),
                 DataLabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
                 DataLabelsSize = 10,
                 DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,

@@ -710,24 +710,30 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 Name = "胜",
                 Values = winValues,
                 MaxBarWidth = 14,
-                Fill = new SolidColorPaint(SKColor.Parse("#2DA44E"))
+                Fill = new LinearGradientPaint(
+                    new SKColor[] { SKColor.Parse("#2DA44E"), SKColor.Parse("#80EE7F") },
+                    new SKPoint(0, 0), new SKPoint(0, 1))
             },
             new ColumnSeries<double?>
             {
                 Name = "负",
                 Values = lossValues,
                 MaxBarWidth = 14,
-                Fill = new SolidColorPaint(SKColor.Parse("#CF222E"))
+                Fill = new LinearGradientPaint(
+                    new SKColor[] { SKColor.Parse("#CF222E"), SKColor.Parse("#FF8181") },
+                    new SKPoint(0, 0), new SKPoint(0, 1))
             },
             new LineSeries<double>
             {
                 Name = "累计胜率",
                 Values = cumulative.ToArray(),
                 ScalesYAt = 1,
+                Fill = new LinearGradientPaint(
+                    new SKColor[] { new SKColor(0x09, 0x69, 0xDA, 0x20), new SKColor(0x09, 0x69, 0xDA, 0x00) },
+                    new SKPoint(0, 0), new SKPoint(0, 1)),
                 GeometrySize = 4,
                 LineSmoothness = 0.4,
-                Stroke = new SolidColorPaint(SKColor.Parse("#0969DA")) { StrokeThickness = 2 },
-                Fill = null
+                Stroke = new SolidColorPaint(SKColor.Parse("#0969DA")) { StrokeThickness = 2 }
             }
         ];
 
