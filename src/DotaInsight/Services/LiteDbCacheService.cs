@@ -60,7 +60,18 @@ public sealed class LiteDbCacheService : ILiteDbCacheService, IDisposable
                 return default;
             }
 
-            return Deserialize<T>(entry.PayloadJson, key);
+            try
+            {
+                return Deserialize<T>(entry.PayloadJson, key);
+            }
+            catch (Exception ex)
+            {
+                // 反序列化失败（模型变更后的历史格式残留）：删除损坏条目返回空，
+                // 上层走重新拉取——比返回半初始化对象安全得多
+                _logger.Warning(ex, "缓存条目反序列化失败，已删除 {Key}", key);
+                Collection().Delete(key);
+                return default;
+            }
         }
     }
 

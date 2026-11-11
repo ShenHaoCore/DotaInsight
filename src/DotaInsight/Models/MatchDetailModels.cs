@@ -63,6 +63,9 @@ public sealed class MatchDetail
     /// <summary>夜魇活动热区。无数据为空。</summary>
     public IReadOnlyDictionary<string, int> DireHeatmap { get; set; } = new Dictionary<string, int>();
 
+    /// <summary>击杀矩阵：[击杀者下标][受害者下标] 次数（下标 = 天辉5+夜魇5 顺序）。</summary>
+    public List<List<int>> KillMatrix { get; set; } = [];
+
     /// <summary>小地图有可看的分层数据（眼位或建筑事件）。</summary>
     public bool HasMapLayers => Wards.Count > 0 || Buildings.Count > 0;
 
@@ -211,6 +214,18 @@ public enum MatchMapEventKind
     Kill
 }
 
+/// <summary>装备购买条目：购买时刻 + 图标 + 价格。</summary>
+public sealed class MatchPurchaseEntry
+{
+    public int Time { get; set; }
+
+    public string IconUrl { get; set; } = string.Empty;
+
+    public string ItemName { get; set; } = string.Empty;
+
+    public int Cost { get; set; }
+}
+
 /// <summary>
 /// 玩家常驻位置点：UV 坐标（0-127，OpenDota gameCoordToUV 约定）+ 头像展示元数据。
 /// </summary>
@@ -320,11 +335,41 @@ public sealed class MatchPlayerItem
     /// <summary>装备投入（6 装备 + 中立物品购买总价，金币）。未解析/无价格为 0。</summary>
     public int ItemGold { get; set; }
 
+    /// <summary>装备购买时间线（purchase_log，含时刻与图标）。</summary>
+    public List<MatchPurchaseEntry> Purchases { get; set; } = [];
+
+    /// <summary>逐分钟累计金币（下标=分钟）。</summary>
+    public List<int> GoldT { get; set; } = [];
+
+    [JsonIgnore] public int DIAG_GoldTCount { get; set; }
+
+    /// <summary>逐分钟累计经验。</summary>
+    public List<int> XpT { get; set; } = [];
+
+    /// <summary>逐分钟累计正补。</summary>
+    public List<int> LhT { get; set; } = [];
+
+    /// <summary>逐分钟累计反补。</summary>
+    public List<int> DeniesT { get; set; } = [];
+
+    /// <summary>10 分钟对线快照：正补/反补/金币。</summary>
+    public int Lh10 { get; set; }
+
+    public int Denies10 { get; set; }
+
+    public int Gold10 { get; set; }
+
+    /// <summary>分路名（安全/中路/劣势/打野）。</summary>
+    public string LaneName { get; set; } = string.Empty;
+
     /// <summary>装备物品 id 列表（6 主装备 + 中立，>0 的项），缓存命中后重算投入用。</summary>
     public List<int> ItemIds { get; set; } = [];
 
     /// <summary>中立物品图标 URL，未装备时为空。</summary>
     public string NeutralItemIconUrl { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public string TeamLabel => (IsRadiant ? "【天】" : "【夜】") + HeroName;
 
     /// <summary>技能征召（OMG）选到的技能内部名，按槽位序；非 OMG 为空。</summary>
     public List<string> DraftedAbilities { get; set; } = [];

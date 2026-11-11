@@ -49,7 +49,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     // v2：RecentMatchItem 扩展打法字段（GPM/伤害/分路等），旧 v1 缓存缺字段会污染打法分析
     private const string CachePrefix = "opendota:matchAnalysis:v2:";
     // v2：MatchDetail 扩展优势曲线与眼位数据，旧 v1 缓存缺字段会让新页签永远显示空
-    private const string DetailCachePrefix = "opendota:matchDetail:v7:";
+    private const string DetailCachePrefix = "opendota:matchDetail:v9:";
 
     /// <summary>已解析的比赛内容不会再变，可以放心长期缓存。</summary>
     private static readonly TimeSpan DetailCacheTtl = TimeSpan.FromDays(30);
@@ -478,6 +478,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             GoldAdvantage = dto.RadiantGoldAdv,
             XpAdvantage = dto.RadiantXpAdv,
             Wards = CollectWards(dto),
+            KillMatrix = BuildKillMatrix(dto, heroMap, heroByNpc),
             Buildings = buildings,
             MapEvents = mapEvents,
             RadiantHeatmap = CollectHeatmap(dto, isRadiant: true),
@@ -687,6 +688,48 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
 
         return events;
+    }
+
+    /// <summary>
+    /// 击杀矩阵：[击杀者][受害者] 次数。下标 = 玩家顺序（天辉 5 + 夜魇 5）。
+    /// 受害者通过击杀日志的 NPC 名 → 显示名 → 该英雄的玩家下标定位。
+    /// </summary>
+    private static List<List<int>> BuildKillMatrix(
+        MatchDetailDto dto,
+        IReadOnlyDictionary<int, HeroStat> heroMap,
+        IReadOnlyDictionary<string, string> heroByNpc)
+    {
+        var players = dto.Players ?? [];
+        var count = players.Count;
+        var matrix = new List<List<int>>(count);
+        for (var i = 0; i < count; i++)
+        {
+            matrix.Add(new List<int>(new int[count]));
+        }
+
+        // NPC 名 → 击杀者/受害者玩家下标（英雄 NPC 名即 HeroStat.Name）
+        var npcToIndex = new Dictionary<string, int>();
+        for (var i = 0; i < players.Count; i++)
+        {
+            if (heroMap.TryGetValue(players[i].HeroId, out var hero) && !string.IsNullOrWhiteSpace(hero.Name))
+            {
+                npcToIndex[hero.Name.Trim()] = i;
+            }
+        }
+
+        for (var i = 0; i < players.Count; i++)
+        {
+            foreach (var kill in players[i].KillsLog ?? [])
+            {
+                // kill.Key 即 NPC 名（npc_dota_hero_xxx），与 npcToIndex 的键同源，直接匹配
+                if (kill.Key is not null && npcToIndex.TryGetValue(kill.Key, out var victim))
+                {
+                    matrix[i][victim]++;
+                }
+            }
+        }
+
+        return matrix;
     }
 
     /// <summary>团战事件：一场团战一个刻度（起始时刻），收益方按经济净变化判定。</summary>
@@ -908,6 +951,32 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             HeroHealing = dto.HeroHealing,
             TowerDamage = dto.TowerDamage,
             ItemIconUrls = itemUrls,
+            Purchases = (dto.PurchaseLog ?? [])
+                .Where(e => !string.IsNullOrWhiteSpace(e.Key) && (e.Time ?? -1) >= 0)
+                .OrderBy(e => e.Time ?? 0)
+                .Select(e => new MatchPurchaseEntry
+                {
+                    Time = e.Time ?? 0,
+                    ItemName = e.Key!,
+                    IconUrl = $"{HeroAssetHelper.DotaReactImagesBase}items/{e.Key}.png"
+                })
+                .ToList(),
+            GoldT = dto.GoldT ?? [],
+            DIAG_GoldTCount = (dto.GoldT ?? []).Count,
+            XpT = dto.XpT ?? [],
+            LhT = dto.LhT ?? [],
+            DeniesT = dto.DeniesT ?? [],
+            Lh10 = (dto.LhT ?? []).Count > 10 ? dto.LhT[10] : (dto.LhT ?? []).LastOrDefault(),
+            Denies10 = (dto.DeniesT ?? []).Count > 10 ? dto.DeniesT[10] : (dto.DeniesT ?? []).LastOrDefault(),
+            Gold10 = (dto.GoldT ?? []).Count > 10 ? dto.GoldT[10] : (dto.GoldT ?? []).LastOrDefault(),
+            LaneName = (dto.LaneRole ?? -1) switch
+            {
+                0 => "优势路",
+                1 => "中路",
+                2 => "劣势路",
+                3 => "打野",
+                _ => "未知分路"
+            },
             ItemIds = new[] { dto.Item0, dto.Item1, dto.Item2, dto.Item3, dto.Item4, dto.Item5, dto.ItemNeutral }
                 .Where(id => id > 0)
                 .ToList(),
@@ -1020,6 +1089,25 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
 
         /// <summary>活动位置热区：{"x": {"y": 次数}}，UV 0-127 网格。</summary>
         [JsonPropertyName("lane_pos")] public Dictionary<string, Dictionary<string, int>>? LanePos { get; set; }
+
+        [JsonPropertyName("purchase_log")] public List<MatchLogEntryDto>? PurchaseLog { get; set; }
+
+        /// <summary>逐分钟累计金币（下标=分钟）。</summary>
+        [JsonPropertyName("gold_t")] public List<int>? GoldT { get; set; }
+
+        /// <summary>逐分钟累计经验。</summary>
+        [JsonPropertyName("xp_t")] public List<int>? XpT { get; set; }
+
+        /// <summary>逐分钟累计正补。</summary>
+        [JsonPropertyName("lh_t")] public List<int>? LhT { get; set; }
+
+        /// <summary>逐分钟累计反补。</summary>
+        [JsonPropertyName("denies_t")] public List<int>? DeniesT { get; set; }
+
+        [JsonPropertyName("deaths_log")] public List<MatchKillLogDto>? DeathsLog { get; set; }
+
+        /// <summary>分路角色：0=优势 1=中路 2=劣势 3=打野。</summary>
+        [JsonPropertyName("lane_role")] public int? LaneRole { get; set; }
     }
 
     /// <summary>objectives 事件条目（推塔/兵营/肉山/一血/信使等，取所需字段）。</summary>
@@ -1067,5 +1155,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         [JsonPropertyName("player_slot")] public int? PlayerSlot { get; set; }
 
         [JsonPropertyName("ehandle")] public long? Ehandle { get; set; }
+
+        [JsonPropertyName("key")] public string? Key { get; set; }
     }
 }

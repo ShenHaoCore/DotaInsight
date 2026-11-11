@@ -479,6 +479,12 @@
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=3, Mode=TwoWay}" />
                 <RadioButton Content="补刀对比" Style="{StaticResource DiSegmentedItem}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=4, Mode=TwoWay}" />
+                <RadioButton Content="成长曲线" Style="{StaticResource DiSegmentedItem}"
+                             IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=5, Mode=TwoWay}" />
+                <RadioButton Content="对线期" Style="{StaticResource DiSegmentedItem}"
+                             IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=6, Mode=TwoWay}" />
+                <RadioButton Content="击杀矩阵" Style="{StaticResource DiSegmentedItem}"
+                             IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=7, Mode=TwoWay}" />
             </StackPanel>
         </Border>
 
@@ -734,6 +740,199 @@
                     <TextBlock Text="该比赛暂无补刀数据"
                                Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
                     <TextBlock Text="这局尚未被 OpenDota 解析，逐人补刀统计暂时缺失。"
+                               Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== 成长曲线（页签 5）：选中玩家的金币/经验/正补逐分钟曲线 ===== -->
+        <Grid Grid.Row="5"
+              Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=5}">
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16,12"
+                    Visibility="{Binding HasGrowth, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <DockPanel Margin="2,0,2,8">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="英雄成长曲线" Style="{StaticResource DiSectionTitleStyle}" />
+                            <TextBlock Text="金币/经验为累计值" FontSize="11" Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="选择玩家：" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                            <ComboBox ItemsSource="{Binding GrowthPlayers}"
+                                      SelectedItem="{Binding SelectedGrowthPlayer}"
+                                      DisplayMemberPath="TeamLabel"
+                                      Width="180" Margin="6,0,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                    <lvc:CartesianChart Height="230"
+                                        Series="{Binding GrowthSeries}"
+                                        XAxes="{Binding GrowthXAxes}"
+                                        YAxes="{Binding GrowthYAxes}"
+                                        LegendPosition="Top" />
+                    <TextBlock Text="正补（累计）" FontSize="11" Margin="2,10,0,4"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                    <lvc:CartesianChart Height="170"
+                                        Series="{Binding GrowthLhSeries}"
+                                        XAxes="{Binding GrowthLhXAxes}"
+                                        YAxes="{Binding GrowthLhYAxes}"
+                                        LegendPosition="Hidden" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
+                    Visibility="{Binding HasGrowth, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <StackPanel>
+                    <TextBlock Text="该比赛暂无成长曲线数据"
+                               Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
+                    <TextBlock Text="这局尚未被 OpenDota 解析，逐分钟统计暂时缺失。"
+                               Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== 对线期（页签 6）：10 分钟基准（正补/反补/金币） ===== -->
+        <Grid Grid.Row="5"
+              Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=6}">
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16,12"
+                    Visibility="{Binding HasLaning, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <DockPanel Margin="2,0,2,8">
+                        <TextBlock Text="对线期分析" Style="{StaticResource DiSectionTitleStyle}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="10 分钟基准"
+                                   FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </DockPanel>
+                    <Grid Margin="2,0,2,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="90" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="玩家" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <TextBlock Grid.Column="1" Text="分路" FontSize="11" Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <TextBlock Grid.Column="2" Text="正补@10" FontSize="11" TextAlignment="Center" Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <TextBlock Grid.Column="3" Text="反补@10" FontSize="11" TextAlignment="Center" Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <TextBlock Grid.Column="4" Text="金币@10" FontSize="11" TextAlignment="Right" Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </Grid>
+                    <Rectangle Height="1" Fill="{DynamicResource DiStrokeBrush}" Margin="2,0,2,4" />
+                    <ItemsControl ItemsSource="{Binding LaningRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="30">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="90" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding PlayerLabel}" FontSize="12" FontWeight="Medium"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding LaneName}" FontSize="11"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource DiMutedTextBrush}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Lh10}" FontSize="12" TextAlignment="Center"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                    <TextBlock Grid.Column="3" Text="{Binding Denies10}" FontSize="12" TextAlignment="Center"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                    <TextBlock Grid.Column="4" Text="{Binding Gold10, StringFormat={}{0:N0}}" FontSize="12" TextAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
+                    Visibility="{Binding HasLaning, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <StackPanel>
+                    <TextBlock Text="该比赛暂无对线期数据"
+                               Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
+                    <TextBlock Text="这局尚未被 OpenDota 解析，10 分钟基准数据暂时缺失。"
+                               Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== 击杀矩阵（页签 7）：击杀者 × 受害者 ===== -->
+        <Grid Grid.Row="5"
+              Visibility="{Binding BottomTabIndex, Converter={StaticResource IntEqualsVisibility}, ConverterParameter=7}">
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="16,12"
+                    Visibility="{Binding HasMatrix, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <DockPanel Margin="2,0,2,8">
+                        <TextBlock Text="击杀矩阵" Style="{StaticResource DiSectionTitleStyle}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="行=击杀者 列=受害者"
+                                   FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                    </DockPanel>
+                    <Grid Margin="2,0,2,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="击杀者 ＼ 被击杀" FontSize="11"
+                                   Foreground="{DynamicResource DiMutedTextBrush}" />
+                        <ItemsControl Grid.Column="1" ItemsSource="{Binding MatrixVictimHeader}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Width="46" Text="{Binding}" FontSize="10"
+                                               TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding MatrixRows}" Margin="0,4,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="30">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding KillerLabel}" FontSize="12" FontWeight="Medium"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Width="46" Text="{Binding}" FontSize="12"
+                                                           TextAlignment="Center" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
+                    Visibility="{Binding HasMatrix, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                <StackPanel>
+                    <TextBlock Text="该比赛暂无击杀数据"
+                               Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
+                    <TextBlock Text="这局尚未被 OpenDota 解析，击杀记录暂时缺失。"
                                Margin="0,8,0,0" FontSize="13" HorizontalAlignment="Center"
                                Foreground="{DynamicResource DiMutedTextBrush}" />
                 </StackPanel>

@@ -292,6 +292,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         BuildDamageChart(detail);
         BuildItemGoldChart(detail);
         BuildLastHitsChart(detail);
+        BuildDotaPlusData(detail);
     }
 
     /// <summary>输出承伤对比图（双方全员按英雄伤害降序）。</summary>
@@ -553,5 +554,296 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     private static string TeamLabel(MatchPlayerItem p)
         => (p.IsRadiant ? "【天】" : "【夜】") + p.HeroName;
 
+    // ===== Dota Plus 风格：购买时间线 / 成长曲线 / 对线期 / 击杀矩阵 =====
+
+    /// <summary>购买时间线行：每名玩家一行，图标按购买时刻定位。</summary>
+    public ObservableCollection<PurchaseTimelineRow> PurchaseRows { get; } = new();
+
+    [ObservableProperty]
+    private bool hasPurchases;
+
+    /// <summary>成长曲线玩家选择（全部十人）。</summary>
+    public ObservableCollection<MatchPlayerItem> GrowthPlayers { get; } = new();
+
+    [ObservableProperty]
+    private MatchPlayerItem? selectedGrowthPlayer;
+
+    [ObservableProperty]
+    private ISeries[] growthSeries = Array.Empty<ISeries>();
+
+    [ObservableProperty]
+    private Axis[] growthXAxes = [new() { Labels = [] }];
+
+    [ObservableProperty]
+    private Axis[] growthYAxes = [new() { Labels = [] }];
+
+    /// <summary>正补曲线（独立轴，量级小 50 倍）。</summary>
+    [ObservableProperty]
+    private ISeries[] growthLhSeries = Array.Empty<ISeries>();
+
+    [ObservableProperty]
+    private Axis[] growthLhXAxes = [new() { Labels = [] }];
+
+    [ObservableProperty]
+    private Axis[] growthLhYAxes = [new() { Labels = [] }];
+
+    public bool HasGrowth => GrowthSeries.Length > 0;
+
+    /// <summary>对线期行（10 分钟基准）。</summary>
+    public ObservableCollection<LaningRow> LaningRows { get; } = new();
+
+    [ObservableProperty]
+    private bool hasLaning;
+
+    /// <summary>击杀矩阵行（击杀者 → 各受害者次数）。</summary>
+    public ObservableCollection<KillMatrixRow> MatrixRows { get; } = new();
+
+    /// <summary>列头：受害者英雄名（与矩阵列序一致）。</summary>
+    public ObservableCollection<string> MatrixVictimHeader { get; } = new();
+
+    [ObservableProperty]
+    private bool hasMatrix;
+
+    /// <summary>小地图移除后从构建器迁出的战况数据装配。</summary>
+    private void BuildDotaPlusData(MatchDetail? detail)
+    {
+        PurchaseRows.Clear();
+        GrowthPlayers.Clear();
+        LaningRows.Clear();
+        MatrixRows.Clear();
+
+        var duration = Math.Max(1, detail?.DurationSeconds ?? 1);
+        var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? [])
+            .Where(p => p is not null)
+            .ToList();
+
+        // 购买时间线：每名玩家一行
+        foreach (var p in players)
+        {
+            var row = new PurchaseTimelineRow { PlayerLabel = TeamLabel(p), IsRadiant = p.IsRadiant };
+            foreach (var e in p.Purchases)
+            {
+                row.Entries.Add(new PurchaseIconDot
+                {
+                    Left = e.Time / (double)duration * 720 + 10,
+                    IconUrl = e.IconUrl,
+                    Tooltip = $"{FormatClock(e.Time)} · {e.ItemName}" + (e.Cost > 0 ? $" · {e.Cost} 金" : string.Empty)
+                });
+            }
+
+            PurchaseRows.Add(row);
+        }
+
+        HasPurchases = PurchaseRows.Any(r => r.Entries.Count > 0);
+
+        // 成长曲线玩家选项：默认选中 GPM 最高的核心
+        foreach (var p in players)
+        {
+            GrowthPlayers.Add(p);
+        }
+
+        SelectedGrowthPlayer = players.OrderByDescending(p => p.GoldPerMin).FirstOrDefault();
+
+        // 对线期行：10 分钟基准
+        foreach (var p in players)
+        {
+            LaningRows.Add(new LaningRow
+            {
+                PlayerLabel = TeamLabel(p),
+                LaneName = string.IsNullOrWhiteSpace(p.LaneName) ? "未知分路" : p.LaneName,
+                Lh10 = p.Lh10,
+                Denies10 = p.Denies10,
+                Gold10 = p.Gold10,
+                IsRadiant = p.IsRadiant
+            });
+        }
+
+        HasLaning = LaningRows.Count > 0;
+        OnPropertyChanged(nameof(HasLaning));
+
+        // 击杀矩阵：detail.KillMatrix（服务层按 NPC 名→英雄映射构建）
+        if (detail is { KillMatrix.Count: > 0 })
+        {
+            for (var i = 0; i < detail.KillMatrix.Count && i < players.Count; i++)
+            {
+                var killer = players[i];
+                var row = new KillMatrixRow
+                {
+                    KillerLabel = TeamLabel(killer),
+                    IsRadiant = killer.IsRadiant
+                };
+
+                foreach (var count in detail.KillMatrix[i])
+                {
+                    row.Cells.Add(count > 0 ? count.ToString() : string.Empty);
+                }
+
+                MatrixRows.Add(row);
+            }
+        }
+
+        // 列头：受害者英雄名
+        MatrixVictimHeader.Clear();
+        foreach (var p in players)
+        {
+            MatrixVictimHeader.Add(p.HeroName);
+        }
+
+        HasMatrix = MatrixRows.Count > 0;
+        OnPropertyChanged(nameof(HasMatrix));
+    }
+
+    private static string FormatClock(int seconds)
+        => seconds < 0
+            ? "开局前"
+            : $"{seconds / 60:00}:{seconds % 60:00}";
+
+    partial void OnSelectedGrowthPlayerChanged(MatchPlayerItem? value)
+        => RebuildGrowthSeries();
+
+    /// <summary>成长曲线：金币/经验一图，正补独立一图（量级差 50 倍，合并会互相压扁）。</summary>
+    private void RebuildGrowthSeries()
+    {
+        var p = SelectedGrowthPlayer;
+        if (p is null || p.GoldT.Count == 0)
+        {
+            GrowthSeries = Array.Empty<ISeries>();
+            GrowthLhSeries = Array.Empty<ISeries>();
+            OnPropertyChanged(nameof(HasGrowth));
+            return;
+        }
+
+        var minutes = p.GoldT.Count;
+        var minuteLabels = Enumerable.Range(0, minutes).Select(m => m % 5 == 0 ? $"{m}'" : string.Empty).ToArray();
+
+        GrowthSeries =
+        [
+            new LineSeries<double>
+            {
+                Name = "金币",
+                Values = p.GoldT.Select(v => (double)v).ToArray(),
+                Stroke = new SolidColorPaint(SKColor.Parse("#E3B341")) { StrokeThickness = 2 },
+                GeometrySize = 3,
+                GeometryFill = new SolidColorPaint(SKColor.Parse("#E3B341")),
+                GeometryStroke = new SolidColorPaint(SKColor.Parse("#E3B341"))
+            },
+            new LineSeries<double>
+            {
+                Name = "经验",
+                Values = p.XpT.Select(v => (double)v).ToArray(),
+                Stroke = new SolidColorPaint(SKColor.Parse("#4FC3F7")) { StrokeThickness = 2 },
+                GeometrySize = 3,
+                GeometryFill = new SolidColorPaint(SKColor.Parse("#4FC3F7")),
+                GeometryStroke = new SolidColorPaint(SKColor.Parse("#4FC3F7"))
+            }
+        ];
+
+        GrowthXAxes =
+        [
+            new Axis
+            {
+                Labels = minuteLabels,
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColors.Transparent)
+            }
+        ];
+
+        GrowthYAxes =
+        [
+            new Axis
+            {
+                MinLimit = 0,
+                MaxLimit = Math.Max(p.GoldT.Max(), p.XpT.Max()) * 1.15,
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#384351"))
+            }
+        ];
+
+        GrowthLhSeries =
+        [
+            new LineSeries<double>
+            {
+                Name = "正补",
+                Values = p.LhT.Select(v => (double)v).ToArray(),
+                Stroke = new SolidColorPaint(SKColor.Parse("#2DA44E")) { StrokeThickness = 2 },
+                GeometrySize = 4,
+                GeometryFill = new SolidColorPaint(SKColor.Parse("#2DA44E")),
+                GeometryStroke = new SolidColorPaint(SKColor.Parse("#2DA44E"))
+            }
+        ];
+
+        GrowthLhXAxes =
+        [
+            new Axis
+            {
+                Labels = minuteLabels,
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#384351"))
+            }
+        ];
+
+        GrowthLhYAxes =
+        [
+            new Axis
+            {
+                MinLimit = 0,
+                MaxLimit = Math.Max(1, p.LhT.Max()) * 1.15,
+                TextSize = 10,
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#8A97A6")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#384351"))
+            }
+        ];
+    }
+
+    /// <summary>成长曲线：金币/经验（左轴）+ 正补（右轴，逐分钟累计）。</summary>
     private static Task OnUiThreadAsync(Action action) => UiDispatcher.OnUiAsync(action);
+}
+
+/// <summary>购买时间线行：玩家标签 + 装备图标点集。</summary>
+public sealed class PurchaseTimelineRow
+{
+    public string PlayerLabel { get; init; } = string.Empty;
+
+    public bool IsRadiant { get; init; }
+
+    public ObservableCollection<PurchaseIconDot> Entries { get; } = new();
+}
+
+/// <summary>购买图标点：时间轴上的像素定位。</summary>
+public sealed class PurchaseIconDot
+{
+    public double Left { get; init; }
+
+    public string IconUrl { get; init; } = string.Empty;
+
+    public string Tooltip { get; init; } = string.Empty;
+}
+
+/// <summary>对线期行：10 分钟基准数据。</summary>
+public sealed class LaningRow
+{
+    public string PlayerLabel { get; init; } = string.Empty;
+
+    public string LaneName { get; init; } = string.Empty;
+
+    public int Lh10 { get; init; }
+
+    public int Denies10 { get; init; }
+
+    public int Gold10 { get; init; }
+
+    public bool IsRadiant { get; init; }
+}
+
+/// <summary>击杀矩阵行：击杀者 + 对各受害者的击杀次数文本。</summary>
+public sealed class KillMatrixRow
+{
+    public string KillerLabel { get; init; } = string.Empty;
+
+    public bool IsRadiant { get; init; }
+
+    public List<string> Cells { get; } = new();
 }
