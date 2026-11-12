@@ -607,11 +607,17 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     /// <summary>击杀矩阵行（击杀者 → 各受害者次数）。</summary>
     public ObservableCollection<KillMatrixRow> MatrixRows { get; } = new();
 
-    /// <summary>列头：受害者英雄名（与矩阵列序一致）。</summary>
-    public ObservableCollection<string> MatrixVictimHeader { get; } = new();
+    /// <summary>列头：受害者英雄名 + 阵营（与矩阵列序一致）。</summary>
+    public ObservableCollection<MatrixHeaderCell> MatrixVictimHeader { get; } = new();
 
     [ObservableProperty]
     private bool hasMatrix;
+
+    /// <summary>对线期评价行：按分路交叉配对（天辉优势路 vs 夜魇劣势路等）。</summary>
+    public ObservableCollection<LaneVerdictRow> LaneVerdicts { get; } = new();
+
+    [ObservableProperty]
+    private bool hasLaneVerdicts;
 
     /// <summary>小地图移除后从构建器迁出的战况数据装配。</summary>
     private void BuildDotaPlusData(MatchDetail? detail)
@@ -620,6 +626,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         GrowthPlayers.Clear();
         LaningRows.Clear();
         MatrixRows.Clear();
+        LaneVerdicts.Clear();
 
         var duration = Math.Max(1, detail?.DurationSeconds ?? 1);
         var players = (detail?.Radiant ?? []).Concat(detail?.Dire ?? [])
@@ -684,22 +691,92 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
                 foreach (var count in detail.KillMatrix[i])
                 {
-                    row.Cells.Add(count > 0 ? count.ToString() : string.Empty);
+                    row.Cells.Add(new MatrixCell
+                    {
+                        Text = count > 0 ? count.ToString() : string.Empty,
+                        Heat = MatrixHeat(count),
+                        IsRadiant = killer.IsRadiant
+                    });
                 }
 
                 MatrixRows.Add(row);
             }
         }
 
-        // 列头：受害者英雄名
+        // 列头：受害者英雄名 + 阵营（天辉绿/夜魇红一眼区分击杀对象）
         MatrixVictimHeader.Clear();
         foreach (var p in players)
         {
-            MatrixVictimHeader.Add(p.HeroName);
+            MatrixVictimHeader.Add(new MatrixHeaderCell { Name = p.HeroName, IsRadiant = p.IsRadiant });
         }
 
         HasMatrix = MatrixRows.Count > 0;
         OnPropertyChanged(nameof(HasMatrix));
+
+        // 对线期评价：lane_role 是玩家自身视角，双方"优势路"并不对位，
+        // 需交叉配对——天辉优势路(安全) ↔ 夜魇劣势路，中路对中路。
+        BuildLaneVerdicts(players);
+    }
+
+    /// <summary>击杀数 → 热度底透明度：0 次不显示，5 次及以上封顶。</summary>
+    private static double MatrixHeat(int count) => count switch
+    {
+        <= 0 => 0,
+        1 => 0.22,
+        2 => 0.38,
+        3 => 0.54,
+        4 => 0.70,
+        _ => 0.85
+    };
+
+    /// <summary>按分路交叉配对，汇总 10 分钟正/反补与金币差，给出领先方评价。</summary>
+    private void BuildLaneVerdicts(List<MatchPlayerItem> players)
+    {
+        var radiant = players.Where(p => p.IsRadiant).ToList();
+        var dire = players.Where(p => !p.IsRadiant).ToList();
+
+        AddLaneVerdict("天辉优势路", radiant, "优势路", dire, "劣势路");
+        AddLaneVerdict("中路", radiant, "中路", dire, "中路");
+        AddLaneVerdict("夜魇优势路", dire, "优势路", radiant, "劣势路");
+
+        HasLaneVerdicts = LaneVerdicts.Count > 0;
+        OnPropertyChanged(nameof(HasLaneVerdicts));
+    }
+
+    /// <summary>把一侧 team 的 laneName 玩家与另一侧 otherLane 玩家配成一条对线评价。</summary>
+    private void AddLaneVerdict(
+        string label,
+        List<MatchPlayerItem> side, string laneName,
+        List<MatchPlayerItem> otherSide, string otherLane)
+    {
+        var mine = side.Where(p => p.LaneName == laneName).ToList();
+        var theirs = otherSide.Where(p => p.LaneName == otherLane).ToList();
+        if (mine.Count == 0 || theirs.Count == 0)
+        {
+            return;
+        }
+
+        static (int Lh, int Dn, int Gold) Sum(List<MatchPlayerItem> ps)
+            => (ps.Sum(x => x.Lh10), ps.Sum(x => x.Denies10), ps.Sum(x => x.Gold10));
+
+        var a = Sum(mine);
+        var b = Sum(theirs);
+        var delta = (a.Lh + a.Dn) - (b.Lh + b.Dn);
+        var aIsRadiant = mine[0].IsRadiant;
+        var leaderIsRadiant = delta > 0 ? aIsRadiant : !aIsRadiant;
+
+        LaneVerdicts.Add(new LaneVerdictRow
+        {
+            LaneLabel = label,
+            SideAStats = $"{a.Lh + a.Dn} 补刀 · {a.Gold:N0} 金",
+            SideBStats = $"{b.Lh + b.Dn} 补刀 · {b.Gold:N0} 金",
+            SideAIsRadiant = aIsRadiant,
+            Verdict = delta == 0
+                ? "平分秋色"
+                : $"{(leaderIsRadiant ? "天辉" : "夜魇")}领先 {Math.Abs(delta)} 补刀",
+            RadiantLeads = delta == 0 || leaderIsRadiant,
+            IsTie = delta == 0
+        });
     }
 
     private static string FormatClock(int seconds)
@@ -847,12 +924,53 @@ public sealed class LaningRow
     public bool IsRadiant { get; init; }
 }
 
-/// <summary>击杀矩阵行：击杀者 + 对各受害者的击杀次数文本。</summary>
+/// <summary>击杀矩阵列头：受害者英雄名 + 阵营。</summary>
+public sealed class MatrixHeaderCell
+{
+    public string Name { get; init; } = string.Empty;
+
+    public bool IsRadiant { get; init; }
+}
+
+/// <summary>击杀矩阵单元格：击杀次数文本 + 热度底（按击杀者阵营着色）。</summary>
+public sealed class MatrixCell
+{
+    public string Text { get; init; } = string.Empty;
+
+    /// <summary>热度底透明度：0 = 无击杀不显示，击杀越多越深。</summary>
+    public double Heat { get; init; }
+
+    /// <summary>击杀者阵营（决定底色：天辉绿/夜魇红）。</summary>
+    public bool IsRadiant { get; init; }
+}
+
+/// <summary>击杀矩阵行：击杀者 + 对各受害者的击杀次数。</summary>
 public sealed class KillMatrixRow
 {
     public string KillerLabel { get; init; } = string.Empty;
 
     public bool IsRadiant { get; init; }
 
-    public List<string> Cells { get; } = new();
+    public List<MatrixCell> Cells { get; } = new();
+}
+
+/// <summary>对线期评价行：一条分路的双方 10 分钟汇总与领先方判定。</summary>
+public sealed class LaneVerdictRow
+{
+    public string LaneLabel { get; init; } = string.Empty;
+
+    /// <summary>A 侧合计（正/反补 + 金币）。</summary>
+    public string SideAStats { get; init; } = string.Empty;
+
+    /// <summary>B 侧合计（正/反补 + 金币）。</summary>
+    public string SideBStats { get; init; } = string.Empty;
+
+    public bool SideAIsRadiant { get; init; }
+
+    public string Verdict { get; init; } = string.Empty;
+
+    /// <summary>领先方是否天辉（平局时用于中性着色，无副作用）。</summary>
+    public bool RadiantLeads { get; init; }
+
+    public bool IsTie { get; init; }
 }

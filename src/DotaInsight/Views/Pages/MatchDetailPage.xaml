@@ -852,6 +852,74 @@
                                    FontSize="11" VerticalAlignment="Center"
                                    Foreground="{DynamicResource DiMutedTextBrush}" />
                     </DockPanel>
+                    <!-- 分路对线评价：lane_role 为玩家自身视角，交叉配对后的天辉 vs 夜魇胜负 -->
+                    <ItemsControl ItemsSource="{Binding LaneVerdicts}" Margin="2,0,2,10">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="258" Margin="0,0,10,0" Padding="12,9"
+                                        Background="{DynamicResource DiPanelElevatedBrush}"
+                                        BorderBrush="{DynamicResource DiStrokeBrush}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource DiCornerLg}">
+                                    <StackPanel>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBlock Text="{Binding LaneLabel}" FontSize="12" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Verdict}" FontSize="11"
+                                                       FontWeight="SemiBold" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource DiAdvantageBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding RadiantLeads}" Value="False">
+                                                                <Setter Property="Foreground" Value="{DynamicResource DiDisadvantageBrush}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsTie}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DockPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                            <TextBlock Text="{Binding SideAStats}" FontSize="11" FontFamily="Consolas">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource DiAdvantageBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SideAIsRadiant}" Value="False">
+                                                                <Setter Property="Foreground" Value="{DynamicResource DiDisadvantageBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="  vs  " FontSize="11"
+                                                       Foreground="{DynamicResource DiMutedTextBrush}" />
+                                            <TextBlock Text="{Binding SideBStats}" FontSize="11" FontFamily="Consolas">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource DiDisadvantageBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SideAIsRadiant}" Value="False">
+                                                                <Setter Property="Foreground" Value="{DynamicResource DiAdvantageBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <Grid Margin="2,0,2,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="220" />
@@ -934,9 +1002,19 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Width="46" Text="{Binding}" FontSize="10"
-                                               TextAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               Foreground="{DynamicResource DiMutedTextBrush}" />
+                                    <TextBlock Width="46" Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
+                                               TextAlignment="Center" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource DiAdvantageBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRadiant}" Value="False">
+                                                        <Setter Property="Foreground" Value="{DynamicResource DiDisadvantageBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -960,9 +1038,25 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Width="46" Text="{Binding}" FontSize="12"
-                                                           TextAlignment="Center" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                                <!-- 热度底按击杀者阵营着色，透明度随击杀数递增；文字始终全亮 -->
+                                                <Grid Width="46" Height="24" Margin="0,0,0,0">
+                                                    <Border CornerRadius="3" Margin="1"
+                                                            Opacity="{Binding Heat}">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{DynamicResource DiAdvantageBrush}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsRadiant}" Value="False">
+                                                                        <Setter Property="Background" Value="{DynamicResource DiDisadvantageBrush}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Text}" FontSize="12" FontWeight="SemiBold"
+                                                               TextAlignment="Center" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                                </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
