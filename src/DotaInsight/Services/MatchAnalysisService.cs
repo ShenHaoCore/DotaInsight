@@ -397,8 +397,9 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             var heroMap = heroes.ToDictionary(h => h.Id);
             var itemIcons = await _itemCatalog.GetItemIconsAsync(cancellationToken).ConfigureAwait(false);
             var itemCosts = await _itemCatalog.GetItemCostsAsync(cancellationToken).ConfigureAwait(false);
+            var costsByName = await _itemCatalog.GetItemCostsByNameAsync(cancellationToken).ConfigureAwait(false);
 
-            var detail = MapMatchDetail(dto, heroMap, itemIcons, itemCosts);
+            var detail = MapMatchDetail(dto, heroMap, itemIcons, itemCosts, costsByName);
 
             // 无小地图数据的比赛只短暂缓存：这类对局往往尚未被 Valve 解析，
             // 解析完成后眼位/建筑事件就会补上——若按长 TTL 缓存，用户会一直看到空态
@@ -428,7 +429,8 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         MatchDetailDto dto,
         IReadOnlyDictionary<int, HeroStat> heroMap,
         IReadOnlyDictionary<int, string> itemIcons,
-        IReadOnlyDictionary<int, int>? itemCosts = null)
+        IReadOnlyDictionary<int, int>? itemCosts = null,
+        IReadOnlyDictionary<string, int>? costsByName = null)
     {
         var radiant = new List<MatchPlayerItem>();
         var dire = new List<MatchPlayerItem>();
@@ -436,7 +438,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         foreach (var player in dto.Players ?? [])
         {
             // player_slot < 128 为天辉，>= 128 为夜魇（与 recentMatches 同一套判定）
-            var item = MapPlayer(player, heroMap, itemIcons, itemCosts);
+            var item = MapPlayer(player, heroMap, itemIcons, itemCosts, costsByName);
             if (player.PlayerSlot < 128)
             {
                 radiant.Add(item);
@@ -919,7 +921,8 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         MatchPlayerDto dto,
         IReadOnlyDictionary<int, HeroStat> heroMap,
         IReadOnlyDictionary<int, string> itemIcons,
-        IReadOnlyDictionary<int, int>? itemCosts = null)
+        IReadOnlyDictionary<int, int>? itemCosts = null,
+        IReadOnlyDictionary<string, int>? costsByName = null)
     {
         heroMap.TryGetValue(dto.HeroId, out var hero);
 
@@ -958,7 +961,8 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                 {
                     Time = e.Time ?? 0,
                     ItemName = e.Key!,
-                    IconUrl = $"{HeroAssetHelper.DotaReactImagesBase}items/{e.Key}.png"
+                    IconUrl = $"{HeroAssetHelper.DotaReactImagesBase}items/{e.Key}.png",
+                    Cost = costsByName is not null && e.Key is not null && costsByName.TryGetValue(e.Key, out var pc) ? pc : 0
                 })
                 .ToList(),
             GoldT = dto.GoldT ?? [],

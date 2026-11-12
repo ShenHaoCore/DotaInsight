@@ -268,7 +268,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                     return;
                 }
 
-
+                FillTeams(detail);
             }).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is OperationCanceledException && token.IsCancellationRequested)

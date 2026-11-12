@@ -19,6 +19,9 @@ public interface IItemCatalogService
 
     /// <summary>返回 item_id → 购买价格（金币）映射。失败时返回空字典。</summary>
     Task<IReadOnlyDictionary<int, int>> GetItemCostsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>物品内部名 → 购买价格（purchase_log 的 key 格式）。</summary>
+    Task<IReadOnlyDictionary<string, int>> GetItemCostsByNameAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -61,6 +64,11 @@ public sealed class ItemCatalogService : IItemCatalogService
         CancellationToken cancellationToken = default)
         => (await EnsureCatalogAsync(cancellationToken).ConfigureAwait(false)).Costs;
 
+    /// <summary>物品内部名 → 购买价格（purchase_log 的 key 格式）。</summary>
+    public async Task<IReadOnlyDictionary<string, int>> GetItemCostsByNameAsync(
+        CancellationToken cancellationToken = default)
+        => (await EnsureCatalogAsync(cancellationToken).ConfigureAwait(false)).CostsByName;
+
     /// <summary>单次拉取 /constants/items，同时构建图标与价格两份映射。</summary>
     private async Task<ItemCatalogData> EnsureCatalogAsync(
         CancellationToken cancellationToken = default)
@@ -99,8 +107,10 @@ public sealed class ItemCatalogService : IItemCatalogService
 
             var icons = new Dictionary<int, string>(raw.Count);
             var costs = new Dictionary<int, int>();
-            foreach (var dto in raw.Values)
+            var costsByName = new Dictionary<string, int>();
+            foreach (var pair in raw)
             {
+                var dto = pair.Value;
                 if (dto.Id <= 0)
                 {
                     continue;
@@ -114,13 +124,14 @@ public sealed class ItemCatalogService : IItemCatalogService
                 if (dto.Cost > 0)
                 {
                     costs[dto.Id] = dto.Cost;
+                    costsByName[pair.Key] = dto.Cost;
                 }
             }
 
             _logger.Information("物品目录已缓存 Count={Count} Icons={Icons} Costs={Costs}",
                 raw.Count, icons.Count, costs.Count);
 
-            var data = new ItemCatalogData(icons, costs);
+            var data = new ItemCatalogData(icons, costs, costsByName);
             _memory = data;
             _cache.Set(CacheKey, data, CacheTtl);
             return _memory;
@@ -167,11 +178,16 @@ public sealed class ItemCatalogData
 
     public Dictionary<int, int> Costs { get; set; } = new();
 
+    /// <summary>物品内部名 → 购买价格（purchase_log 的 key 格式）。</summary>
+    public Dictionary<string, int> CostsByName { get; set; } = new();
+
     public ItemCatalogData() { }
 
-    public ItemCatalogData(Dictionary<int, string> icons, Dictionary<int, int> costs)
+    public ItemCatalogData(Dictionary<int, string> icons, Dictionary<int, int> costs,
+        Dictionary<string, int> costsByName)
     {
         Icons = icons;
         Costs = costs;
+        CostsByName = costsByName;
     }
 }
