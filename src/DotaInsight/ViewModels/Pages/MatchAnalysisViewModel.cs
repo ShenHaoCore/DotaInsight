@@ -501,6 +501,9 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             ActivityCells = heatmap.Weeks.SelectMany(w => w.Days).ToList();
             ActivityMonthLabels = heatmap.Weeks.Select(w => w.MonthLabel).ToList();
             ActivitySummaryText = heatmap.SummaryText;
+            // 数据已变：清掉旧位图，强制 RebuildActivityImage 重渲（否则切换账号时
+            // 格子尺寸相同会命中跳过条件，热力图仍显示上一个账号的数据）
+            ActivityImage = null;
             // 普通属性无自动通知：列表晚于绑定求值到达，必须手动通知 ItemsControl 刷新
             OnPropertyChanged(nameof(ActivityMonthLabels));
             RebuildActivityImage(null);
