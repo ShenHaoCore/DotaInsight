@@ -24,7 +24,7 @@ public sealed class HeroProfileService : IHeroProfileService
 
     private const string CacheKeyPrefix = "dota2cn:herodata:v6:";
     private const string HeroDataUrl =
-        "https://www.dota2.com.cn/datafeed/herodata?language=schinese&hero_id={0}";
+        Helpers.ApiEndpoints.HeroDataUrl;
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILiteDbCacheService _cache;

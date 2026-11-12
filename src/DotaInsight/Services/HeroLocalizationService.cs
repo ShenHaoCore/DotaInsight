@@ -26,7 +26,7 @@ public sealed class HeroLocalizationService : IHeroLocalizationService
     public const string HttpClientName = HeroProfileService.HttpClientName;
 
     private const string CacheKey = "dota2cn:heroNames:zh:v1";
-    private const string HeroListUrl = "https://www.dota2.com.cn/datafeed/heroList?task=herolist";
+    private const string HeroListUrl = Helpers.ApiEndpoints.HeroListUrl;
 
     /// <summary>
     /// 网络失败降级后的退避期：期间不再重复发起网络请求。

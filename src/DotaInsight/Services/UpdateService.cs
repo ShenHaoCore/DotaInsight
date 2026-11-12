@@ -79,11 +79,11 @@ public sealed class UpdateService : IUpdateService
 {
     /// <summary>本仓库的 releases/latest 接口（AutoUpdater 与手动检查共用）。</summary>
     public const string LatestReleaseApiUrl =
-        "https://api.github.com/repos/ShenHaoCore/DotaInsight/releases/latest";
+        Helpers.ApiEndpoints.GitHubReleasesApi;
 
     /// <summary>发布页面，取不到具体版本的地址时兜底用。</summary>
     public const string LatestReleasePageUrl =
-        "https://github.com/ShenHaoCore/DotaInsight/releases/latest";
+        Helpers.ApiEndpoints.GitHubReleasesPage;
 
     public const string HttpClientName = "github";
 
@@ -93,7 +93,7 @@ public sealed class UpdateService : IUpdateService
     /// </summary>
     public static void ConfigureHttpClient(HttpClient client)
     {
-        client.BaseAddress = new Uri("https://api.github.com/");
+        client.BaseAddress = new Uri(Helpers.ApiEndpoints.GitHubApiBase);
         client.Timeout = TimeSpan.FromSeconds(15);
         client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");

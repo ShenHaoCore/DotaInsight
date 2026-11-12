@@ -145,7 +145,7 @@ public partial class App : Application
 
         services.AddHttpClient(HeroCounterService.HttpClientName, client =>
             {
-                client.BaseAddress = new Uri("https://api.opendota.com/");
+                client.BaseAddress = new Uri(Helpers.ApiEndpoints.OpenDotaBase);
                 client.Timeout = TimeSpan.FromSeconds(15);
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
             })

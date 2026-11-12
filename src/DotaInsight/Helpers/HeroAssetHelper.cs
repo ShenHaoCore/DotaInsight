@@ -10,7 +10,7 @@ namespace DotaInsight.Helpers;
 public static class HeroAssetHelper
 {
     /// <summary>Steam CDN 根（物品等含完整路径的资源用它拼接）。</summary>
-    internal const string SteamCdnBase = "https://cdn.cloudflare.steamstatic.com";
+    internal const string SteamCdnBase = ApiEndpoints.SteamCdnBase;
 
     /// <summary>官网 dota_react 静态资源根（英雄头像 / 技能图标）。</summary>
     internal const string DotaReactImagesBase = SteamCdnBase + "/apps/dota2/images/dota_react/";

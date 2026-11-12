@@ -101,7 +101,7 @@ public sealed class SteamAvatarFrameService : ISteamAvatarFrameService
             var steamId64 = SteamAccountId.SteamId64Base + accountId;
             var client = _httpClientFactory.CreateClient(HttpClientName);
             var html = await client
-                .GetStringAsync($"https://steamcommunity.com/profiles/{steamId64}", cancellationToken)
+                .GetStringAsync($"{Helpers.ApiEndpoints.SteamProfileBase}{steamId64}", cancellationToken)
                 .ConfigureAwait(false);
 
             // 分类响应：公开资料页 / 完全私有页 / 不是资料页（错误页、限流页）
