@@ -400,7 +400,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(true);
+            await Task.Delay(TimeSpan.FromMilliseconds(100), token).ConfigureAwait(true);
             var stats = await _matchService.GetPlayerHeroStatsAsync(accountId, forceRefresh, token).ConfigureAwait(true);
             if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
             {
