@@ -19,12 +19,12 @@ jobs:
     steps:
       # fetch-depth: 0 —— 生成变更日志要用到上一个 tag 与完整历史，
       # 默认的浅克隆（depth 1）下 git describe / git log <prev>..<tag> 全都拿不到东西。
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
 
