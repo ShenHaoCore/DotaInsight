@@ -225,6 +225,54 @@
                                     </Border.Style>
                                 </Border>
                             </Grid>
+
+                            <!-- 职业选手 -->
+                            <Grid>
+                                <Button ToolTip="职业选手榜单"
+                                        Command="{Binding NavigateProPlayersCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource DiSidebarItemStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="ProPlayers">
+                                                    <Setter Property="Background" Value="{DynamicResource DiAccentSoftBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel>
+                                        <ui:SymbolIcon Symbol="Trophy24" FontSize="18" Width="18" Height="18"
+                                                       HorizontalAlignment="Center">
+                                            <ui:SymbolIcon.Style>
+                                                <Style TargetType="ui:SymbolIcon">
+                                                    <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ActiveNav, RelativeSource={RelativeSource AncestorType=Window}}" Value="ProPlayers">
+                                                            <Setter Property="Foreground" Value="{DynamicResource DiPrimaryTextBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:SymbolIcon.Style>
+                                        </ui:SymbolIcon>
+                                        <TextBlock Text="选手" FontSize="11" Margin="0,5,0,0"
+                                                   Foreground="{DynamicResource DiMutedTextBrush}"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Border Width="3" Height="24" CornerRadius="2"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Background="{DynamicResource DiAccentBrush}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveNav}" Value="ProPlayers">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </Grid>
                         </StackPanel>
                     </DockPanel>
                 </Border>

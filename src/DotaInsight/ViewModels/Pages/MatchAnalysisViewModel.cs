@@ -145,6 +145,13 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     [RelayCommand]
     private async Task SearchAsync() => await RunSearchAsync(forceRefresh: false);
 
+    /// <summary>跨页入口（职业选手榜单点击跳转）：填入账号并跑一次完整查询。</summary>
+    public async Task QueryExternalAsync(long accountId)
+    {
+        AccountInput = accountId.ToString();
+        await RunSearchAsync(forceRefresh: false).ConfigureAwait(true);
+    }
+
     /// <summary>强制刷新：忽略缓存重新拉取该账号的全部数据。</summary>
     [RelayCommand]
     private async Task RefreshDataAsync() => await RunSearchAsync(forceRefresh: true);

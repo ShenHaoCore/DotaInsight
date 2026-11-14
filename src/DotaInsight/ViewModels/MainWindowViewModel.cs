@@ -17,6 +17,7 @@ public partial class MainWindowViewModel : ObservableObject
     public const string HeroGalleryPageKey = "HeroGallery";
     public const string HeroDetailPageKey = "HeroDetail";
     public const string MatchAnalysisPageKey = "MatchAnalysis";
+    public const string ProPlayersPageKey = "ProPlayers";
 
     /// <summary>比赛详情是战绩分析的下级页面，不在侧边栏导航里。</summary>
     public const string MatchDetailPageKey = "MatchDetail";
@@ -123,6 +124,14 @@ public partial class MainWindowViewModel : ObservableObject
         CurrentPageTitle = "战绩分析";
         ActiveNav = MatchAnalysisPageKey;
         _navigationService.NavigateTo(MatchAnalysisPageKey);
+    }
+
+    [RelayCommand]
+    private void NavigateProPlayers()
+    {
+        CurrentPageTitle = "职业选手";
+        ActiveNav = ProPlayersPageKey;
+        _navigationService.NavigateTo(ProPlayersPageKey);
     }
 
 

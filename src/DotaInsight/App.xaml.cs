@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
@@ -132,6 +132,7 @@ public partial class App : Application
             nav.Register(MainWindowViewModel.HeroGalleryPageKey, typeof(HeroGalleryPage));
             nav.Register(MainWindowViewModel.HeroDetailPageKey, typeof(HeroDetailPage));
             nav.Register(MainWindowViewModel.MatchAnalysisPageKey, typeof(MatchAnalysisPage));
+            nav.Register(MainWindowViewModel.ProPlayersPageKey, typeof(ProPlayersPage));
             nav.Register(MainWindowViewModel.MatchDetailPageKey, typeof(MatchDetailPage));
             return nav;
         });
@@ -178,6 +179,7 @@ public partial class App : Application
         services.AddSingleton<IHeroCounterService, HeroCounterService>();
         services.AddSingleton<IItemCatalogService, ItemCatalogService>();
         services.AddSingleton<IMatchAnalysisService, MatchAnalysisService>();
+        services.AddSingleton<IProSceneService, ProSceneService>();
         services.AddSingleton<ISteamAvatarFrameService, SteamAvatarFrameService>();
 
         services.AddSingleton<HomeViewModel>();
@@ -188,6 +190,8 @@ public partial class App : Application
         services.AddSingleton<HeroDetailPage>();
         services.AddSingleton<MatchAnalysisViewModel>();
         services.AddSingleton<MatchAnalysisPage>();
+        services.AddSingleton<ProPlayersViewModel>();
+        services.AddSingleton<ProPlayersPage>();
         services.AddSingleton<MatchDetailViewModel>();
         services.AddSingleton<MatchDetailPage>();
         services.AddSingleton<MainWindowViewModel>();
