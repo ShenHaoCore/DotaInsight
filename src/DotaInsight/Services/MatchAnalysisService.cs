@@ -147,6 +147,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                 RankTier = profileDto?.RankTier,
                 LeaderboardRank = profileDto?.LeaderboardRank,
                 ProName = profileDto?.Profile?.Name,
+                ComputedMmr = profileDto?.ComputedMmr,
                 Wins = wlDto?.Win ?? 0,
                 Losses = wlDto?.Lose ?? 0
             };

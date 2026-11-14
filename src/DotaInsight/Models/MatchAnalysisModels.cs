@@ -22,6 +22,9 @@ public sealed class PlayerProfile
     /// <summary>认证职业选手名（OpenDota profile.name，非空即职业选手；is_pro 字段已废弃）。</summary>
     public string? ProName { get; init; }
 
+    /// <summary>隐藏分估算（OpenDota computed_mmr，按公开比赛反推；冠绝玩家为 null）。</summary>
+    public double? ComputedMmr { get; init; }
+
     public int Wins { get; init; }
 
     public int Losses { get; init; }
@@ -39,6 +42,10 @@ public sealed class PlayerProfile
     /// <summary>天梯排行榜徽章文案；非榜上玩家为 null 不渲染。</summary>
     [JsonIgnore]
     public string? LeaderboardText => LeaderboardRank is > 0 ? $"天梯 #{LeaderboardRank}" : null;
+
+    /// <summary>隐藏分文案（估算值取整）；无估算为 null 不渲染。</summary>
+    [JsonIgnore]
+    public string? MmrText => ComputedMmr is > 0 ? $"~{ComputedMmr:F0}" : null;
 
     /// <summary>段位奖章图标（未定级也有官方占位图标）；null 时不渲染。</summary>
     [JsonIgnore]
@@ -357,6 +364,13 @@ internal sealed class PlayerApiDto
 
     [JsonPropertyName("leaderboard_rank")]
     public int? LeaderboardRank { get; set; }
+
+    /// <summary>OpenDota 按公开比赛反推的隐藏分估算（冠绝玩家为 null，走 leaderboard_rank）。</summary>
+    [JsonPropertyName("computed_mmr")]
+    public double? ComputedMmr { get; set; }
+
+    [JsonPropertyName("computed_mmr_turbo")]
+    public double? ComputedMmrTurbo { get; set; }
 
     [JsonPropertyName("profile")]
     public PlayerProfileDto? Profile { get; set; }

@@ -100,6 +100,11 @@ public sealed class AccountService : IAccountService
                 account.ProName = profile.ProName;
             }
 
+            if (profile.ComputedMmr is > 0)
+            {
+                account.MmrEstimate = profile.ComputedMmr;
+            }
+
             if (profile.TotalMatches > 0)
             {
                 account.Wins = profile.Wins;

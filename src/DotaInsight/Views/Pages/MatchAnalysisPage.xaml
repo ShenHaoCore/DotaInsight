@@ -207,6 +207,13 @@
                                            VerticalAlignment="Center"
                                            Foreground="{DynamicResource DiGoldBrush}"
                                            Margin="0,0,14,0" />
+                                <!-- 隐藏分估算：OpenDota computed_mmr（冠绝玩家无估算值，自动隐藏） -->
+                                <TextBlock FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"
+                                           Visibility="{Binding Profile.MmrText, Converter={StaticResource NullToVisibilityConverter}}">
+                                    <Run Text="隐藏分 " Foreground="{DynamicResource DiMutedTextBrush}" />
+                                    <Run Text="{Binding Profile.MmrText, Mode=OneWay}" FontWeight="SemiBold"
+                                         Foreground="{DynamicResource DiSecondaryTextBrush}" />
+                                </TextBlock>
                                 <TextBlock Text="{Binding Profile.RecordText}"
                                            FontSize="13"
                                            VerticalAlignment="Center"
