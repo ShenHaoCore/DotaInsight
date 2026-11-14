@@ -283,16 +283,22 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
 
         try
         {
-            var dtos = await Http
-                .GetFromJsonAsync<List<RecentMatchDto>>(
-                    $"api/players/{accountId}/matches?limit=600",
-                    HttpCall.JsonOptions,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            // 两个数据源互补：
+            //   /matches?limit=600     —— 历史覆盖大，但对部分账号的索引滞后（新比赛迟迟不进）
+            //   /recentMatches         —— 始终新鲜但只有最近约 100 场
+            // 合并去重后取 start_time 聚合，避免热力图最近几个月凭空空白
+            var historyTask = Http.GetFromJsonAsync<List<RecentMatchDto>>(
+                $"api/players/{accountId}/matches?limit=600",
+                HttpCall.JsonOptions,
+                cancellationToken);
+            var recentTask = Http.GetFromJsonAsync<List<RecentMatchDto>>(
+                $"api/players/{accountId}/recentMatches",
+                HttpCall.JsonOptions,
+                cancellationToken);
+            await Task.WhenAll(historyTask, recentTask).ConfigureAwait(false);
 
-            var heatmap = PlayerActivityBuilder.Build(
-                (dtos ?? []).Select(d => d.StartTime),
-                DateTime.Today);
+            var times = MergeActivityTimes(await recentTask.ConfigureAwait(false), await historyTask.ConfigureAwait(false));
+            var heatmap = PlayerActivityBuilder.Build(times, DateTime.Today);
 
             _cache.Set(cacheKey, heatmap, PlayerActivityCacheTtl);
             return heatmap;
@@ -306,6 +312,29 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             _logger.Warning(ex, "拉取每日游玩热力图失败 AccountId={AccountId}", accountId);
             return _cache.GetStale<PlayerActivityHeatmap>(cacheKey);
         }
+    }
+
+    /// <summary>合并历史与最新两路比赛源，按 match_id 去重取开始时间（无排序要求，聚合器自行分桶）。</summary>
+    internal static List<long> MergeActivityTimes(
+        IEnumerable<RecentMatchDto>? recent,
+        IEnumerable<RecentMatchDto>? history)
+    {
+        var seen = new HashSet<long>();
+        var times = new List<long>();
+        foreach (var dto in (recent ?? Enumerable.Empty<RecentMatchDto>()).Concat(history ?? Enumerable.Empty<RecentMatchDto>()))
+        {
+            if (dto is null || dto.MatchId <= 0 || dto.StartTime <= 0)
+            {
+                continue;
+            }
+
+            if (seen.Add(dto.MatchId))
+            {
+                times.Add(dto.StartTime);
+            }
+        }
+
+        return times;
     }
 
     private static RecentMatchItem MapMatch(
