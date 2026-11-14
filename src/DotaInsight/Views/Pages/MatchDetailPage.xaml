@@ -471,27 +471,34 @@
             <StackPanel Orientation="Horizontal">
                 <RadioButton Content="阵容" Style="{StaticResource DiSegmentedItem}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
-                <!-- 数据缺失的页签直接隐藏（未解析的比赛只留「阵容」），原因由页面级公告卡说明 -->
+                <!-- 结构存在（阵容已加载）即显示；数据全零/缺失则置灰禁用，悬停说明原因 -->
                 <RadioButton Content="经济曲线" Style="{StaticResource DiSegmentedItem}"
-                             Visibility="{Binding AdvantageHasData, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Visibility="{Binding HasRoster, Converter={StaticResource BoolToVisibilityConverter}}"
+                             IsEnabled="{Binding AdvantageHasData}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
                 <RadioButton Content="输出承伤" Style="{StaticResource DiSegmentedItem}"
-                             Visibility="{Binding HasDamageChart, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Visibility="{Binding HasRoster, Converter={StaticResource BoolToVisibilityConverter}}"
+                             IsEnabled="{Binding HasDamageChart}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=2, Mode=TwoWay}" />
                 <RadioButton Content="装备投入" Style="{StaticResource DiSegmentedItem}"
-                             Visibility="{Binding HasItemTab, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Visibility="{Binding HasRoster, Converter={StaticResource BoolToVisibilityConverter}}"
+                             IsEnabled="{Binding HasItemTab}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=3, Mode=TwoWay}" />
                 <RadioButton Content="补刀对比" Style="{StaticResource DiSegmentedItem}"
-                             Visibility="{Binding HasLastHits, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Visibility="{Binding HasRoster, Converter={StaticResource BoolToVisibilityConverter}}"
+                             IsEnabled="{Binding HasLastHits}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=4, Mode=TwoWay}" />
                 <RadioButton Content="成长曲线" Style="{StaticResource DiSegmentedItem}"
-                             Visibility="{Binding HasGrowth, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Visibility="{Binding HasRoster, Converter={StaticResource BoolToVisibilityConverter}}"
+                             IsEnabled="{Binding HasGrowth}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=5, Mode=TwoWay}" />
                 <RadioButton Content="对线期" Style="{StaticResource DiSegmentedItem}"
-                             Visibility="{Binding HasLaning, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Visibility="{Binding HasRoster, Converter={StaticResource BoolToVisibilityConverter}}"
+                             IsEnabled="{Binding HasLaning}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=6, Mode=TwoWay}" />
                 <RadioButton Content="击杀矩阵" Style="{StaticResource DiSegmentedItem}"
-                             Visibility="{Binding HasMatrix, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Visibility="{Binding HasRoster, Converter={StaticResource BoolToVisibilityConverter}}"
+                             IsEnabled="{Binding HasMatrix}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=7, Mode=TwoWay}" />
             </StackPanel>
         </Border>

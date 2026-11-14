@@ -62,6 +62,7 @@
         <Setter Property="Foreground" Value="{DynamicResource DiMutedTextBrush}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
@@ -85,6 +86,14 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <!-- 无数据页签：可见但置灰不可点，悬停说明原因 -->
+        <Style.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.38" />
+                <Setter Property="Cursor" Value="Arrow" />
+                <Setter Property="ToolTip" Value="该场数据不可用" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ================= 行 / 区块 / 进度条 ================= -->

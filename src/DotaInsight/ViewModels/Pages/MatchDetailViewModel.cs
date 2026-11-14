@@ -156,7 +156,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             StatusMessage = "正在加载比赛详情…";
 
             // 先清空上一场，避免连续查看不同比赛时残留；
-            // 页签回到「阵容」，否则可能停在新一场没有数据的页签上（该页签已隐藏）。
+            // 页签回到「阵容」，否则可能停在新一场没有数据的页签上（该页签已禁用）。
             Detail = null;
             BottomTabIndex = 0;
 
@@ -233,7 +233,13 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
                 Dire.Add(player);
             }
         }
+
+        // 页签可见性：阵容已加载（结构存在）即显示，数据面由 IsEnabled 表达
+        OnPropertyChanged(nameof(HasRoster));
     }
+
+    /// <summary>结构存在标志：双方阵容已加载 → 数据页签显示（可用性由各自数据 flag 决定）。</summary>
+    public bool HasRoster => Radiant.Count > 0;
 
     /// <summary>
     /// 装备图标可靠渲染：先把缺失图标下载落盘并清掉内存里可能已中毒的懒加载位图，
@@ -299,8 +305,8 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
     }
 
     /// <summary>
-    /// 无数据页签直接隐藏；若当前选中的页签恰好被隐藏（图标预热重建等路径可能改变数据面），
-    /// 回落到「阵容」，避免停留在不可见的页签上。
+    /// 无数据页签置灰禁用；若当前选中的页签恰好不可用（图标预热重建等路径可能改变数据面），
+    /// 回落到「阵容」，避免停留在禁用的页签上。
     /// </summary>
     private void CoerceBottomTab()
     {
@@ -541,7 +547,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             .OrderBy(p => p.LastHits)
             .ToList();
 
-        // 全员 0 补刀 = 未解析对局（基础数据拿不到 last_hits），整图空态隐藏页签；
+        // 全员 0 补刀 = 未解析对局（基础数据拿不到 last_hits），整图空态并禁用页签；
         // 已解析对局里个别 0 补刀的辅助位照常显示
         if (players.Count == 0 || players.All(p => p.LastHits <= 0))
         {
@@ -709,7 +715,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             });
         }
 
-        // 未解析对局：lane_role 与 10 分钟时间轴全部缺失（未知分路 + 全 0），页签隐藏
+        // 未解析对局：lane_role 与 10 分钟时间轴全部缺失（未知分路 + 全 0），页签置灰禁用
         HasLaning = LaningRows.Any(r => r.LaneName != "未知分路"
                                         || r.Lh10 > 0 || r.Denies10 > 0 || r.Gold10 > 0);
         OnPropertyChanged(nameof(HasLaning));
@@ -747,7 +753,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             MatrixVictimHeader.Add(new MatrixHeaderCell { Name = p.HeroName, IsRadiant = p.IsRadiant });
         }
 
-        // 服务层对无 kills_log 的对局也返回 10×10 全零矩阵；只有出现真实击杀才显示页签
+        // 服务层对无 kills_log 的对局也返回 10×10 全零矩阵；只有出现真实击杀才启用页签
         // （VM 侧判断，命中 LiteDB 缓存的旧数据同样生效）
         HasMatrix = MatrixRows.Any(r => r.Cells.Any(c => c.Text.Length > 0));
         OnPropertyChanged(nameof(HasMatrix));
