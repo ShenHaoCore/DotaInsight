@@ -195,9 +195,13 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
     }
 
-    private const string PlayerHeroesCachePrefix = "opendota:playerHeroes:v1:";
+    // v2：生涯英雄榜是日粒度累积统计，TTL 6h → 24h（一天一拉足够）
+    private const string PlayerHeroesCachePrefix = "opendota:playerHeroes:v2:";
 
-    private static readonly TimeSpan PlayerHeroesCacheTtl = TimeSpan.FromHours(6);
+    private static readonly TimeSpan PlayerHeroesCacheTtl = TimeSpan.FromHours(24);
+
+    /// <summary>进程内记忆层：同一账号反复进出战绩页时省掉 LiteDB 读取与英雄字典重建。</summary>
+    private readonly Dictionary<long, IReadOnlyList<PlayerHeroStat>> _playerHeroesMemory = new();
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<PlayerHeroStat>> GetPlayerHeroStatsAsync(
@@ -211,10 +215,26 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
 
         var cacheKey = PlayerHeroesCachePrefix + accountId;
-        var cached = forceRefresh ? null : _cache.Get<List<PlayerHeroStat>>(cacheKey);
-        if (cached is { Count: > 0 })
+        if (!forceRefresh)
         {
-            return cached;
+            lock (_playerHeroesMemory)
+            {
+                if (_playerHeroesMemory.TryGetValue(accountId, out var memoized))
+                {
+                    return memoized;
+                }
+            }
+
+            var cached = _cache.Get<List<PlayerHeroStat>>(cacheKey);
+            if (cached is { Count: > 0 })
+            {
+                lock (_playerHeroesMemory)
+                {
+                    _playerHeroesMemory[accountId] = cached;
+                }
+
+                return cached;
+            }
         }
 
         try
@@ -249,6 +269,10 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
 
             if (list.Count > 0)
             {
+                lock (_playerHeroesMemory)
+                {
+                    _playerHeroesMemory[accountId] = list;
+                }
                 _cache.Set(cacheKey, list, PlayerHeroesCacheTtl);
             }
 
@@ -261,7 +285,16 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         catch (Exception ex)
         {
             _logger.Warning(ex, "拉取英雄胜率榜失败 AccountId={AccountId}", accountId);
-            return _cache.GetStale<List<PlayerHeroStat>>(cacheKey) ?? [];
+            var stale = _cache.GetStale<List<PlayerHeroStat>>(cacheKey) ?? [];
+            if (stale.Count > 0)
+            {
+                lock (_playerHeroesMemory)
+                {
+                    _playerHeroesMemory[accountId] = stale;
+                }
+            }
+
+            return stale;
         }
     }
 
