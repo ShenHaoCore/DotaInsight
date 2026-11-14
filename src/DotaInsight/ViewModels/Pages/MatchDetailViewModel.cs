@@ -155,8 +155,10 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             IsLoading = true;
             StatusMessage = "正在加载比赛详情…";
 
-            // 先清空上一场，避免连续查看不同比赛时残留
+            // 先清空上一场，避免连续查看不同比赛时残留；
+            // 页签回到「阵容」，否则可能停在新一场没有数据的页签上（该页签已隐藏）。
             Detail = null;
+            BottomTabIndex = 0;
 
             var detail = await _matchService
                 .GetMatchDetailAsync(id, token)
@@ -293,6 +295,31 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         BuildItemGoldChart(detail);
         BuildLastHitsChart(detail);
         BuildDotaPlusData(detail);
+        CoerceBottomTab();
+    }
+
+    /// <summary>
+    /// 无数据页签直接隐藏；若当前选中的页签恰好被隐藏（图标预热重建等路径可能改变数据面），
+    /// 回落到「阵容」，避免停留在不可见的页签上。
+    /// </summary>
+    private void CoerceBottomTab()
+    {
+        var visible = BottomTabIndex switch
+        {
+            1 => AdvantageHasData,
+            2 => HasDamageChart,
+            3 => HasItemTab,
+            4 => HasLastHits,
+            5 => HasGrowth,
+            6 => HasLaning,
+            7 => HasMatrix,
+            _ => true
+        };
+
+        if (!visible)
+        {
+            BottomTabIndex = 0;
+        }
     }
 
     /// <summary>输出承伤对比图（双方全员按英雄伤害降序）。</summary>
@@ -425,6 +452,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
 
     public bool HasItemGold => ItemGoldSeries.Length > 0;
 
+    /// <summary>装备投入页签可见性：投入图表或购买时间线任一有数据即可（物品目录缺失时仍有时间线）。</summary>
+    public bool HasItemTab => ItemGoldSeries.Length > 0 || HasPurchases;
+
     [ObservableProperty]
     private string itemGoldSummary = string.Empty;
 
@@ -455,6 +485,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         {
             ItemGoldSeries = Array.Empty<ISeries>();
             OnPropertyChanged(nameof(HasItemGold));
+            OnPropertyChanged(nameof(HasItemTab));
             return;
         }
 
@@ -499,6 +530,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         var top = players[^1];
         ItemGoldSummary = $"双方装备投入 · 最高 {top.HeroName} {top.ItemGold:N0} 金";
         OnPropertyChanged(nameof(HasItemGold));
+        OnPropertyChanged(nameof(HasItemTab));
     }
 
     /// <summary>补刀对比：按补刀数升序（最大值画在顶部）。</summary>
@@ -651,6 +683,7 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
         }
 
         HasPurchases = PurchaseRows.Any(r => r.Entries.Count > 0);
+        OnPropertyChanged(nameof(HasItemTab));
 
         // 成长曲线玩家选项：默认选中 GPM 最高的核心
         foreach (var p in players)

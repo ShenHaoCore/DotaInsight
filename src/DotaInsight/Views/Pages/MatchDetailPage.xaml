@@ -471,19 +471,27 @@
             <StackPanel Orientation="Horizontal">
                 <RadioButton Content="阵容" Style="{StaticResource DiSegmentedItem}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=0, Mode=TwoWay}" />
+                <!-- 数据缺失的页签直接隐藏（未解析的比赛只留「阵容」），原因由页面级公告卡说明 -->
                 <RadioButton Content="经济曲线" Style="{StaticResource DiSegmentedItem}"
+                             Visibility="{Binding AdvantageHasData, Converter={StaticResource BoolToVisibilityConverter}}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=1, Mode=TwoWay}" />
                 <RadioButton Content="输出承伤" Style="{StaticResource DiSegmentedItem}"
+                             Visibility="{Binding HasDamageChart, Converter={StaticResource BoolToVisibilityConverter}}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=2, Mode=TwoWay}" />
                 <RadioButton Content="装备投入" Style="{StaticResource DiSegmentedItem}"
+                             Visibility="{Binding HasItemTab, Converter={StaticResource BoolToVisibilityConverter}}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=3, Mode=TwoWay}" />
                 <RadioButton Content="补刀对比" Style="{StaticResource DiSegmentedItem}"
+                             Visibility="{Binding HasLastHits, Converter={StaticResource BoolToVisibilityConverter}}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=4, Mode=TwoWay}" />
                 <RadioButton Content="成长曲线" Style="{StaticResource DiSegmentedItem}"
+                             Visibility="{Binding HasGrowth, Converter={StaticResource BoolToVisibilityConverter}}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=5, Mode=TwoWay}" />
                 <RadioButton Content="对线期" Style="{StaticResource DiSegmentedItem}"
+                             Visibility="{Binding HasLaning, Converter={StaticResource BoolToVisibilityConverter}}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=6, Mode=TwoWay}" />
                 <RadioButton Content="击杀矩阵" Style="{StaticResource DiSegmentedItem}"
+                             Visibility="{Binding HasMatrix, Converter={StaticResource BoolToVisibilityConverter}}"
                              IsChecked="{Binding BottomTabIndex, Converter={StaticResource IntEquality}, ConverterParameter=7, Mode=TwoWay}" />
             </StackPanel>
         </Border>
@@ -748,7 +756,7 @@
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource DiPanelCardStyle}" Padding="32"
-                    Visibility="{Binding HasItemGold, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                    Visibility="{Binding HasItemTab, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                 <StackPanel>
                     <TextBlock Text="该比赛暂无装备投入数据"
                                Style="{StaticResource DiSectionTitleStyle}" HorizontalAlignment="Center" />
