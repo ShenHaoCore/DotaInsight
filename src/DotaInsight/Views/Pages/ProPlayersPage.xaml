@@ -85,12 +85,13 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!-- 表头与数据行对齐：行在 ScrollViewer（滚动条占宽 ~17px）+ 行按钮
-                             Padding 6px 内，表头两侧各让出等量边距（左 2+6=8，右 2+6+17=25） -->
-                        <Grid Margin="8,0,27,6">
+                        <!-- 表头与数据行对齐：行在 ScrollViewer（滚动条占宽 ~19px）+ 行按钮
+                             Padding 6px 内，表头两侧各让出等量边距（左 2+6=8，右 2+6+19=27） -->
+                        <Grid Grid.Row="0" Margin="8,0,27,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="44" />
                                 <ColumnDefinition Width="*" />
@@ -106,9 +107,9 @@
                             <TextBlock Grid.Column="4" Text="场次数" FontSize="11" TextAlignment="Center" Foreground="{DynamicResource DiMutedTextBrush}" />
                             <TextBlock Grid.Column="5" Text="胜率" FontSize="11" TextAlignment="Right" Foreground="{DynamicResource DiMutedTextBrush}" />
                         </Grid>
-                        <Rectangle Grid.Row="0" Height="1" Fill="{DynamicResource DiStrokeBrush}" Margin="2,0,2,4" />
+                        <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource DiStrokeBrush}" Margin="2,0,2,4" />
 
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding Rows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
