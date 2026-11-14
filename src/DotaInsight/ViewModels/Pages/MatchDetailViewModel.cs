@@ -541,7 +541,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             .OrderBy(p => p.LastHits)
             .ToList();
 
-        if (players.Count == 0)
+        // 全员 0 补刀 = 未解析对局（基础数据拿不到 last_hits），整图空态隐藏页签；
+        // 已解析对局里个别 0 补刀的辅助位照常显示
+        if (players.Count == 0 || players.All(p => p.LastHits <= 0))
         {
             LastHitsSeries = Array.Empty<ISeries>();
             OnPropertyChanged(nameof(HasLastHits));
@@ -707,7 +709,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             });
         }
 
-        HasLaning = LaningRows.Count > 0;
+        // 未解析对局：lane_role 与 10 分钟时间轴全部缺失（未知分路 + 全 0），页签隐藏
+        HasLaning = LaningRows.Any(r => r.LaneName != "未知分路"
+                                        || r.Lh10 > 0 || r.Denies10 > 0 || r.Gold10 > 0);
         OnPropertyChanged(nameof(HasLaning));
 
         // 击杀矩阵：detail.KillMatrix（服务层按 NPC 名→英雄映射构建）
@@ -743,7 +747,9 @@ public partial class MatchDetailViewModel : ObservableObject, INavigationAware
             MatrixVictimHeader.Add(new MatrixHeaderCell { Name = p.HeroName, IsRadiant = p.IsRadiant });
         }
 
-        HasMatrix = MatrixRows.Count > 0;
+        // 服务层对无 kills_log 的对局也返回 10×10 全零矩阵；只有出现真实击杀才显示页签
+        // （VM 侧判断，命中 LiteDB 缓存的旧数据同样生效）
+        HasMatrix = MatrixRows.Any(r => r.Cells.Any(c => c.Text.Length > 0));
         OnPropertyChanged(nameof(HasMatrix));
 
         // 对线期评价：lane_role 是玩家自身视角，双方"优势路"并不对位，
