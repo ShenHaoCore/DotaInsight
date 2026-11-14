@@ -10,12 +10,20 @@ public static class PlayerActivityBuilder
 {
     private const int WeekColumns = 53;
 
-    public static PlayerActivityHeatmap Build(IEnumerable<long> startTimesUtc, DateTime todayLocal)
+    /// <summary>
+    /// 构建热力图。<paramref name="timeZone"/> 用于把 Unix 时间戳落到"本地日"，
+    /// 缺省跟随运行环境时区；测试注入固定时区以保证跨时区确定性（CI runner 为 UTC）。
+    /// </summary>
+    public static PlayerActivityHeatmap Build(
+        IEnumerable<long> startTimesUtc,
+        DateTime todayLocal,
+        TimeZoneInfo? timeZone = null)
     {
+        var tz = timeZone ?? TimeZoneInfo.Local;
         var counts = new Dictionary<DateTime, int>();
         foreach (var t in startTimesUtc)
         {
-            var day = DateTimeOffset.FromUnixTimeSeconds(t).LocalDateTime.Date;
+            var day = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(t), tz).Date;
             counts[day] = counts.GetValueOrDefault(day) + 1;
         }
 

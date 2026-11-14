@@ -5,20 +5,24 @@ namespace DotaInsight.Tests;
 /// <summary>
 /// 每日游玩热力图构建：周一为首的 53 周对齐、按本地日期聚合计数、等级分档、
 /// 未来格占位、月标签（每周含当月 1 日时打标且不连续重复）。
-/// 锚定日期 2026-11-06（周五，与本机时区一致）。
+/// 锚定日期 2026-11-06（周五）。聚合时区显式注入固定 UTC+8——
+/// CI runner 与开发机时区可能不同，测试必须与时区无关。
 /// </summary>
 public class PlayerActivityBuilderTests
 {
     private static readonly DateTime Today = new(2026, 11, 6);
 
-    /// <summary>本地时区（UTC+8）下把本地日期转成 Unix 秒。</summary>
+    private static readonly TimeZoneInfo CnTimeZone =
+        TimeZoneInfo.CreateCustomTimeZone("UTC+8", TimeSpan.FromHours(8), "UTC+8", "UTC+8");
+
+    /// <summary>UTC+8 下把本地日期（+可选小时）转成 Unix 秒。</summary>
     private static long Utc(int year, int month, int day, int hour = 12)
         => new DateTimeOffset(year, month, day, hour, 0, 0, TimeSpan.FromHours(8)).ToUnixTimeSeconds();
 
     [Fact]
     public void Build_AlignsMondayColumns_AndFutureCells()
     {
-        var heatmap = PlayerActivityBuilder.Build([], Today);
+        var heatmap = PlayerActivityBuilder.Build([], Today, CnTimeZone);
 
         Assert.Equal(53, heatmap.Weeks.Count);
         Assert.All(heatmap.Weeks, w => Assert.Equal(7, w.Days.Count));
@@ -37,12 +41,12 @@ public class PlayerActivityBuilderTests
     {
         var times = new[]
         {
-            Utc(2026, 1, 15, 1), Utc(2026, 1, 15, 12), Utc(2026, 1, 15, 23), // 同一天 3 局 → L2
+            Utc(2026, 1, 15, 1), Utc(2026, 1, 15, 12), Utc(2026, 1, 15, 23), // UTC+8 下同一天 3 局 → L2
             Utc(2026, 1, 16), Utc(2026, 1, 16), Utc(2026, 1, 16), Utc(2026, 1, 16), Utc(2026, 1, 16), Utc(2026, 1, 16), // 6 局 → L4
             Utc(2025, 12, 1) // 1 局 → L1
         };
 
-        var heatmap = PlayerActivityBuilder.Build(times, Today);
+        var heatmap = PlayerActivityBuilder.Build(times, Today, CnTimeZone);
 
         Assert.Equal(10, heatmap.TotalMatches);
         Assert.Equal(3, heatmap.ActiveDays);
@@ -60,7 +64,7 @@ public class PlayerActivityBuilderTests
     [Fact]
     public void Build_MonthLabels_MarkWeeksContainingMonthStart()
     {
-        var heatmap = PlayerActivityBuilder.Build([], Today);
+        var heatmap = PlayerActivityBuilder.Build([], Today, CnTimeZone);
 
         var labels = heatmap.Weeks
             .Select((w, i) => (w.MonthLabel, i))
@@ -83,7 +87,7 @@ public class PlayerActivityBuilderTests
     [Fact]
     public void Build_EmptyInput_AllZeroCells()
     {
-        var heatmap = PlayerActivityBuilder.Build([], Today);
+        var heatmap = PlayerActivityBuilder.Build([], Today, CnTimeZone);
 
         Assert.Equal(0, heatmap.TotalMatches);
         Assert.Equal(0, heatmap.ActiveDays);
