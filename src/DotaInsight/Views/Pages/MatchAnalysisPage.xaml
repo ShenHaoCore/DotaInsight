@@ -162,25 +162,22 @@
                                        Foreground="{DynamicResource DiPrimaryTextBrush}" />
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                 <!-- 段位奖章：内嵌官方 rank_icons 素材，星级条覆盖在奖章下缘 -->
-                                <Grid Width="32" Height="32" Margin="0,0,8,0"
+                                <Grid Width="36" Height="36" Margin="0,0,10,0"
                                       ToolTip="{Binding Profile.RankText}">
                                     <Image Source="{Binding Profile.RankMedalUrl}"
                                            Stretch="Uniform"
                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                     <Image Source="{Binding Profile.RankStarUrl}"
                                            Stretch="Uniform"
-                                           Width="22" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                                           Width="25" VerticalAlignment="Bottom" HorizontalAlignment="Center"
                                            Margin="0,0,0,1"
                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                 </Grid>
-                                <Border Background="{DynamicResource DiGoldSoftBrush}"
-                                        CornerRadius="4"
-                                        Padding="8,3"
-                                        Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Profile.RankText}"
-                                               FontSize="12" FontWeight="Medium"
-                                               Foreground="{DynamicResource DiGoldBrush}" />
-                                </Border>
+                                <TextBlock Text="{Binding Profile.RankText}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DiGoldBrush}"
+                                           Margin="0,0,14,0" />
                                 <TextBlock Text="{Binding Profile.RecordText}"
                                            FontSize="13"
                                            VerticalAlignment="Center"
@@ -509,19 +506,19 @@
                                                                        Foreground="{DynamicResource DiPrimaryTextBrush}" />
                                                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                                                 <!-- 小奖章：资料待补全的账号不出图（RankMedalUrl 为 null） -->
-                                                                <Grid Width="18" Height="18" Margin="0,0,5,0"
+                                                                <Grid Width="16" Height="16" Margin="0,0,6,0"
                                                                       VerticalAlignment="Center">
                                                                     <Image Source="{Binding RankMedalUrl}"
                                                                            Stretch="Uniform"
                                                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                                                     <Image Source="{Binding RankStarUrl}"
                                                                            Stretch="Uniform"
-                                                                           Width="13" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                                                                           Width="11" VerticalAlignment="Bottom" HorizontalAlignment="Center"
                                                                            Margin="0,0,0,1"
                                                                            RenderOptions.BitmapScalingMode="HighQuality" />
                                                                 </Grid>
                                                                 <TextBlock Text="{Binding StatusText}"
-                                                                           FontSize="11" FontWeight="Medium">
+                                                                           FontSize="11" VerticalAlignment="Center">
                                                                     <TextBlock.Style>
                                                                         <Style TargetType="TextBlock">
                                                                             <Setter Property="Foreground" Value="{DynamicResource DiGoldBrush}" />
