@@ -67,8 +67,8 @@ public sealed class BracketSparklineConverter : IValueConverter
             };
         }
 
-        var mode = parameter as string;
-        return mode switch
+        var rawMode = parameter as string;
+        return rawMode switch
         {
             "fill" => BuildArea(points),
             "dot" => BuildDot(points),

@@ -341,7 +341,6 @@ public sealed class MatchPlayerItem
     /// <summary>逐分钟累计金币（下标=分钟）。</summary>
     public List<int> GoldT { get; set; } = [];
 
-    [JsonIgnore] public int DIAG_GoldTCount { get; set; }
 
     /// <summary>逐分钟累计经验。</summary>
     public List<int> XpT { get; set; } = [];

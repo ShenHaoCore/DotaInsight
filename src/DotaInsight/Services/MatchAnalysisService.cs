@@ -965,6 +965,9 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             itemUrls.Add(itemIcons.TryGetValue(itemId, out var url) ? url : string.Empty);
         }
 
+        var lhT = dto.LhT ?? [];
+        var deniesT = dto.DeniesT ?? [];
+        var goldT = dto.GoldT ?? [];
         return new MatchPlayerItem
         {
             AccountId = dto.AccountId ?? 0,
@@ -997,14 +1000,13 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                     Cost = costsByName is not null && e.Key is not null && costsByName.TryGetValue(e.Key, out var pc) ? pc : 0
                 })
                 .ToList(),
-            GoldT = dto.GoldT ?? [],
-            DIAG_GoldTCount = (dto.GoldT ?? []).Count,
+            GoldT = goldT,
             XpT = dto.XpT ?? [],
-            LhT = dto.LhT ?? [],
-            DeniesT = dto.DeniesT ?? [],
-            Lh10 = (dto.LhT ?? []).Count > 10 ? dto.LhT[10] : (dto.LhT ?? []).LastOrDefault(),
-            Denies10 = (dto.DeniesT ?? []).Count > 10 ? dto.DeniesT[10] : (dto.DeniesT ?? []).LastOrDefault(),
-            Gold10 = (dto.GoldT ?? []).Count > 10 ? dto.GoldT[10] : (dto.GoldT ?? []).LastOrDefault(),
+            LhT = lhT,
+            DeniesT = deniesT,
+            Lh10 = lhT.Count > 10 ? lhT[10] : lhT.LastOrDefault(),
+            Denies10 = deniesT.Count > 10 ? deniesT[10] : deniesT.LastOrDefault(),
+            Gold10 = goldT.Count > 10 ? goldT[10] : goldT.LastOrDefault(),
             LaneName = (dto.LaneRole ?? -1) switch
             {
                 0 => "优势路",
