@@ -156,10 +156,39 @@
                         </Grid>
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Profile.PersonaName}"
-                                       FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Profile.PersonaName}"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                <!-- 职业选手 / 天梯榜身份徽章：OpenDota profile.name（认证选手名）/ leaderboard_rank -->
+                                <Border Background="{DynamicResource DiShardSoftBrush}"
+                                        CornerRadius="4" Padding="7,2" Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        ToolTip="{Binding Profile.ProName}"
+                                        Visibility="{Binding Profile.ProName, Converter={StaticResource NullToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="Ribbon24" FontSize="12"
+                                                       Foreground="{DynamicResource DiShardBrush}" />
+                                        <TextBlock Text="职业选手" FontSize="11" FontWeight="SemiBold"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource DiShardBrush}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource DiGoldSoftBrush}"
+                                        CornerRadius="4" Padding="7,2" Margin="6,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Visibility="{Binding Profile.LeaderboardText, Converter={StaticResource NullToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="Trophy24" FontSize="12"
+                                                       Foreground="{DynamicResource DiGoldBrush}" />
+                                        <TextBlock Text="{Binding Profile.LeaderboardText}" FontSize="11" FontWeight="SemiBold"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource DiGoldBrush}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                 <!-- 段位奖章：内嵌官方 rank_icons 素材，星级条覆盖在奖章下缘 -->
                                 <Grid Width="36" Height="36" Margin="0,0,10,0"
@@ -530,6 +559,22 @@
                                                                         </Style>
                                                                     </TextBlock.Style>
                                                                 </TextBlock>
+                                                                <!-- 职业 / 天梯榜身份：OpenDota profile.name（认证选手名）/ leaderboard_rank -->
+                                                                <Border Background="{DynamicResource DiShardSoftBrush}"
+                                                                        CornerRadius="3" Padding="5,1" Margin="6,0,0,0"
+                                                                        VerticalAlignment="Center"
+                                                                        ToolTip="{Binding ProName}"
+                                                                        Visibility="{Binding ProName, Converter={StaticResource NullToVisibilityConverter}}">
+                                                                    <TextBlock Text="职业选手" FontSize="10" FontWeight="SemiBold"
+                                                                               Foreground="{DynamicResource DiShardBrush}" />
+                                                                </Border>
+                                                                <Border Background="{DynamicResource DiGoldSoftBrush}"
+                                                                        CornerRadius="3" Padding="5,1" Margin="4,0,0,0"
+                                                                        VerticalAlignment="Center"
+                                                                        Visibility="{Binding LeaderboardText, Converter={StaticResource NullToVisibilityConverter}}">
+                                                                    <TextBlock Text="{Binding LeaderboardText}" FontSize="10" FontWeight="SemiBold"
+                                                                               Foreground="{DynamicResource DiGoldBrush}" />
+                                                                </Border>
                                                                 <TextBlock Text="{Binding LastUsedText, StringFormat= · {0}}"
                                                                            FontSize="11"
                                                                            TextTrimming="CharacterEllipsis"

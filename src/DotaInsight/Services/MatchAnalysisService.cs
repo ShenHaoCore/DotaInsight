@@ -146,6 +146,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                 AvatarUrl = profileDto?.Profile?.AvatarFull ?? string.Empty,
                 RankTier = profileDto?.RankTier,
                 LeaderboardRank = profileDto?.LeaderboardRank,
+                ProName = profileDto?.Profile?.Name,
                 Wins = wlDto?.Win ?? 0,
                 Losses = wlDto?.Lose ?? 0
             };

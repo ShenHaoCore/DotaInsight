@@ -21,6 +21,9 @@ public sealed class SavedAccount
     /// <summary>天梯排行榜名次（仅冠绝前 100 有值）。</summary>
     public int? LeaderboardRank { get; set; }
 
+    /// <summary>认证职业选手名（OpenDota profile.name，非空即职业选手）。</summary>
+    public string? ProName { get; set; }
+
     public int Wins { get; set; }
 
     public int Losses { get; set; }
@@ -60,6 +63,10 @@ public sealed class SavedAccount
     [JsonIgnore]
     public string? RankStarUrl
         => HasProfile ? RankTierFormatter.StarUrl(RankTier) : null;
+
+    /// <summary>天梯排行榜徽章文案；非榜上玩家为 null 不渲染。</summary>
+    [JsonIgnore]
+    public string? LeaderboardText => LeaderboardRank is > 0 ? $"天梯 #{LeaderboardRank}" : null;
 
     /// <summary>卡片第二行文字：已取得资料显示段位，否则提示待补全（「未定级」会误导）。</summary>
     [JsonIgnore]
@@ -103,13 +110,23 @@ public sealed class SavedAccount
         }
     }
 
-    /// <summary>悬停提示：昵称 + 账号 ID + 段位/战绩。</summary>
+    /// <summary>悬停提示：昵称 + 账号 ID + 段位/战绩（职业/天梯榜身份置顶）。</summary>
     [JsonIgnore]
     public string ToolTipText
     {
         get
         {
             var lines = new List<string> { DisplayName, $"账号 ID {AccountIdText}" };
+            if (!string.IsNullOrWhiteSpace(ProName))
+            {
+                lines.Add($"认证职业选手 {ProName}");
+            }
+
+            if (LeaderboardText is not null)
+            {
+                lines.Add(LeaderboardText);
+            }
+
             lines.Add(HasRecord ? $"{RankText} · {RecordText}" : RankText);
             if (!HasProfile)
             {

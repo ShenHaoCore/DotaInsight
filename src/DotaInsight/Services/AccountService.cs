@@ -94,6 +94,12 @@ public sealed class AccountService : IAccountService
                 account.LeaderboardRank = profile.LeaderboardRank;
             }
 
+            // 职业名只增不减：退役/换名由 OpenDota 侧维护，本地不因单次降级数据清空
+            if (!string.IsNullOrWhiteSpace(profile.ProName))
+            {
+                account.ProName = profile.ProName;
+            }
+
             if (profile.TotalMatches > 0)
             {
                 account.Wins = profile.Wins;
