@@ -16,6 +16,9 @@ public sealed class PlayerProfile
 
     public int? RankTier { get; init; }
 
+    /// <summary>天梯排行榜名次（仅冠绝前 100 有值；OpenDota leaderboard_rank）。</summary>
+    public int? LeaderboardRank { get; init; }
+
     public int Wins { get; init; }
 
     public int Losses { get; init; }
@@ -29,6 +32,14 @@ public sealed class PlayerProfile
     public string RecordText => $"{Wins}胜 / {Losses}负";
 
     public string RankText => Helpers.RankTierFormatter.Format(RankTier);
+
+    /// <summary>段位奖章图标（未定级也有官方占位图标）；null 时不渲染。</summary>
+    [JsonIgnore]
+    public string? RankMedalUrl => Helpers.RankTierFormatter.MedalUrl(RankTier, LeaderboardRank);
+
+    /// <summary>星级覆盖条（冠绝与未定级为 null）。</summary>
+    [JsonIgnore]
+    public string? RankStarUrl => Helpers.RankTierFormatter.StarUrl(RankTier);
 }
 
 /// <summary>
@@ -336,6 +347,9 @@ internal sealed class PlayerApiDto
 {
     [JsonPropertyName("rank_tier")]
     public int? RankTier { get; set; }
+
+    [JsonPropertyName("leaderboard_rank")]
+    public int? LeaderboardRank { get; set; }
 
     [JsonPropertyName("profile")]
     public PlayerProfileDto? Profile { get; set; }

@@ -89,6 +89,11 @@ public sealed class AccountService : IAccountService
                 account.RankTier = profile.RankTier;
             }
 
+            if (profile.LeaderboardRank is > 0)
+            {
+                account.LeaderboardRank = profile.LeaderboardRank;
+            }
+
             if (profile.TotalMatches > 0)
             {
                 account.Wins = profile.Wins;

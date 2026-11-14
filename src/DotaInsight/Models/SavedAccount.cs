@@ -18,6 +18,9 @@ public sealed class SavedAccount
 
     public int? RankTier { get; set; }
 
+    /// <summary>天梯排行榜名次（仅冠绝前 100 有值）。</summary>
+    public int? LeaderboardRank { get; set; }
+
     public int Wins { get; set; }
 
     public int Losses { get; set; }
@@ -47,6 +50,16 @@ public sealed class SavedAccount
 
     [JsonIgnore]
     public string RankText => RankTierFormatter.Format(RankTier);
+
+    /// <summary>段位奖章图标。资料待补全的账号不出图（icon_0 是「未定级」语义，会误导）。</summary>
+    [JsonIgnore]
+    public string? RankMedalUrl
+        => HasProfile ? RankTierFormatter.MedalUrl(RankTier, LeaderboardRank) : null;
+
+    /// <summary>星级覆盖条（冠绝与未定级为 null）。</summary>
+    [JsonIgnore]
+    public string? RankStarUrl
+        => HasProfile ? RankTierFormatter.StarUrl(RankTier) : null;
 
     /// <summary>卡片第二行文字：已取得资料显示段位，否则提示待补全（「未定级」会误导）。</summary>
     [JsonIgnore]
