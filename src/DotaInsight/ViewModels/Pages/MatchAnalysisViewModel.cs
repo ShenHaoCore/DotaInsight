@@ -215,7 +215,8 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                 HasData = !result.IsEmpty;
                 WarmUpMatchImages(result.Matches);
                 _ = LoadHeroWinratesAsync(accountId, forceRefresh, frameEpoch, token);
-                _ = LoadPlayerActivityAsync(accountId, forceRefresh, frameEpoch, token);
+                // 热力图复用主查询已拉到的近期对局（含 match_id），缓存未命中时省一次 /recentMatches 请求
+                _ = LoadPlayerActivityAsync(accountId, forceRefresh, result.Matches, frameEpoch, token);
 
                 if (result.IsEmpty)
                 {
@@ -481,13 +482,18 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     /// 异步补拉每日游玩热力图：独立于主查询（失败静默），迟到结果按轮次作废。
     /// 装饰性数据延到首帧之后（Background 优先级）再拉，避免与首屏渲染争抢 UI 线程。
     /// </summary>
-    private async Task LoadPlayerActivityAsync(long accountId, bool forceRefresh, int epoch, CancellationToken token)
+    private async Task LoadPlayerActivityAsync(
+        long accountId,
+        bool forceRefresh,
+        IReadOnlyList<RecentMatchItem> preFetchedRecent,
+        int epoch,
+        CancellationToken token)
     {
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(250), token).ConfigureAwait(true);
 
-            var heatmap = await _matchService.GetPlayerActivityAsync(accountId, forceRefresh, token).ConfigureAwait(true);
+            var heatmap = await _matchService.GetPlayerActivityAsync(accountId, forceRefresh, preFetchedRecent, token).ConfigureAwait(true);
             if (epoch != _frameQueryEpoch || token.IsCancellationRequested)
             {
                 return;

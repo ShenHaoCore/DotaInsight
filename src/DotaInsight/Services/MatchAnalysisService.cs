@@ -35,8 +35,14 @@ public interface IMatchAnalysisService
 
     /// <summary>
     /// 每日游玩热力图（近 12 个月，按本地日期聚合）。失败/无数据返回 null。
+    /// <paramref name="preFetchedRecent"/>：主查询已拉到的近期对局（含 match_id 与本地时间），
+    /// 缓存未命中时直接复用、省去重复的 /recentMatches 请求；不传则自行拉取。
     /// </summary>
-    Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(long accountId, bool forceRefresh = false, CancellationToken cancellationToken = default);
+    Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(
+        long accountId,
+        bool forceRefresh = false,
+        IReadOnlyList<RecentMatchItem>? preFetchedRecent = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -259,14 +265,19 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
     }
 
-    private const string PlayerActivityCachePrefix = "opendota:playerActivity:v1:";
+    // v2：热力图改为 /recentMatches ∪ /matches 双源合并，旧 v1 条目缺最近月份，必须失效
+    private const string PlayerActivityCachePrefix = "opendota:playerActivity:v2:";
 
     private static readonly TimeSpan PlayerActivityCacheTtl = TimeSpan.FromHours(12);
+
+    /// <summary>进程内记忆层：同一账号在缓存有效期内反复进出页面/切换账号时，连 LiteDB 读取都省掉。</summary>
+    private readonly Dictionary<long, PlayerActivityHeatmap> _activityMemory = new();
 
     /// <inheritdoc />
     public async Task<PlayerActivityHeatmap?> GetPlayerActivityAsync(
         long accountId,
         bool forceRefresh = false,
+        IReadOnlyList<RecentMatchItem>? preFetchedRecent = null,
         CancellationToken cancellationToken = default)
     {
         if (accountId <= 0)
@@ -275,10 +286,26 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
 
         var cacheKey = PlayerActivityCachePrefix + accountId;
-        var cached = forceRefresh ? null : _cache.Get<PlayerActivityHeatmap>(cacheKey);
-        if (cached is not null)
+        if (!forceRefresh)
         {
-            return cached;
+            lock (_activityMemory)
+            {
+                if (_activityMemory.TryGetValue(accountId, out var memoized))
+                {
+                    return memoized;
+                }
+            }
+
+            var cached = _cache.Get<PlayerActivityHeatmap>(cacheKey);
+            if (cached is not null)
+            {
+                lock (_activityMemory)
+                {
+                    _activityMemory[accountId] = cached;
+                }
+
+                return cached;
+            }
         }
 
         try
@@ -286,20 +313,39 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             // 两个数据源互补：
             //   /matches?limit=600     —— 历史覆盖大，但对部分账号的索引滞后（新比赛迟迟不进）
             //   /recentMatches         —— 始终新鲜但只有最近约 100 场
-            // 合并去重后取 start_time 聚合，避免热力图最近几个月凭空空白
+            // 合并去重后取 start_time 聚合，避免热力图最近几个月凭空空白。
+            // preFetchedRecent 存在时直接复用（主查询刚拉过同一端点），只补一次历史请求。
             var historyTask = Http.GetFromJsonAsync<List<RecentMatchDto>>(
                 $"api/players/{accountId}/matches?limit=600",
                 HttpCall.JsonOptions,
                 cancellationToken);
-            var recentTask = Http.GetFromJsonAsync<List<RecentMatchDto>>(
-                $"api/players/{accountId}/recentMatches",
-                HttpCall.JsonOptions,
-                cancellationToken);
+            Task<List<RecentMatchDto>?> recentTask;
+            if (preFetchedRecent is { Count: > 0 })
+            {
+                recentTask = Task.FromResult(
+                    preFetchedRecent.Select(m => new RecentMatchDto
+                    {
+                        MatchId = m.MatchId,
+                        StartTime = new DateTimeOffset(m.StartTimeLocal).ToUnixTimeSeconds()
+                    }).ToList());
+            }
+            else
+            {
+                recentTask = Http.GetFromJsonAsync<List<RecentMatchDto>>(
+                    $"api/players/{accountId}/recentMatches",
+                    HttpCall.JsonOptions,
+                    cancellationToken);
+            }
+
             await Task.WhenAll(historyTask, recentTask).ConfigureAwait(false);
 
             var times = MergeActivityTimes(await recentTask.ConfigureAwait(false), await historyTask.ConfigureAwait(false));
             var heatmap = PlayerActivityBuilder.Build(times, DateTime.Today);
 
+            lock (_activityMemory)
+            {
+                _activityMemory[accountId] = heatmap;
+            }
             _cache.Set(cacheKey, heatmap, PlayerActivityCacheTtl);
             return heatmap;
         }
@@ -310,7 +356,16 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         catch (Exception ex)
         {
             _logger.Warning(ex, "拉取每日游玩热力图失败 AccountId={AccountId}", accountId);
-            return _cache.GetStale<PlayerActivityHeatmap>(cacheKey);
+            var stale = _cache.GetStale<PlayerActivityHeatmap>(cacheKey);
+            if (stale is not null)
+            {
+                lock (_activityMemory)
+                {
+                    _activityMemory[accountId] = stale;
+                }
+            }
+
+            return stale;
         }
     }
 
