@@ -26,3 +26,6 @@ Desktop.ini
 
 ## WorkBuddy local data
 .workbuddy/
+
+## ZCode tooling local files
+.zcode/
