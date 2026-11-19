@@ -25,6 +25,9 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     private readonly ILiteDbCacheService _cache;
     private readonly INavigationService _navigation;
     private readonly MainWindowViewModel _shell;
+    private readonly INetworkGate _networkGate;
+    private readonly ISteamAccountDetector _steamDetector;
+    private readonly ISteamAccountImportService _steamImport;
     private readonly ILogger _logger;
     private CancellationTokenSource? _cts;
 
@@ -38,6 +41,9 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         ILiteDbCacheService cache,
         INavigationService navigation,
         MainWindowViewModel shell,
+        INetworkGate networkGate,
+        ISteamAccountDetector steamDetector,
+        ISteamAccountImportService steamImport,
         ILogger logger)
     {
         _matchService = matchService;
@@ -46,6 +52,9 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         _cache = cache;
         _navigation = navigation;
         _shell = shell;
+        _networkGate = networkGate;
+        _steamDetector = steamDetector;
+        _steamImport = steamImport;
         _logger = logger.ForContext<MatchAnalysisViewModel>();
         Matches = new ObservableCollection<RecentMatchItem>();
         Accounts = new ObservableCollection<SavedAccount>();
@@ -62,11 +71,11 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         if (parameter is string account && !string.IsNullOrWhiteSpace(account))
         {
             AccountInput = account.Trim();
-            if (SearchCommand.CanExecute(null))
-            {
-                _ = SearchCommand.ExecuteAsync(null);
-            }
-
+            // 必须绕过 SearchCommand 直接发起：AsyncRelayCommand 默认不允许并发执行，
+            // 上一轮查询还在跑（慢线路下单次预算可达 75s）时 CanExecute 为 false，
+            // 走命令会静默吞掉这次跳转，表现为「换选手后数据没变」。
+            // RunSearchAsync 内部会取消上一轮的 _cts。
+            _ = RunSearchAsync(forceRefresh: false);
             return;
         }
 
@@ -145,13 +154,6 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
     [RelayCommand]
     private async Task SearchAsync() => await RunSearchAsync(forceRefresh: false);
 
-    /// <summary>跨页入口（职业选手榜单点击跳转）：填入账号并跑一次完整查询。</summary>
-    public async Task QueryExternalAsync(long accountId)
-    {
-        AccountInput = accountId.ToString();
-        await RunSearchAsync(forceRefresh: false).ConfigureAwait(true);
-    }
-
     /// <summary>强制刷新：忽略缓存重新拉取该账号的全部数据。</summary>
     [RelayCommand]
     private async Task RefreshDataAsync() => await RunSearchAsync(forceRefresh: true);
@@ -163,6 +165,16 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             StatusMessage = "请输入有效的 Account ID 或 SteamID64";
             return;
         }
+
+        // 换账号时立刻清掉上一个人的展示：线上请求可能要几十秒（甚至失败），
+        // 旧头像/旧对局一直挂着会看起来像「点了没反应」。同账号重查（刷新）保留内容避免闪烁。
+        if (Profile?.AccountId != accountId)
+        {
+            ClearDisplayedAccount();
+        }
+
+        // 用户主动查询进行中：后台预热让路（覆盖含重试链的整个查询期间）
+        var gateOp = _networkGate.BeginUserOperation();
 
         _cts?.Cancel();
         _cts?.Dispose();
@@ -180,7 +192,13 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             StatusMessage = $"正在查询账号 {accountId}...";
             _logger.Information("开始战绩分析 AccountId={AccountId}", accountId);
 
-            var result = await _matchService.AnalyzeAsync(accountId, forceRefresh, token).ConfigureAwait(true);
+            var refreshEpoch = frameEpoch;
+            var result = await _matchService.AnalyzeAsync(
+                accountId,
+                forceRefresh,
+                token,
+                onBackgroundRefreshed: fresh => OnBackgroundRefreshed(accountId, refreshEpoch, fresh))
+                .ConfigureAwait(true);
             if (token.IsCancellationRequested)
             {
                 return;
@@ -193,48 +211,7 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
                     return;
                 }
 
-                Profile = result.Profile;
-
-                // 查询成功即把账号信息留在本地，下次可点头像直接切回来
-                if (result.Profile is not null)
-                {
-                    _accountService.SaveOrUpdate(result.Profile);
-                    RefreshAccounts();
-                    // 头像框独立于主查询：数据在 steamcommunity（可能被墙），
-                    // 失败静默为无框，不拖慢也不影响战绩展示
-                    _ = LoadAvatarFrameAsync(accountId, frameEpoch, token);
-                }
-
-                _allMatches = result.Matches;
-                RebuildHeroFilterOptions();
-                ApplyMatchFilters();
-
-                RefreshRecentHeroes(result.Matches);
-                RefreshPlaystyle(result);
-                UpdateChart(result.Matches);
-                HasData = !result.IsEmpty;
-                WarmUpMatchImages(result.Matches);
-                _ = LoadHeroWinratesAsync(accountId, forceRefresh, frameEpoch, token);
-                // 热力图复用主查询已拉到的近期对局（含 match_id），缓存未命中时省一次 /recentMatches 请求
-                _ = LoadPlayerActivityAsync(accountId, forceRefresh, result.Matches, frameEpoch, token);
-
-                if (result.IsEmpty)
-                {
-                    StatusMessage = "暂无战绩数据（账号可能隐藏比赛或 ID 不正确）";
-                    RecentSummary = string.Empty;
-                }
-                else
-                {
-                    RecentSummary =
-                        $"近 {result.Matches.Count} 场：{result.RecentWins}胜 {result.RecentLosses}负 · 胜率 {result.RecentWinRate:F1}% · 场均 KDA {result.AvgKda:F2}";
-                    StatusMessage = result.IsOffline
-                        ? "离线模式：已展示本地缓存"
-                        : result.FromCache
-                            ? "已加载缓存战绩"
-                            : forceRefresh
-                                ? "已强制刷新"
-                                : "分析完成";
-                }
+                ApplyAnalysisResult(result, accountId, forceRefresh, frameEpoch, isBackgroundRefresh: false);
             });
         }
         catch (Exception ex) when (ex is OperationCanceledException && token.IsCancellationRequested)
@@ -253,7 +230,128 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
             {
                 IsLoading = false;
             }
+
+            gateOp.Dispose();
         }
+    }
+
+    /// <summary>清空上一个人的全部展示，进入干净的加载态（换账号时调用）。</summary>
+    private void ClearDisplayedAccount()
+    {
+        Profile = null;
+        _allMatches = [];
+        Matches.Clear();
+        RebuildHeroFilterOptions();
+        RecentHeroes.Clear();
+        Findings.Clear();
+        PlaystyleSummary = string.Empty;
+        RecentSummary = string.Empty;
+        MatchCountText = string.Empty;
+        HeroWinrates.Clear();
+        _activityHeatmap = null;
+        ActivityImage = null;
+        ActivityCells = [];
+        ActivityMonthLabels = [];
+        ActivitySummaryText = string.Empty;
+        Series = Array.Empty<ISeries>();
+        XAxes = [new Axis { Labels = [] }];
+        HasData = false;
+
+        OnPropertyChanged(nameof(HasRecentHeroes));
+        OnPropertyChanged(nameof(HasFindings));
+        OnPropertyChanged(nameof(HasHeroWinrates));
+        OnPropertyChanged(nameof(HasActivity));
+        OnPropertyChanged(nameof(ActivityMonthLabels));
+        OnPropertyChanged(nameof(HasVisibleMatches));
+        OnPropertyChanged(nameof(HasFilteredEmpty));
+    }
+
+    /// <summary>
+    /// 把一次分析结果应用到界面。首次展示与后台刷新完成共用；后台刷新保留用户筛选、跳过重复的子加载。
+    /// </summary>
+    private void ApplyAnalysisResult(MatchAnalysisResult result, long accountId, bool forceRefresh, int frameEpoch, bool isBackgroundRefresh)
+    {
+        Profile = result.Profile;
+
+        // 查询成功即把账号信息留在本地，下次可点头像直接切回来
+        if (result.Profile is not null)
+        {
+            _accountService.SaveOrUpdate(result.Profile);
+            RefreshAccounts();
+            // 头像框独立于主查询：数据在 steamcommunity（可能被墙），失败静默为无框，
+            // 不拖慢也不影响战绩展示。后台刷新不再重复拉框（首帧已处理过）
+            if (!isBackgroundRefresh)
+            {
+                _ = LoadAvatarFrameAsync(accountId, frameEpoch, _cts?.Token ?? CancellationToken.None);
+            }
+        }
+
+        _allMatches = result.Matches;
+        // 后台刷新不重建筛选选项：保留用户已选的条件，仅把新对局重新套用筛选
+        if (!isBackgroundRefresh)
+        {
+            RebuildHeroFilterOptions();
+        }
+        ApplyMatchFilters();
+
+        RefreshRecentHeroes(result.Matches);
+        RefreshPlaystyle(result);
+        UpdateChart(result.Matches);
+        HasData = !result.IsEmpty;
+        WarmUpMatchImages(result.Matches);
+
+        if (!isBackgroundRefresh)
+        {
+            _ = LoadHeroWinratesAsync(accountId, forceRefresh, frameEpoch, _cts?.Token ?? CancellationToken.None);
+            // 热力图复用主查询已拉到的近期对局（含 match_id），缓存未命中时省一次 /recentMatches 请求
+            _ = LoadPlayerActivityAsync(accountId, forceRefresh, result.Matches, frameEpoch, _cts?.Token ?? CancellationToken.None);
+        }
+
+        if (result.IsEmpty)
+        {
+            StatusMessage = "暂无战绩数据（账号可能隐藏比赛或 ID 不正确）";
+            RecentSummary = string.Empty;
+        }
+        else
+        {
+            RecentSummary =
+                $"近 {result.Matches.Count} 场：{result.RecentWins}胜 {result.RecentLosses}负 · 胜率 {result.RecentWinRate:F1}% · 场均 KDA {result.AvgKda:F2}";
+            StatusMessage = result.IsOffline
+                ? result.RefreshingInBackground
+                    ? "已展示上次战绩（数据可能略旧），后台更新中…"
+                    : "离线模式：已展示本地缓存"
+                : result.FromCache
+                    ? "已加载缓存战绩"
+                    : forceRefresh
+                        ? "已强制刷新"
+                        : "分析完成";
+        }
+
+        if (isBackgroundRefresh)
+        {
+            StatusMessage = "数据已更新为最新";
+        }
+    }
+
+    /// <summary>后台刷新完成回调（后台线程）：换新数据或提示失败。期间用户又发起新查询时，本结果静默让位。</summary>
+    private void OnBackgroundRefreshed(long accountId, int frameEpoch, MatchAnalysisResult? fresh)
+    {
+        _ = Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            if (_frameQueryEpoch != frameEpoch)
+            {
+                return;
+            }
+
+            if (fresh is null)
+            {
+                StatusMessage = "后台更新失败，展示的是上次数据（可点刷新重试）";
+                return;
+            }
+
+            _logger.Information("后台刷新结果已应用 AccountId={AccountId}", accountId);
+            ApplyAnalysisResult(fresh, accountId, forceRefresh: false, frameEpoch, isBackgroundRefresh: true);
+        });
     }
 
     /// <summary>
@@ -589,6 +687,25 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         await SearchAsync().ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// 从本机 Steam 客户端读取最近登录的账号并直接查询：
+    /// 走既有查询流程入库 / 置当前 / 刷新卡片，未装 Steam 或未记住登录时给出提示。
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportSteamAccountAsync()
+    {
+        // 注册表与文件读取虽快，仍丢线程池，避免磁盘慢时卡 UI
+        var user = await Task.Run(_steamDetector.GetMostRecent).ConfigureAwait(true);
+        if (user is null)
+        {
+            StatusMessage = "未检测到本地 Steam 登录的账号（未安装 Steam 或未记住登录）";
+            return;
+        }
+
+        AccountInput = user.AccountId.ToString();
+        await SearchAsync().ConfigureAwait(true);
+    }
+
     /// <summary>把账号卡片从列表里移除。</summary>
     [RelayCommand]
     private void RemoveAccount(SavedAccount? account)
@@ -597,6 +714,10 @@ public partial class MatchAnalysisViewModel : ObservableObject, INavigationAware
         {
             return;
         }
+
+        // 记入 Steam 导入忽略名单：否则下次启动「本地 Steam 自动导入」会把卡片悄悄加回来。
+        // 对非 Steam 来源的账号无副作用（名单只拦自动导入），上限 64 条自动淘汰
+        _steamImport.MarkDismissed(account.AccountId);
 
         // 移除的正好是当前正在看的账号：清掉结果，避免页面继续显示已删掉的账号
         if (Profile?.AccountId == account.AccountId)

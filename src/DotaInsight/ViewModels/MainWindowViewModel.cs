@@ -119,11 +119,13 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NavigateMatchAnalysis()
+    private void NavigateMatchAnalysis(string? account)
     {
         CurrentPageTitle = "战绩分析";
         ActiveNav = MatchAnalysisPageKey;
-        _navigationService.NavigateTo(MatchAnalysisPageKey);
+        _navigationService.NavigateTo(
+            MatchAnalysisPageKey,
+            string.IsNullOrWhiteSpace(account) ? null : account);
     }
 
     [RelayCommand]
@@ -162,6 +164,11 @@ public partial class MainWindowViewModel : ObservableObject
             RefreshCacheInfo();
         }
     }
+
+    public string NetworkSettingsTooltip => "网络设置（代理）\n线路被掐时走本地加速器通道";
+
+    [RelayCommand]
+    private void OpenNetworkSettings() => _dialogService.ShowNetworkSettingsDialog();
 
     /// <summary>
     /// 手动检查更新：明确告知结论（已是最新 / 有新版 / 失败），有新版时确认后再就地升级。

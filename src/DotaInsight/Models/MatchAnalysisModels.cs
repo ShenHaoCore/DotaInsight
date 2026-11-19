@@ -22,6 +22,15 @@ public sealed class PlayerProfile
     /// <summary>认证职业选手名（OpenDota profile.name，非空即职业选手；is_pro 字段已废弃）。</summary>
     public string? ProName { get; init; }
 
+    /// <summary>展示名：认证选手名优先（与职业选手榜单一致），否则用 Steam 昵称。</summary>
+    [JsonIgnore]
+    public string DisplayName => string.IsNullOrWhiteSpace(ProName) ? PersonaName : ProName!;
+
+    /// <summary>职业选手的 Steam 昵称（与展示名不同时作为副标题）；普通玩家为 null。</summary>
+    [JsonIgnore]
+    public string? PersonaSubText
+        => !string.IsNullOrWhiteSpace(ProName) && ProName != PersonaName ? PersonaName : null;
+
     /// <summary>隐藏分估算（OpenDota computed_mmr，按公开比赛反推；冠绝玩家为 null）。</summary>
     public double? ComputedMmr { get; init; }
 
@@ -138,6 +147,12 @@ public sealed class MatchAnalysisResult
     public bool FromCache { get; init; }
 
     public bool IsOffline { get; init; }
+
+    /// <summary>
+    /// 本条结果是过期缓存的「先展示后更新」：后台正在拉新数据写缓存，
+    /// 下次进入页面即为新数据。仅运行期标记，不会持久化。
+    /// </summary>
+    public bool RefreshingInBackground { get; init; }
 
     public bool IsEmpty => Profile is null && Matches.Count == 0;
 

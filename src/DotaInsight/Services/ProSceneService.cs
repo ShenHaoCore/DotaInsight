@@ -13,8 +13,14 @@ namespace DotaInsight.Services;
 /// </summary>
 public interface IProSceneService
 {
-    /// <summary>取职业选手/战队榜单（缓存 24h）；失败时抛出。</summary>
-    Task<ProSceneData> GetProSceneAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// 取职业选手/战队榜单（缓存 24h）；失败时抛出。
+    /// <paramref name="forceRefresh"/>=true 时绕过内存与缓存直接重新聚合（更新按钮路径），
+    /// 失败时抛出（调用方保留旧数据展示）。
+    /// 缓存过期时立即返回旧榜（RefreshingInBackground=true）并在后台重新聚合；
+    /// 聚合完成（成功传新榜 / 失败传 null）经 <paramref name="onBackgroundRefreshed"/> 通知调用方换界面。
+    /// </summary>
+    Task<ProSceneData> GetProSceneAsync(bool forceRefresh = false, CancellationToken cancellationToken = default, Action<ProSceneData?>? onBackgroundRefreshed = null);
 }
 
 public sealed class ProSceneService : IProSceneService
@@ -39,6 +45,95 @@ public sealed class ProSceneService : IProSceneService
 
     private ProSceneData? _memory;
 
+    /// <summary>_memory 的装载时刻（来自缓存或聚合），用于判断是否过期需要后台刷新。</summary>
+    private DateTime _memoryLoadedUtc = DateTime.MinValue;
+
+    /// <summary>后台刷新去重/冷却：失败后 60s 内不再自动重试。</summary>
+    private static readonly TimeSpan BackgroundRefreshMinInterval = TimeSpan.FromSeconds(60);
+
+    private readonly object _bgSync = new();
+    private bool _bgRefreshing;
+    private DateTime _bgLastAttemptUtc = DateTime.MinValue;
+    private readonly List<Action<ProSceneData?>> _bgCallbacks = [];
+
+    /// <summary>
+    /// 后台重新聚合榜单并写缓存；完成（成功传新数据 / 失败传 null）后逐个通知回调。
+    /// 同账号刷新已在跑时新回调挂同一批；冷却期内失败过的立即以 null 通知（异步派发）。
+    /// </summary>
+    private void RefreshInBackground(Action<ProSceneData?>? onCompleted)
+    {
+        lock (_bgSync)
+        {
+            if (_bgRefreshing)
+            {
+                if (onCompleted is not null)
+                {
+                    _bgCallbacks.Add(onCompleted);
+                }
+
+                return;
+            }
+
+            if (DateTime.UtcNow - _bgLastAttemptUtc < BackgroundRefreshMinInterval)
+            {
+                if (onCompleted is not null)
+                {
+                    _ = Task.Run(() => onCompleted(null));
+                }
+
+                return;
+            }
+
+            _bgRefreshing = true;
+            _bgLastAttemptUtc = DateTime.UtcNow;
+            if (onCompleted is not null)
+            {
+                _bgCallbacks.Add(onCompleted);
+            }
+        }
+
+        _ = Task.Run(async () =>
+        {
+            ProSceneData? fresh = null;
+            try
+            {
+                // 后台刷新不接页面取消令牌
+                fresh = await AggregateAsync(CancellationToken.None).ConfigureAwait(false);
+                _memory = fresh;
+                _memoryLoadedUtc = DateTime.UtcNow;
+                _cache.Set(CacheKey, fresh, CacheTtl);
+                _logger.Information("职业选手榜单后台刷新完成 Players={Players}", fresh.PlayerRows.Count);
+            }
+            catch (Exception ex)
+            {
+                fresh = null;
+                _logger.Warning(ex, "职业选手榜单后台刷新失败（下次进入页面时再试）");
+            }
+            finally
+            {
+                List<Action<ProSceneData?>> toNotify;
+                lock (_bgSync)
+                {
+                    toNotify = new List<Action<ProSceneData?>>(_bgCallbacks);
+                    _bgCallbacks.Clear();
+                    _bgRefreshing = false;
+                }
+
+                foreach (var callback in toNotify)
+                {
+                    try
+                    {
+                        callback(fresh);
+                    }
+                    catch
+                    {
+                        // 单个回调异常不影响其他通知
+                    }
+                }
+            }
+        });
+    }
+
     public ProSceneService(IHttpClientFactory httpClientFactory, ILiteDbCacheService cache, ILogger logger)
     {
         _httpClientFactory = httpClientFactory;
@@ -48,10 +143,40 @@ public sealed class ProSceneService : IProSceneService
 
     private HttpClient Http => _httpClientFactory.CreateClient(HttpClientName);
 
-    public async Task<ProSceneData> GetProSceneAsync(CancellationToken cancellationToken = default)
+    public async Task<ProSceneData> GetProSceneAsync(
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default,
+        Action<ProSceneData?>? onBackgroundRefreshed = null)
     {
+        // 强刷（更新按钮）：绕过内存与缓存直接重新聚合，失败抛出让调用方提示、旧榜保留
+        if (forceRefresh)
+        {
+            await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var fresh = await AggregateAsync(cancellationToken).ConfigureAwait(false);
+                _memory = fresh;
+                _memoryLoadedUtc = DateTime.UtcNow;
+                _cache.Set(CacheKey, fresh, CacheTtl);
+                _logger.Information("职业选手榜单已强制刷新 Players={Players}", fresh.PlayerRows.Count);
+                return fresh;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
         if (_memory is not null)
         {
+            // 过期缓存（Stale）秒开：先展示旧榜，后台聚合拉新；完成后经回调换新榜
+            if (DateTime.UtcNow - _memoryLoadedUtc >= CacheTtl)
+            {
+                _logger.Information("职业选手榜单缓存过期，先展示旧榜并后台刷新");
+                RefreshInBackground(onBackgroundRefreshed);
+                _memory.RefreshingInBackground = true;
+            }
+
             return _memory;
         }
 
@@ -67,11 +192,13 @@ public sealed class ProSceneService : IProSceneService
             if (cached is { PlayerRows.Count: > 0 })
             {
                 _memory = cached;
+                _memoryLoadedUtc = DateTime.UtcNow;
                 return _memory;
             }
 
             var data = await AggregateAsync(cancellationToken).ConfigureAwait(false);
             _memory = data;
+            _memoryLoadedUtc = DateTime.UtcNow;
             _cache.Set(CacheKey, data, CacheTtl);
             _logger.Information("职业选手榜单已聚合 Players={Players} Teams={Teams}",
                 data.PlayerRows.Count, data.TeamRows.Count);

@@ -73,6 +73,7 @@
                         <ColumnDefinition Width="320" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Text="战绩分析" Style="{StaticResource DiPageTitleStyle}" VerticalAlignment="Center" />
@@ -93,6 +94,17 @@
                                VerticalAlignment="Center" />
 
                     <ui:Button Grid.Column="3"
+                               Content="从 Steam 导入"
+                               ToolTip="读取本机 Steam 客户端最近登录的账号并查询"
+                               Appearance="Secondary"
+                               Icon="{ui:SymbolIcon PersonCircle24}"
+                               Command="{Binding ImportSteamAccountCommand}"
+                               Margin="6,0,0,0"
+                               Padding="12,8"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+
+                    <ui:Button Grid.Column="4"
                                ToolTip="忽略缓存，重新拉取该账号全部数据"
                                Appearance="Secondary"
                                Icon="{ui:SymbolIcon ArrowSync24}"
@@ -102,7 +114,7 @@
                                VerticalAlignment="Center"
                                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
 
-                    <ui:ProgressRing Grid.Column="3"
+                    <ui:ProgressRing Grid.Column="4"
                                      Width="26"
                                      Height="26"
                                      Margin="10,0,0,0"
@@ -157,11 +169,17 @@
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding Profile.PersonaName}"
+                                <TextBlock Text="{Binding Profile.DisplayName}"
                                            FontSize="20"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"
                                            Foreground="{DynamicResource DiPrimaryTextBrush}" />
+                                <!-- 职业选手：展示名用认证名（与职业选手榜一致），Steam 昵称作副标题 -->
+                                <TextBlock Text="{Binding Profile.PersonaSubText, StringFormat=@{0}}"
+                                           FontSize="12" Margin="8,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DiMutedTextBrush}"
+                                           Visibility="{Binding Profile.PersonaSubText, Converter={StaticResource NullToVisibilityConverter}}" />
                                 <!-- 职业选手 / 天梯榜身份徽章：OpenDota profile.name（认证选手名）/ leaderboard_rank -->
                                 <Border Background="{DynamicResource DiShardSoftBrush}"
                                         CornerRadius="4" Padding="7,2" Margin="12,0,0,0"
@@ -534,7 +552,8 @@
                                                             </Grid>
                                                         </Border>
 
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <!-- 右侧缩进 16px：给卡片内移除按钮让位，避免文字压到按钮下 -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0">
                                                             <TextBlock Text="{Binding DisplayName}"
                                                                        FontSize="12"
                                                                        FontWeight="Medium"
@@ -591,11 +610,12 @@
                                                     </Grid>
                                                 </Button>
 
+                                                <!-- 移除按钮叠在卡片右侧垂直居中（兄弟节点避免嵌套 Button 双触发） -->
                                                 <Button Width="18" Height="18"
                                                         Style="{StaticResource DiAccountRemoveButtonStyle}"
                                                         HorizontalAlignment="Right"
-                                                        VerticalAlignment="Top"
-                                                        Margin="0,-6,-6,0"
+                                                        VerticalAlignment="Center"
+                                                        Margin="0,0,8,0"
                                                         ToolTip="移除该账号"
                                                         Command="{Binding DataContext.RemoveAccountCommand,
                                                                           RelativeSource={RelativeSource AncestorType=ItemsControl}}"

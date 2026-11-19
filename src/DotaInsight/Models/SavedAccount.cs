@@ -49,7 +49,9 @@ public sealed class SavedAccount
     public bool HasProfile => !string.IsNullOrWhiteSpace(AvatarUrl);
 
     [JsonIgnore]
-    public string DisplayName => string.IsNullOrWhiteSpace(PersonaName) ? $"账号 {AccountId}" : PersonaName;
+    public string DisplayName => string.IsNullOrWhiteSpace(ProName)
+        ? string.IsNullOrWhiteSpace(PersonaName) ? $"账号 {AccountId}" : PersonaName
+        : ProName!;
 
     [JsonIgnore]
     public string AccountIdText => AccountId.ToString();
@@ -123,8 +125,10 @@ public sealed class SavedAccount
     {
         get
         {
-            var lines = new List<string> { DisplayName, $"账号 ID {AccountIdText}" };
-            if (!string.IsNullOrWhiteSpace(ProName))
+            // 卡片本身显示认证选手名，悬停补上 Steam 昵称（用户认的是这个）
+            var steamName = string.IsNullOrWhiteSpace(PersonaName) ? DisplayName : PersonaName;
+            var lines = new List<string> { steamName, $"账号 ID {AccountIdText}" };
+            if (!string.IsNullOrWhiteSpace(ProName) && !string.IsNullOrWhiteSpace(PersonaName))
             {
                 lines.Add($"认证职业选手 {ProName}");
             }

@@ -19,8 +19,16 @@ public interface IMatchAnalysisService
 
     /// <summary>
     /// 获取玩家资料与近期战绩。
+    /// 缓存过期时立即返回旧数据（RefreshingInBackground=true）并在后台拉新；
+    /// 拉新完成（成功传新数据 / 失败传 null）经 <paramref name="onBackgroundRefreshed"/> 通知调用方换界面。
     /// </summary>
-    Task<MatchAnalysisResult> AnalyzeAsync(long accountId, bool forceRefresh = false, CancellationToken cancellationToken = default);
+    Task<MatchAnalysisResult> AnalyzeAsync(long accountId, bool forceRefresh = false, CancellationToken cancellationToken = default, Action<MatchAnalysisResult?>? onBackgroundRefreshed = null);
+
+    /// <summary>
+    /// 后台预热单个账号的战绩缓存：新鲜则零网络直接返回，
+    /// 过期/缺失则拉取补齐。失败静默（记日志 + 网络失败信号），供启动预热循环调用。
+    /// </summary>
+    Task WarmupAccountAsync(long accountId);
 
     /// <summary>
     /// 获取单场比赛详情（双方阵容与逐人数据）。
@@ -67,6 +75,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     private readonly ILiteDbCacheService _cache;
     private readonly IHeroCounterService _heroService;
     private readonly IItemCatalogService _itemCatalog;
+    private readonly IAutoProxyService _autoProxy;
     private readonly ILogger _logger;
 
     public MatchAnalysisService(
@@ -74,12 +83,14 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         ILiteDbCacheService cache,
         IHeroCounterService heroService,
         IItemCatalogService itemCatalog,
+        IAutoProxyService autoProxy,
         ILogger logger)
     {
         _httpClientFactory = httpClientFactory;
         _cache = cache;
         _heroService = heroService;
         _itemCatalog = itemCatalog;
+        _autoProxy = autoProxy;
         _logger = logger.ForContext<MatchAnalysisService>();
     }
 
@@ -91,7 +102,8 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
     public async Task<MatchAnalysisResult> AnalyzeAsync(
         long accountId,
         bool forceRefresh = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<MatchAnalysisResult?>? onBackgroundRefreshed = null)
     {
         var cacheKey = CachePrefix + accountId;
         var cached = forceRefresh ? null : _cache.Get<MatchAnalysisResult>(cacheKey);
@@ -106,71 +118,26 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
             };
         }
 
+        // 过期缓存（Stale）秒开：不阻塞用户等网络（最坏 75s），先展示上次数据，
+        // 同时后台拉新写缓存；后台完成后经 onBackgroundRefreshed 通知调用方换新数据。
+        var stale = forceRefresh ? null : _cache.GetStale<MatchAnalysisResult>(cacheKey);
+        if (stale?.Profile is not null)
+        {
+            _logger.Information("战绩缓存过期，先展示旧数据并后台刷新 AccountId={AccountId}", accountId);
+            RefreshInBackground(accountId, onBackgroundRefreshed);
+            return new MatchAnalysisResult
+            {
+                Profile = stale.Profile,
+                Matches = stale.Matches,
+                FromCache = true,
+                IsOffline = true,
+                RefreshingInBackground = true
+            };
+        }
+
         try
         {
-            _logger.Information("拉取战绩 AccountId={AccountId}", accountId);
-            var heroes = await _heroService.GetHeroesAsync(false, cancellationToken).ConfigureAwait(false);
-            var heroMap = heroes.ToDictionary(h => h.Id);
-            var http = Http;
-
-            var profileTask = http.GetFromJsonAsync<PlayerApiDto>(
-                $"api/players/{accountId}", HttpCall.JsonOptions, cancellationToken);
-            var wlTask = http.GetFromJsonAsync<PlayerWlDto>(
-                $"api/players/{accountId}/wl", HttpCall.JsonOptions, cancellationToken);
-            var matchesTask = http.GetFromJsonAsync<List<RecentMatchDto>>(
-                $"api/players/{accountId}/recentMatches", HttpCall.JsonOptions, cancellationToken);
-
-            await Task.WhenAll(profileTask, wlTask, matchesTask).ConfigureAwait(false);
-
-            var profileDto = await profileTask.ConfigureAwait(false);
-            var wlDto = await wlTask.ConfigureAwait(false);
-            var matchDtos = await matchesTask.ConfigureAwait(false) ?? [];
-
-            if (profileDto?.Profile is null && matchDtos.Count == 0)
-            {
-                var stale = _cache.GetStale<MatchAnalysisResult>(cacheKey);
-                if (stale is not null)
-                {
-                    return new MatchAnalysisResult
-                    {
-                        Profile = stale.Profile,
-                        Matches = stale.Matches,
-                        FromCache = true,
-                        IsOffline = true
-                    };
-                }
-
-                return new MatchAnalysisResult();
-            }
-
-            var profile = new PlayerProfile
-            {
-                AccountId = profileDto?.Profile?.AccountId > 0
-                    ? profileDto.Profile.AccountId
-                    : accountId,
-                PersonaName = profileDto?.Profile?.PersonaName ?? $"玩家 {accountId}",
-                AvatarUrl = profileDto?.Profile?.AvatarFull ?? string.Empty,
-                RankTier = profileDto?.RankTier,
-                LeaderboardRank = profileDto?.LeaderboardRank,
-                ProName = profileDto?.Profile?.Name,
-                ComputedMmr = profileDto?.ComputedMmr,
-                Wins = wlDto?.Win ?? 0,
-                Losses = wlDto?.Lose ?? 0
-            };
-
-            var matches = matchDtos.Select(m => MapMatch(m, heroMap)).ToList();
-            var result = new MatchAnalysisResult
-            {
-                Profile = profile,
-                Matches = matches
-            };
-
-            _cache.Set(cacheKey, result, TimeSpan.FromHours(6));
-            _logger.Information(
-                "战绩已刷新 AccountId={AccountId} Matches={Count}",
-                accountId,
-                matches.Count);
-            return result;
+            return await FetchAndCacheAsync(accountId, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (HttpCall.IsUserCancellation(ex, cancellationToken))
         {
@@ -178,7 +145,80 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
         catch (Exception ex)
         {
+            // 请求级失败信号：自动网络检测据此评估是否切换到本机代理
+            _autoProxy.ReportFailure();
             _logger.Warning(ex, "拉取战绩失败 AccountId={AccountId}", accountId);
+            var staleAfterFail = _cache.GetStale<MatchAnalysisResult>(cacheKey);
+            if (staleAfterFail is not null)
+            {
+                return new MatchAnalysisResult
+                {
+                    Profile = staleAfterFail.Profile,
+                    Matches = staleAfterFail.Matches,
+                    FromCache = true,
+                    IsOffline = true
+                };
+            }
+
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task WarmupAccountAsync(long accountId)
+    {
+        var cached = _cache.Get<MatchAnalysisResult>(CachePrefix + accountId);
+        if (cached?.Profile is not null)
+        {
+            return; // 新鲜缓存，零网络
+        }
+
+        try
+        {
+            // 预热直接走拉取：调用方（预热循环）负责串行与间隔，失败静默不打扰用户
+            await FetchAndCacheAsync(accountId, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _autoProxy.ReportFailure();
+            _logger.Debug(ex, "预热账号战绩失败（下轮预热再试）AccountId={AccountId}", accountId);
+        }
+    }
+
+    /// <summary>战绩缓存 TTL：对局按天变化，一天拉一次足够；其余时间走缓存（可用刷新按钮强制拉新）。</summary>
+    private static readonly TimeSpan AnalysisCacheTtl = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// 走网络拉全量战绩并写缓存。AnalyzeAsync 的主路径与后台刷新共用。
+    /// </summary>
+    private async Task<MatchAnalysisResult> FetchAndCacheAsync(
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = CachePrefix + accountId;
+        _logger.Information("拉取战绩 AccountId={AccountId}", accountId);
+        var heroes = await _heroService.GetHeroesAsync(false, cancellationToken).ConfigureAwait(false);
+        var heroMap = heroes.ToDictionary(h => h.Id);
+        var http = Http;
+
+        // 主数据串行请求：实测到 Cloudflare 的线路对「同时建连」敏感——
+        // 并发多条 TLS 握手容易被掐断，单连接顺序请求更稳。
+        // 串行还有个附带好处：第 2 个请求复用第 1 个已握手的连接，每次查询只建极少链路。
+        var profileDto = await http.GetFromJsonAsync<PlayerApiDto>(
+            $"api/players/{accountId}", HttpCall.JsonOptions, cancellationToken).ConfigureAwait(false);
+        // 生涯胜负是装饰性字段，且 /wl 是慢端点（动态查询，实测可 >60s 不返回），
+        // 因此与主数据并发启动、单独 5s 封顶：既不压缩主数据耗时，
+        // 失败也只降级为上次缓存的胜/负（没有则 0），不带崩整页查询。
+        var wlTask = TryGetPlayerWlAsync(http, accountId, cancellationToken);
+        var matchDtos = await http.GetFromJsonAsync<List<RecentMatchDto>>(
+            $"api/players/{accountId}/recentMatches", HttpCall.JsonOptions, cancellationToken).ConfigureAwait(false) ?? [];
+        var wlDto = await wlTask.ConfigureAwait(false);
+
+        if (profileDto?.Profile is null && matchDtos.Count == 0)
+        {
             var stale = _cache.GetStale<MatchAnalysisResult>(cacheKey);
             if (stale is not null)
             {
@@ -191,8 +231,160 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
                 };
             }
 
-            throw;
+            return new MatchAnalysisResult();
         }
+
+        var fallbackProfile = wlDto is null
+            ? _cache.GetStale<MatchAnalysisResult>(cacheKey)?.Profile
+            : null;
+
+        var profile = new PlayerProfile
+        {
+            AccountId = profileDto?.Profile?.AccountId > 0
+                ? profileDto.Profile.AccountId
+                : accountId,
+            PersonaName = profileDto?.Profile?.PersonaName ?? $"玩家 {accountId}",
+            AvatarUrl = profileDto?.Profile?.AvatarFull ?? string.Empty,
+            RankTier = profileDto?.RankTier,
+            LeaderboardRank = profileDto?.LeaderboardRank,
+            ProName = profileDto?.Profile?.Name,
+            ComputedMmr = profileDto?.ComputedMmr,
+            Wins = wlDto?.Win ?? fallbackProfile?.Wins ?? 0,
+            Losses = wlDto?.Lose ?? fallbackProfile?.Losses ?? 0
+        };
+
+        var matches = matchDtos.Select(m => MapMatch(m, heroMap)).ToList();
+        var result = new MatchAnalysisResult
+        {
+            Profile = profile,
+            Matches = matches
+        };
+
+        _cache.Set(cacheKey, result, AnalysisCacheTtl);
+        _logger.Information(
+            "战绩已刷新 AccountId={AccountId} Matches={Count}",
+            accountId,
+            matches.Count);
+        return result;
+    }
+
+    /// <summary>
+    /// 拉生涯胜负；失败（不含用户取消）返回 null，由调用方降级为缓存值或 0。
+    /// /wl 是 OpenDota 的动态查询端点，实测可 >60s 不返回，与主数据无关，
+    /// 这里单独 5s 封顶；自带超时的取消不属于 Polly 的瞬时错误，不会拉起重试链。
+    /// </summary>
+    private async Task<PlayerWlDto?> TryGetPlayerWlAsync(
+        HttpClient http,
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+
+        try
+        {
+            return await http.GetFromJsonAsync<PlayerWlDto>(
+                $"api/players/{accountId}/wl", HttpCall.JsonOptions, timeout.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.Warning(ex, "拉取胜率失败，改用缓存值 AccountId={AccountId}", accountId);
+            return null;
+        }
+    }
+
+    /// <summary>后台刷新去重：同一账号同时只跑一个；失败后 60s 内不再自动重试，避免死窗口期每次导航都拉起 75s 重试链。</summary>
+    private static readonly TimeSpan BackgroundRefreshMinInterval = TimeSpan.FromSeconds(60);
+
+    private readonly object _bgSync = new();
+    private readonly HashSet<long> _bgRefreshing = [];
+    private readonly Dictionary<long, DateTime> _bgLastAttemptUtc = [];
+    private readonly Dictionary<long, List<Action<MatchAnalysisResult?>>> _bgCallbacks = [];
+
+    /// <summary>
+    /// 后台拉新并写缓存；完成（成功或失败）后逐个通知回调：
+    /// 成功回调收到新数据（调用方据此换界面），失败收到 null（调用方据此提示）。
+    /// 同账号刷新已在跑时，新回调挂到同一批通知里；60s 冷却期内失败过的，立即以 null 通知。
+    /// </summary>
+    private void RefreshInBackground(long accountId, Action<MatchAnalysisResult?>? onCompleted)
+    {
+        List<Action<MatchAnalysisResult?>>? callbacks;
+        lock (_bgSync)
+        {
+            if (_bgCallbacks.TryGetValue(accountId, out var inFlight))
+            {
+                // 已有刷新在跑：挂上回调，等它完成后一并通知
+                if (onCompleted is not null)
+                {
+                    inFlight.Add(onCompleted);
+                }
+
+                return;
+            }
+
+            if (_bgLastAttemptUtc.TryGetValue(accountId, out var last)
+                && DateTime.UtcNow - last < BackgroundRefreshMinInterval)
+            {
+                // 冷却期内：立即以 null 通知（异步派发，避免在调用栈上重入）
+                if (onCompleted is not null)
+                {
+                    _ = Task.Run(() => onCompleted(null));
+                }
+
+                return;
+            }
+
+            callbacks = [];
+            if (onCompleted is not null)
+            {
+                callbacks.Add(onCompleted);
+            }
+
+            _bgCallbacks[accountId] = callbacks;
+            _bgRefreshing.Add(accountId);
+            _bgLastAttemptUtc[accountId] = DateTime.UtcNow;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            MatchAnalysisResult? fresh = null;
+            try
+            {
+                // 后台刷新不接页面取消令牌：用户点走别的页面也不打断补缓存
+                fresh = await FetchAndCacheAsync(accountId, CancellationToken.None).ConfigureAwait(false);
+                _logger.Information("后台刷新战绩完成 AccountId={AccountId}", accountId);
+            }
+            catch (Exception ex)
+            {
+                fresh = null;
+                _logger.Warning(ex, "后台刷新战绩失败（下次进入页面时再试）AccountId={AccountId}", accountId);
+            }
+            finally
+            {
+                List<Action<MatchAnalysisResult?>>? toNotify;
+                lock (_bgSync)
+                {
+                    _bgCallbacks.TryGetValue(accountId, out toNotify);
+                    _bgCallbacks.Remove(accountId);
+                    _bgRefreshing.Remove(accountId);
+                }
+
+                if (toNotify is not null)
+                {
+                    foreach (var callback in toNotify)
+                    {
+                        try
+                        {
+                            callback(fresh);
+                        }
+                        catch
+                        {
+                            // 单个回调异常不影响其他通知
+                        }
+                    }
+                }
+            }
+        });
     }
 
     // v2：生涯英雄榜是日粒度累积统计，TTL 6h → 24h（一天一拉足够）
@@ -540,6 +732,7 @@ public sealed class MatchAnalysisService : IMatchAnalysisService
         }
         catch (Exception ex)
         {
+            _autoProxy.ReportFailure();
             _logger.Warning(ex, "拉取比赛详情失败 MatchId={MatchId}", matchId);
             return _cache.GetStale<MatchDetail>(cacheKey);
         }

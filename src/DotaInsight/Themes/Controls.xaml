@@ -435,7 +435,7 @@
         </Setter>
     </Style>
 
-    <!-- 账号卡片右上角的移除按钮（默认半透明，悬停转为警示色） -->
+    <!-- 账号卡片右侧的移除按钮（默认半透明，悬停转为警示色） -->
     <Style x:Key="DiAccountRemoveButtonStyle" TargetType="Button">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Opacity" Value="0.5" />

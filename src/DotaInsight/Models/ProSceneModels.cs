@@ -145,4 +145,10 @@ public sealed class ProSceneData
 
     /// <summary>聚合时间（UTC），页面提示数据新鲜度。</summary>
     public DateTime AggregatedUtc { get; set; }
+
+    /// <summary>
+    /// 本条结果是过期缓存的「先展示后更新」：后台正在重新聚合，
+    /// 完成后经回调换新榜。运行期标记（写缓存的是聚合出的新对象，不携带此标记）。
+    /// </summary>
+    public bool RefreshingInBackground { get; set; }
 }

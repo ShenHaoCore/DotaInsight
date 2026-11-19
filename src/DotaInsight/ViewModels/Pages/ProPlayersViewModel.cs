@@ -17,8 +17,8 @@ namespace DotaInsight.ViewModels.Pages;
 public partial class ProPlayersViewModel : ObservableObject, INavigationAware
 {
     private readonly IProSceneService _proSceneService;
-    private readonly MatchAnalysisViewModel _matchAnalysis;
     private readonly MainWindowViewModel _mainWindow;
+    private readonly INetworkGate _networkGate;
     private readonly ILogger _logger;
     private CancellationTokenSource? _cts;
     private ProSceneData? _data;
@@ -45,13 +45,13 @@ public partial class ProPlayersViewModel : ObservableObject, INavigationAware
 
     public ProPlayersViewModel(
         IProSceneService proSceneService,
-        MatchAnalysisViewModel matchAnalysis,
         MainWindowViewModel mainWindow,
+        INetworkGate networkGate,
         ILogger logger)
     {
         _proSceneService = proSceneService;
-        _matchAnalysis = matchAnalysis;
         _mainWindow = mainWindow;
+        _networkGate = networkGate;
         _logger = logger.ForContext<ProPlayersViewModel>();
 
         // 头像预热完成或集合变化时刷新可见性标志
@@ -77,6 +77,8 @@ public partial class ProPlayersViewModel : ObservableObject, INavigationAware
     [RelayCommand]
     private async Task LoadAsync(bool forceRefresh = false)
     {
+        // 用户主动加载进行中：后台预热让路（_cts 初始化不会抛，异常由下方原 try/catch 全兜）
+        var gateOp = _networkGate.BeginUserOperation();
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
@@ -87,29 +89,16 @@ public partial class ProPlayersViewModel : ObservableObject, INavigationAware
             IsLoading = true;
             StatusMessage = forceRefresh ? "正在刷新职业选手榜单…" : "正在加载职业选手榜单…";
 
-            var data = await _proSceneService.GetProSceneAsync(token).ConfigureAwait(true);
+            var data = await _proSceneService.GetProSceneAsync(
+                forceRefresh,
+                token,
+                onBackgroundRefreshed: OnProSceneRefreshed).ConfigureAwait(true);
             if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            _data = data;
-            Rows.Clear();
-            foreach (var row in data.PlayerRows)
-            {
-                Rows.Add(row);
-            }
-
-            Teams.Clear();
-            foreach (var team in data.TeamRows)
-            {
-                Teams.Add(team);
-            }
-
-            var local = data.AggregatedUtc.ToLocalTime();
-            AggregatedText = $"聚合于 {local:MM-dd HH:mm} · 数据源 OpenDota";
-            StatusMessage = string.Empty;
-            WarmAvatars();
+            ApplyProSceneData(data);
         }
         catch (OperationCanceledException)
         {
@@ -123,7 +112,50 @@ public partial class ProPlayersViewModel : ObservableObject, INavigationAware
         finally
         {
             IsLoading = false;
+            gateOp.Dispose();
         }
+    }
+
+    /// <summary>把一次榜单数据应用到界面（首次加载与后台刷新共用）。</summary>
+    private void ApplyProSceneData(ProSceneData data)
+    {
+        _data = data;
+        Rows.Clear();
+        foreach (var row in data.PlayerRows)
+        {
+            Rows.Add(row);
+        }
+
+        Teams.Clear();
+        foreach (var team in data.TeamRows)
+        {
+            Teams.Add(team);
+        }
+
+        var local = data.AggregatedUtc.ToLocalTime();
+        AggregatedText = $"聚合于 {local:MM-dd HH:mm} · 数据源 OpenDota";
+        WarmAvatars();
+
+        StatusMessage = data.RefreshingInBackground
+            ? "已展示上次榜单（数据可能略旧），后台更新中…"
+            : string.Empty;
+    }
+
+    /// <summary>后台刷新完成回调（后台线程）：换新榜或提示失败。</summary>
+    private void OnProSceneRefreshed(ProSceneData? fresh)
+    {
+        _ = System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+        {
+            if (fresh is null)
+            {
+                StatusMessage = "榜单后台更新失败（展示的是上次榜单）";
+                return;
+            }
+
+            _logger.Information("职业选手榜单后台刷新结果已应用");
+            ApplyProSceneData(fresh);
+            StatusMessage = "榜单已更新为最新";
+        });
     }
 
     [RelayCommand]
@@ -131,16 +163,16 @@ public partial class ProPlayersViewModel : ObservableObject, INavigationAware
 
     /// <summary>点击选手行 → 战绩分析页查询该选手。</summary>
     [RelayCommand]
-    private async Task OpenPlayerAsync(ProPlayerRow? row)
+    private void OpenPlayer(ProPlayerRow? row)
     {
         if (row is null)
         {
             return;
         }
 
-        // 先切页面（VM 单例共享，查询立即开始），加载态在战绩页展示
-        _mainWindow.NavigateMatchAnalysisCommand.Execute(null);
-        await _matchAnalysis.QueryExternalAsync(row.AccountId).ConfigureAwait(true);
+        // 直接把账号作为导航参数带上：战绩页 OnNavigatedTo 参数分支会立即查询，
+        // 不会再先跑一次「默认账号」查询再被取消。
+        _mainWindow.NavigateMatchAnalysisCommand.Execute(row.AccountId.ToString());
     }
 
     /// <summary>
