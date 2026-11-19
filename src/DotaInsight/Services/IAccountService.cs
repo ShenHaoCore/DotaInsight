@@ -13,8 +13,11 @@ public interface IAccountService
     /// <summary>当前选中的账号 Id；从未选过为 null。</summary>
     long? CurrentAccountId { get; }
 
-    /// <summary>查询成功后写入或更新账户信息，并把该账号设为当前。</summary>
-    void SaveOrUpdate(PlayerProfile profile);
+    /// <summary>
+    /// 写入或更新账户信息；默认把该账号设为当前。
+    /// <paramref name="makeCurrent"/> 为 false 时只入库不改当前选中（后台静默导入用）。
+    /// </summary>
+    void SaveOrUpdate(PlayerProfile profile, bool makeCurrent = true);
 
     /// <summary>仅把某账号设为当前（不改变已存信息）。</summary>
     void SetCurrent(long accountId);

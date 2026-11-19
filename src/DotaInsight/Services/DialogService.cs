@@ -12,6 +12,9 @@ public interface IDialogService
 {
     /// <summary>显示「清理缓存」弹窗，返回是否实际执行过清理。</summary>
     bool ShowClearCacheDialog();
+
+    /// <summary>显示「网络设置」弹窗，返回是否保存过设置。</summary>
+    bool ShowNetworkSettingsDialog();
 }
 
 public sealed class DialogService : IDialogService
@@ -23,6 +26,19 @@ public sealed class DialogService : IDialogService
     public bool ShowClearCacheDialog()
     {
         var dialog = _services.GetRequiredService<ClearCacheDialogWindow>();
+        ShowHostedDialog(dialog);
+        return dialog.WasCleared;
+    }
+
+    public bool ShowNetworkSettingsDialog()
+    {
+        var dialog = _services.GetRequiredService<NetworkSettingsDialogWindow>();
+        ShowHostedDialog(dialog);
+        return dialog.WasSaved;
+    }
+
+    private void ShowHostedDialog(Window dialog)
+    {
         var owner = Application.Current?.MainWindow;
 
         if (owner is not null && !ReferenceEquals(owner, dialog))
@@ -35,6 +51,5 @@ public sealed class DialogService : IDialogService
         }
 
         dialog.ShowDialog();
-        return dialog.WasCleared;
     }
 }

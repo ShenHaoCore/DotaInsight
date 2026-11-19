@@ -54,7 +54,7 @@ public sealed class AccountService : IAccountService
         }
     }
 
-    public void SaveOrUpdate(PlayerProfile profile)
+    public void SaveOrUpdate(PlayerProfile profile, bool makeCurrent = true)
     {
         ArgumentNullException.ThrowIfNull(profile);
         if (profile.AccountId <= 0)
@@ -112,7 +112,10 @@ public sealed class AccountService : IAccountService
             }
 
             account.LastUsedUtc = DateTime.UtcNow;
-            book.CurrentAccountId = profile.AccountId;
+            if (makeCurrent)
+            {
+                book.CurrentAccountId = profile.AccountId;
+            }
 
             TrimOverflow(book);
             Save(book);
@@ -152,8 +155,39 @@ public sealed class AccountService : IAccountService
             }
 
             Save(book);
+            PurgeLegacyHistory(accountId);
             _logger.Information("已移除保存的账号 AccountId={AccountId}", accountId);
             return true;
+        }
+    }
+
+    /// <summary>
+    /// 从旧版纯 ID 搜索历史里清掉指定账号。不清的话，下次进战绩页
+    /// <see cref="MigrateLegacyIds"/> 会把它当「缺失」再次补录成占位卡——
+    /// 用户明明移除了，卡片却每次导航都复活。
+    /// </summary>
+    private void PurgeLegacyHistory(long accountId)
+    {
+        try
+        {
+            var legacy = _cache.Get<List<string>>(CacheKeys.LegacyMatchHistoryIds);
+            if (legacy is not { Count: > 0 })
+            {
+                return;
+            }
+
+            var before = legacy.Count;
+            // 历史里可能存的是 SteamID64 形式，按换算后的 account_id 匹配
+            legacy.RemoveAll(raw => SteamAccountId.TryParse(raw, out var id) && id == accountId);
+            if (legacy.Count != before)
+            {
+                _cache.Set(CacheKeys.LegacyMatchHistoryIds, legacy, TimeSpan.FromDays(30));
+            }
+        }
+        catch (Exception ex)
+        {
+            // 清历史失败不影响账号移除本身，下次导航最多多补录一张占位卡
+            _logger.Warning(ex, "清理旧版搜索历史失败 AccountId={AccountId}", accountId);
         }
     }
 

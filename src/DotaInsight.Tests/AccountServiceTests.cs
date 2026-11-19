@@ -161,6 +161,40 @@ public class AccountServiceTests
     }
 
     [Fact]
+    public void Remove_PurgesLegacyHistory_SoMigrationDoesNotResurrect()
+    {
+        // 回归：首页搜索历史里的 ID 会被迁移成占位卡，移除后若不清历史，
+        // 下次进战绩页迁移又会把它补录回来——表现为「无效账号删了又出现」
+        var service = CreateService(out var cache);
+
+        // SteamID64 形式的搜索历史，与 32 位 account_id 指向同一账号
+        cache.Set(CacheKeys.LegacyMatchHistoryIds,
+            new List<string> { SteamAccountId.SteamId64Base + 1296625 + "", "1111506" },
+            TimeSpan.FromDays(30));
+        service.MigrateLegacyIds(cache.Get<List<string>>(CacheKeys.LegacyMatchHistoryIds)!.AsEnumerable());
+        Assert.Equal(2, service.GetAll().Count);
+
+        Assert.True(service.Remove(1296625));
+        service.MigrateLegacyIds(cache.Get<List<string>>(CacheKeys.LegacyMatchHistoryIds)!.AsEnumerable());
+
+        var remaining = Assert.Single(service.GetAll());
+        Assert.Equal(1111506, remaining.AccountId);
+    }
+
+    [Fact]
+    public void SaveOrUpdate_MakeCurrentFalseKeepsExistingCurrent()
+    {
+        // 后台自动导入场景：静默补卡不抢「当前选中」
+        var service = CreateService(out _);
+
+        service.SaveOrUpdate(new PlayerProfile { AccountId = 1111506 });
+        service.SaveOrUpdate(new PlayerProfile { AccountId = 1296625 }, makeCurrent: false);
+
+        Assert.Equal(1111506, service.CurrentAccountId);
+        Assert.Equal(2, service.GetAll().Count);
+    }
+
+    [Fact]
     public void UserAssetKeys_AreProtectedFromCacheClear()
     {
         // 清缓存时必须保留的键：前缀约定（LiteDbCacheService.ClearAll 依赖它）

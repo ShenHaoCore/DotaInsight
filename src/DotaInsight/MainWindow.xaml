@@ -50,6 +50,11 @@
                                    Command="{Binding ClearCacheCommand}"
                                    Margin="0,0,4,0" />
                         <ui:Button Appearance="Transparent"
+                                   ToolTip="{Binding NetworkSettingsTooltip}"
+                                   Icon="{ui:SymbolIcon Globe24}"
+                                   Command="{Binding OpenNetworkSettingsCommand}"
+                                   Margin="0,0,4,0" />
+                        <ui:Button Appearance="Transparent"
                                    ToolTip="{Binding ThemeToggleTooltip}"
                                    Icon="{Binding ThemeToggleIcon}"
                                    Command="{Binding ToggleThemeCommand}" />

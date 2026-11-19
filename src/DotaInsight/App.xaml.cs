@@ -11,6 +11,7 @@ using DotaInsight.Views.Pages;
 using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using Polly.Extensions.Http;
+using Polly.Timeout;
 using Serilog;
 using Serilog.Exceptions;
 
@@ -63,6 +64,13 @@ public partial class App : Application
 
         // 启动静默检查更新：有新版才弹窗，失败不打扰（Release 构建才启用）
         _serviceProvider.GetRequiredService<IUpdateService>().StartStartupCheck();
+
+        // 本地 Steam 账号导入：纯本地文件检测、零网络，先于预热完成，
+        // 首次启动的用户一进战绩页就能按「默认加载当前账号」自动查询自己
+        _serviceProvider.GetRequiredService<ISteamAccountImportService>().Start();
+
+        // 后台预热：启动后逐个补缓存（一次一件、间隔拉开、用户操作时让路）
+        _serviceProvider.GetRequiredService<IBackgroundWarmupService>().Start();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -137,23 +145,42 @@ public partial class App : Application
             return nav;
         });
 
+        // 网络设置：所有出站 API 走 ProxySwitchHandler 主通道，路由优先级 手动 > 自动检测 > 直连
+        services.AddSingleton<INetworkSettingsService, NetworkSettingsService>();
+        services.AddSingleton<IAutoProxyService, AutoProxyService>();
+        services.AddSingleton<INetworkGate, NetworkGate>();
+        services.AddSingleton<ISteamAccountDetector, SteamAccountDetector>();
+        services.AddSingleton<ISteamAccountImportService, SteamAccountImportService>();
+        services.AddSingleton<IBackgroundWarmupService, BackgroundWarmupService>();
+
         services.AddHttpClient(HeroProfileService.HttpClientName, client =>
             {
                 client.Timeout = TimeSpan.FromSeconds(20);
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
             })
+            .ConfigurePrimaryHttpMessageHandler(sp => new ProxySwitchHandler(
+                sp.GetRequiredService<INetworkSettingsService>(),
+                sp.GetRequiredService<IAutoProxyService>()))
             .AddPolicyHandler(GetRetryPolicy());
 
         services.AddHttpClient(HeroCounterService.HttpClientName, client =>
             {
                 client.BaseAddress = new Uri(Helpers.ApiEndpoints.OpenDotaBase);
-                client.Timeout = TimeSpan.FromSeconds(15);
+                // 整链安全网：真实单发超时由内层 Polly 超时策略控制（见 GetOpendotaResiliencePolicy），
+                // 预算 = 3 发 × 20s + 退避 5/10s ≈ 75s，安全网放宽到 100s 只做兜底
+                client.Timeout = TimeSpan.FromSeconds(100);
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
             })
-            .AddPolicyHandler(GetRetryPolicy());
+            .ConfigurePrimaryHttpMessageHandler(sp => new ProxySwitchHandler(
+                sp.GetRequiredService<INetworkSettingsService>(),
+                sp.GetRequiredService<IAutoProxyService>()))
+            .AddPolicyHandler(GetOpendotaResiliencePolicy());
 
         // GitHub Releases：升级检查。GitHub 强制要求 User-Agent，缺了直接 403。
         services.AddHttpClient(UpdateService.HttpClientName, UpdateService.ConfigureHttpClient)
+            .ConfigurePrimaryHttpMessageHandler(sp => new ProxySwitchHandler(
+                sp.GetRequiredService<INetworkSettingsService>(),
+                sp.GetRequiredService<IAutoProxyService>()))
             .AddPolicyHandler(GetRetryPolicy());
 
         // Steam 头像框：抓 steamcommunity 资料页。部分地区对该域名是「间歇放行」而非全断
@@ -164,6 +191,9 @@ public partial class App : Application
             client.Timeout = TimeSpan.FromSeconds(8);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("DotaInsight/1.0");
         })
+        .ConfigurePrimaryHttpMessageHandler(sp => new ProxySwitchHandler(
+            sp.GetRequiredService<INetworkSettingsService>(),
+            sp.GetRequiredService<IAutoProxyService>()))
         .AddPolicyHandler(HttpPolicyExtensions
             .HandleTransientHttpError()
             .OrResult(r => (int)r.StatusCode == 429)
@@ -200,18 +230,32 @@ public partial class App : Application
         services.AddTransient<ClearCacheDialogViewModel>();
         services.AddTransient<ClearCacheDialogWindow>();
 
+        // 网络设置弹窗：同上，输入框从当前设置初始化，保存即广播
+        services.AddTransient<NetworkSettingsDialogViewModel>();
+        services.AddTransient<NetworkSettingsDialogWindow>();
+
         services.AddTransient<MainWindow>();
     }
 
-    private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+    private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy(
+        int retryCount = 2,
+        Func<int, TimeSpan>? sleep = null)
     {
+        sleep ??= attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt));
         return HttpPolicyExtensions
             .HandleTransientHttpError()
+            // 内层 Polly 超时策略以 TimeoutRejectedException 拒绝，
+            // 不属于 TransientHttpError；不重试的话线路抖动时一发就死。
+            // 注意：它不继承 TimeoutException（基类是 Exception），必须按具体类型匹配；
+            // 也不能靠匹配 HttpClient 超时的 TaskCanceledException——Polly 在管道内部，
+            // 看到的只有套接字层的 TaskCanceledException→IOException 链，
+            // TimeoutException 包装是 HttpClient 在管道外加的，到不了重试过滤器。
+            // 用户主动取消走 OperationCanceledException，不会误重试。
+            .Or<TimeoutRejectedException>()
             .OrResult(r => (int)r.StatusCode == 429)
             .WaitAndRetryAsync(
-                retryCount: 2,
-                // 约 2s、4s，给 OpenDota 限流留恢复窗口
-                sleepDurationProvider: attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
+                retryCount: retryCount,
+                sleepDurationProvider: sleep,
                 onRetry: (outcome, delay, attempt, _) =>
                 {
                     Log.Warning(
@@ -221,4 +265,23 @@ public partial class App : Application
                         outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString());
                 });
     }
+
+    /// <summary>
+    /// OpenDota 专用韧性：外层重试 × 内层单发超时。
+    /// 单发超时必须放在 Polly 链内层——client.Timeout 是整条 handler 链的预算，
+    /// 第 1 发超时就耗光预算，重试第 2 发被已取消的令牌秒杀（表现为从不重试）。
+    /// 且 Polly 在管道内部只能看到套接字层的异常形状，靠它识别 HttpClient 超时不可靠；
+    /// 内层超时策略由 Polly 自己抛 TimeoutRejectedException，形状确定。
+    ///
+    /// 预算依据：高峰期实测单发可到 12~25s（/players/{id}/wl 甚至 >25s），
+    /// 8s 单发会让每一发都必然超时、重试再多也等不到一次成功。
+    /// 3 发 × 20s、间隔 5/10s（总 ~75s），既覆盖慢线路又不至于让用户干等太久；
+    /// 期间用户点其他选手会取消本轮。
+    /// </summary>
+    private static IAsyncPolicy<HttpResponseMessage> GetOpendotaResiliencePolicy()
+        => Policy.WrapAsync(
+            GetRetryPolicy(
+                retryCount: 2,
+                sleep: attempt => TimeSpan.FromSeconds(5 * attempt)),
+            Policy.TimeoutAsync<HttpResponseMessage>(TimeSpan.FromSeconds(20)));
 }
